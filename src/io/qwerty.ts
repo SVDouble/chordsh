@@ -5,7 +5,9 @@ const KEYS = 'awsedftgyhujkolp;';
 
 /** Don't play notes while the user is typing in a form field. */
 const typing = (e: KeyboardEvent) =>
-  e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
+  e.target instanceof HTMLInputElement ||
+  e.target instanceof HTMLTextAreaElement ||
+  e.target instanceof HTMLSelectElement;
 
 export function attachQwerty(h: MidiHandlers): () => void {
   let octave = 0;
@@ -16,8 +18,10 @@ export function attachQwerty(h: MidiHandlers): () => void {
     const k = e.key.toLowerCase();
     if (k === 'z') octave = Math.max(-3, octave - 1);
     else if (k === 'x') octave = Math.min(3, octave + 1);
-    else if (k === ' ') { e.preventDefault(); h.pedal(true, performance.now()); }
-    else {
+    else if (k === ' ') {
+      e.preventDefault();
+      h.pedal(true, performance.now());
+    } else {
       const i = KEYS.indexOf(k);
       if (i < 0) return;
       const note = 60 + 12 * octave + i;
@@ -35,5 +39,8 @@ export function attachQwerty(h: MidiHandlers): () => void {
   };
   addEventListener('keydown', onDown);
   addEventListener('keyup', onUp);
-  return () => { removeEventListener('keydown', onDown); removeEventListener('keyup', onUp); };
+  return () => {
+    removeEventListener('keydown', onDown);
+    removeEventListener('keyup', onUp);
+  };
 }

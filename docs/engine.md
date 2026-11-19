@@ -24,7 +24,7 @@ MIDI / keyboard / library piece
 **Instant layer — `Segmenter` + `identify()`.** Groups onsets (70 ms), separates harmony from melody (held
 chords anchor the harmony; notes above them are melody; rolled chords; auto hand split), and names the
 notes you are holding with the rule-based recogniser in `theory/chords.ts` (every root scored; extensions,
-inversions, rootless voicings). This is what *Now playing*, practice mode and song following use: it reacts
+inversions, rootless voicings). This is what _Now playing_, practice mode and song following use: it reacts
 immediately and matches what your hands do.
 
 **Analysis layer — `Harmonizer`.** Explains the whole performance. Changes to its conclusions flow back into
@@ -38,40 +38,40 @@ the history (`↻`).
   the next onset doesn't erase them.
 - **States.** 24 keys × (12 roots × 11 chord types: maj, min, dim, aug, sus4, sus2, 7, maj7, m7, m7♭5, °7) = 3,168.
 - **Scores** (log-domain, per second of music):
-  - *emission* — template fit: weighted chord tones present, missing tones and unexplained notes penalised,
+  - _emission_ — template fit: weighted chord tones present, missing tones and unexplained notes penalised,
     bass-is-root bonus;
-  - *chord-in-key prior* — diatonic > secondary dominant / leading-tone > borrowed > other; tonic and
+  - _chord-in-key prior_ — diatonic > secondary dominant / leading-tone > borrowed > other; tonic and
     dominant bonuses; written in scale degrees, so it holds in every key;
-  - *key fit* — share of the segment inside the key's scale;
-  - *transitions* — changing chord costs `chordChange`, changing key costs `keyChange` (pivot: key change
+  - _key fit_ — share of the segment inside the key's scale;
+  - _transitions_ — changing chord costs `chordChange`, changing key costs `keyChange` (pivot: key change
     on the same chord is allowed).
 - **Decoding.** Viterbi in O(states) per segment (four ways into a state: stay, new chord, pivot, both).
-  - *live* = best state of the newest column (`current()`, `liveChords(k)`);
-  - *hindsight* = backtracked best path (`path()`), recomputed as music arrives → earlier labels can change;
-  - *theories* = best path per final key, softmax over their scores (`theories()`, `keyDistribution()`);
-  - *top-k* = max-marginals from a backward pass (`ranked()`), used by the benchmark.
-- **Open segment.** The chord you are still playing is evaluated *tentatively* (not committed) so it shows
+  - _live_ = best state of the newest column (`current()`, `liveChords(k)`);
+  - _hindsight_ = backtracked best path (`path()`), recomputed as music arrives → earlier labels can change;
+  - _theories_ = best path per final key, softmax over their scores (`theories()`, `keyDistribution()`);
+  - _top-k_ = max-marginals from a backward pass (`ranked()`), used by the benchmark.
+- **Open segment.** The chord you are still playing is evaluated _tentatively_ (not committed) so it shows
   up immediately; once released it counts until the sound has died away.
 - **Parameters** live in `DEFAULT_PARAMS`, tuned with `npm run tune` on the benchmark's tune split.
 
 ## Bars (BeatTracker)
 
 Tempo by autocorrelation of an onset envelope (8 s window, prior around 100 bpm), phase by beat-position
-energy, then bars by a Viterbi over beat-in-bar positions where downbeats earn *accents* (new bass note,
+energy, then bars by a Viterbi over beat-in-bar positions where downbeats earn _accents_ (new bass note,
 fresh harmony) and 3 vs 4 beats per bar is chosen by contrast. Bars are **relative**: they are only shown
 when the pulse is confident, or when a metronome / MIDI file / library piece fixes the tempo.
 
 ## Theory modules
 
-| module | job |
-|---|---|
-| `theory/pitch.ts` | pitch classes, letter-correct spelling |
-| `theory/scales.ts` | keys, modes, relations (relative, parallel, circle of fifths) |
-| `theory/chords.ts` | chord recognition from any note set, naming, tone roles |
-| `theory/symbols.ts` | lead-sheet chord-symbol parser (round-trips our names) |
-| `theory/roman.ts` | function in a key: diatonic, secondary dominant, tritone sub, backdoor, borrowed, Neapolitan… |
-| `theory/patterns.ts` | ii–V–I, cadences, circle of fifths, loops |
-| `theory/voicing.ts` | voice-led voicings for suggestions |
+| module               | job                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `theory/pitch.ts`    | pitch classes, letter-correct spelling                                                        |
+| `theory/scales.ts`   | keys, modes, relations (relative, parallel, circle of fifths)                                 |
+| `theory/chords.ts`   | chord recognition from any note set, naming, tone roles                                       |
+| `theory/symbols.ts`  | lead-sheet chord-symbol parser (round-trips our names)                                        |
+| `theory/roman.ts`    | function in a key: diatonic, secondary dominant, tritone sub, backdoor, borrowed, Neapolitan… |
+| `theory/patterns.ts` | ii–V–I, cadences, circle of fifths, loops                                                     |
+| `theory/voicing.ts`  | voice-led voicings for suggestions                                                            |
 
 ## Coaching and charts
 

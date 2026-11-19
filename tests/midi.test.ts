@@ -3,14 +3,21 @@ import { Midi } from '../src/io/midi';
 
 function fakePort(id: string, name: string, failOpen = false) {
   return {
-    id, name, connection: 'closed', onmidimessage: null as ((e: unknown) => void) | null,
-    open: vi.fn(() => (failOpen ? Promise.reject(Object.assign(new Error('busy'), { name: 'InvalidAccessError' })) : Promise.resolve())),
+    id,
+    name,
+    connection: 'closed',
+    onmidimessage: null as ((e: unknown) => void) | null,
+    open: vi.fn(() =>
+      failOpen ? Promise.reject(Object.assign(new Error('busy'), { name: 'InvalidAccessError' })) : Promise.resolve(),
+    ),
   };
 }
 
 async function setup(ports: ReturnType<typeof fakePort>[]) {
   const inputs = new Map(ports.map((p) => [p.id, p]));
-  vi.stubGlobal('navigator', { requestMIDIAccess: () => Promise.resolve({ inputs, outputs: new Map(), onstatechange: null }) });
+  vi.stubGlobal('navigator', {
+    requestMIDIAccess: () => Promise.resolve({ inputs, outputs: new Map(), onstatechange: null }),
+  });
   const h = { noteOn: vi.fn(), noteOff: vi.fn(), pedal: vi.fn() };
   const midi = new Midi(h);
   await midi.init();

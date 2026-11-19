@@ -25,12 +25,12 @@ annotated piece.
 
 ## Developer commands
 
-| command | does |
-|---|---|
+| command              | does                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
 | `npm run fetch-data` | download + convert the benchmark corpora into `local/data` (pinned in `scripts/datasets.json`) |
-| `npm run benchmark` | score the engine on all corpora (`WRITE=1` records results in `benchmarks/`) |
-| `npm run tune` | search engine parameters on the tune split |
-| `npm run replay` | replay the newest session recording (`local/recordings/`) through the engine |
+| `npm run benchmark`  | score the engine on all corpora (`WRITE=1` records results in `benchmarks/`)                   |
+| `npm run tune`       | search engine parameters on the tune split                                                     |
+| `npm run replay`     | replay the newest session recording (`local/recordings/`) through the engine                   |
 
 Everything local and uncommitted (datasets, recordings, caches) lives under `local/`.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
@@ -44,6 +44,6 @@ bytes (e.g. `90 3c 64` = note on, middle C).
   Close it, unplug/replug the device, reload the page. A red chip says why a port couldn't be opened.
 - **Device not listed**: plug it in, then reload; check `aconnect -l` (Linux) shows it.
 - Use Chrome or Edge. Firefox needs its Web MIDI site-permission add-on.
-- ⚙ → *MIDI in* picks one port instead of all devices (Midi Through loopback ports are always ignored, so
+- ⚙ → _MIDI in_ picks one port instead of all devices (Midi Through loopback ports are always ignored, so
   suggestions sent to MIDI out don't echo back).
 - No sound from a controller like the MPK mini? It has no speakers: click the page once, and keep 🔊 on.

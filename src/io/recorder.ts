@@ -1,7 +1,16 @@
 import type { TraceEvent } from '../engine/session';
 
-export interface InputEvent { t: number; kind: 'on' | 'off' | 'pedal'; note: number; vel: number }
-export interface RawMidi { t: number; port: string; data: number[] }
+export interface InputEvent {
+  t: number;
+  kind: 'on' | 'off' | 'pedal';
+  note: number;
+  vel: number;
+}
+export interface RawMidi {
+  t: number;
+  port: string;
+  data: number[];
+}
 export interface Recording {
   version: 1;
   started: string;
@@ -24,11 +33,23 @@ export class Recorder {
   private raw: RawMidi[] = [];
   private trace: TraceEvent[] = [];
 
-  get elapsed(): number { return this.active ? performance.now() - this.t0 : 0; }
-  get counts() { return { input: this.inputs.length, engine: this.trace.length }; }
+  get elapsed(): number {
+    return this.active ? performance.now() - this.t0 : 0;
+  }
+  get counts() {
+    return { input: this.inputs.length, engine: this.trace.length };
+  }
 
   start(settings: Record<string, unknown>) {
-    Object.assign(this, { active: true, t0: performance.now(), started: new Date().toISOString(), settings, inputs: [], raw: [], trace: [] });
+    Object.assign(this, {
+      active: true,
+      t0: performance.now(),
+      started: new Date().toISOString(),
+      settings,
+      inputs: [],
+      raw: [],
+      trace: [],
+    });
   }
 
   input(kind: InputEvent['kind'], note: number, vel: number, t = performance.now()) {
@@ -44,8 +65,14 @@ export class Recorder {
   stop(note: string): Recording {
     this.active = false;
     return {
-      version: 1, started: this.started, durationMs: Math.round(performance.now() - this.t0), note, settings: this.settings,
-      input: this.inputs, midi: this.raw, engine: this.trace,
+      version: 1,
+      started: this.started,
+      durationMs: Math.round(performance.now() - this.t0),
+      note,
+      settings: this.settings,
+      input: this.inputs,
+      midi: this.raw,
+      engine: this.trace,
     };
   }
 }
@@ -56,7 +83,9 @@ export async function saveRecording(rec: Recording): Promise<string> {
   try {
     const res = await fetch('/__recordings', { method: 'POST', headers: { 'content-type': 'application/json' }, body });
     if (res.ok) return ((await res.json()) as { file: string }).file;
-  } catch { /* not running under the dev server */ }
+  } catch {
+    /* not running under the dev server */
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
   a.download = `musify-session-${rec.started.replace(/[:.]/g, '-')}.json`;

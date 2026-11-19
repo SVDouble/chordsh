@@ -40,8 +40,8 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
   - more corpora: DCML Beethoven sonatas and ABC quartets, Weimar Jazz Database (real solos over changes),
     ChoCo chord charts across genres.
 - **Vocabulary layer** — a grammar of harmonic patterns (ii–V, tritone sub, backdoor, passing °7, pedal
-  points…) and figurations (arpeggios, Alberti bass, broken chords), so songs are analysed *in terms of the
-  vocabulary* and you can browse which patterns a song uses — building on the Jazz Harmony Treebank's
+  points…) and figurations (arpeggios, Alberti bass, broken chords), so songs are analysed _in terms of the
+  vocabulary_ and you can browse which patterns a song uses — building on the Jazz Harmony Treebank's
   preparation/prolongation trees.
 - **Live assistance without a fixed tempo** — phrase segmentation (by cadence and gaps) as the unit
   instead of bars when there's no pulse.
@@ -49,5 +49,5 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
 
 ## Hardware notes
 
-Recital Pro: USB-MIDI in works; whether it plays notes it *receives* depends on firmware (⚙ → MIDI out →
+Recital Pro: USB-MIDI in works; whether it plays notes it _receives_ depends on firmware (⚙ → MIDI out →
 Test). MPK mini: no speakers — sound comes from the browser synth (🔊).

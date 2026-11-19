@@ -16,7 +16,12 @@ function load(): { file: string; rec: Recording } {
   let file = process.env.REC;
   if (!file) {
     const dir = path.resolve('local', 'recordings');
-    const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort() : [];
+    const all = fs.existsSync(dir)
+      ? fs
+          .readdirSync(dir)
+          .filter((f) => f.endsWith('.json'))
+          .sort()
+      : [];
     if (!all.length) throw new Error('No recordings yet — press ● Rec in the app first.');
     file = path.join('local', 'recordings', all[all.length - 1]);
   }
@@ -28,14 +33,26 @@ const names = (ns: unknown) => (ns as number[]).map((n) => midiName(n)).join(' '
 
 function describe(e: TraceEvent, verbose: boolean): string | null {
   switch (e.kind) {
-    case 'harmony': return `  ≈ harmony ${e.chord ?? `(${e.result})`}  [${names(e.notes)}]${e.strike ? ' strike' : ' added'}${e.split != null ? ` split ${midiName(e.split as number)}` : ''}${verbose && (e.alts as string[]).length ? `  alts: ${(e.alts as string[]).join(', ')}` : ''}`;
-    case 'melody': return `  ♪ melody ${midiName(e.note as number)}`;
-    case 'retract-melody': return `  ↩ melody retracted → harmony: ${names(e.notes)}`;
-    case 'commit': return e.action === 'new' ? `★ CHORD ${e.name}  ${e.roman ?? ''}` : verbose ? `  · ${e.name} (${e.action}${e.into ? ` into ${e.into}` : ''})` : null;
-    case 'key': return verbose ? `  key ${e.key ?? '?'}  [${(e.top as string[]).join(', ')}]` : null;
-    case 'modulation': return `⇒ KEY ${e.from ?? '—'} → ${e.to}`;
-    case 'pattern': return `  ⌒ ${e.label}`;
-    default: return null;
+    case 'harmony':
+      return `  ≈ harmony ${e.chord ?? `(${e.result})`}  [${names(e.notes)}]${e.strike ? ' strike' : ' added'}${e.split != null ? ` split ${midiName(e.split as number)}` : ''}${verbose && (e.alts as string[]).length ? `  alts: ${(e.alts as string[]).join(', ')}` : ''}`;
+    case 'melody':
+      return `  ♪ melody ${midiName(e.note as number)}`;
+    case 'retract-melody':
+      return `  ↩ melody retracted → harmony: ${names(e.notes)}`;
+    case 'commit':
+      return e.action === 'new'
+        ? `★ CHORD ${e.name}  ${e.roman ?? ''}`
+        : verbose
+          ? `  · ${e.name} (${e.action}${e.into ? ` into ${e.into}` : ''})`
+          : null;
+    case 'key':
+      return verbose ? `  key ${e.key ?? '?'}  [${(e.top as string[]).join(', ')}]` : null;
+    case 'modulation':
+      return `⇒ KEY ${e.from ?? '—'} → ${e.to}`;
+    case 'pattern':
+      return `  ⌒ ${e.label}`;
+    default:
+      return null;
   }
 }
 
@@ -48,11 +65,18 @@ it('replay', () => {
   if (rec.settings.split !== undefined) s.seg.splitMode = rec.settings.split as typeof s.seg.splitMode;
   const base = 1_000_000;
   const out: { t: number; text: string }[] = [];
-  s.trace = (e) => { const d = describe(e, verbose); if (d) out.push({ t: e.t - base, text: d }); };
+  s.trace = (e) => {
+    const d = describe(e, verbose);
+    if (d) out.push({ t: e.t - base, text: d });
+  };
 
   // inputs: note-ons struck together are printed as one line
-  let now = 0, group: { t: number; notes: number[] } | null = null;
-  const flushGroup = () => { if (group) out.push({ t: group.t, text: `▼ ${group.notes.map((n) => midiName(n)).join(' ')}` }); group = null; };
+  let now = 0,
+    group: { t: number; notes: number[] } | null = null;
+  const flushGroup = () => {
+    if (group) out.push({ t: group.t, text: `▼ ${group.notes.map((n) => midiName(n)).join(' ')}` });
+    group = null;
+  };
   for (const e of rec.input) {
     vi.advanceTimersByTime(e.t - now);
     now = e.t;
@@ -63,8 +87,13 @@ it('replay', () => {
       s.noteOn(e.note, e.vel, base + e.t);
     } else {
       flushGroup();
-      if (e.kind === 'off') { if (verbose) out.push({ t: e.t, text: `▲ ${midiName(e.note)}` }); s.noteOff(e.note, base + e.t); }
-      else { out.push({ t: e.t, text: `pedal ${e.vel ? 'down' : 'up'}` }); s.pedal(e.vel > 0, base + e.t); }
+      if (e.kind === 'off') {
+        if (verbose) out.push({ t: e.t, text: `▲ ${midiName(e.note)}` });
+        s.noteOff(e.note, base + e.t);
+      } else {
+        out.push({ t: e.t, text: `pedal ${e.vel ? 'down' : 'up'}` });
+        s.pedal(e.vel > 0, base + e.t);
+      }
     }
   }
   flushGroup();
@@ -73,17 +102,19 @@ it('replay', () => {
   out.sort((a, b) => a.t - b.t);
   const live = rec.engine.filter((e) => e.kind === 'commit' && e.action === 'new').map((e) => e.name);
   const replayed = s.chords.map((c) => c.name);
-  console.log([
-    `\n${file}`,
-    `note: ${rec.note || '(none)'}`,
-    `${(rec.durationMs / 1000).toFixed(1)}s · ${rec.input.filter((e) => e.kind === 'on').length} notes · settings ${JSON.stringify(rec.settings)}`,
-    '',
-    ...out.map((o) => `${sec(o.t)}  ${o.text}`),
-    '',
-    `live chords     (${live.length}): ${live.join(' ')}`,
-    `replayed chords (${replayed.length}): ${replayed.join(' ')}`,
-    `melody: ${s.melody.map((m) => m.name).join(' ')}`,
-    `final key: ${s.key ? keyShort(s.key) : '—'}`,
-  ].join('\n'));
+  console.log(
+    [
+      `\n${file}`,
+      `note: ${rec.note || '(none)'}`,
+      `${(rec.durationMs / 1000).toFixed(1)}s · ${rec.input.filter((e) => e.kind === 'on').length} notes · settings ${JSON.stringify(rec.settings)}`,
+      '',
+      ...out.map((o) => `${sec(o.t)}  ${o.text}`),
+      '',
+      `live chords     (${live.length}): ${live.join(' ')}`,
+      `replayed chords (${replayed.length}): ${replayed.join(' ')}`,
+      `melody: ${s.melody.map((m) => m.name).join(' ')}`,
+      `final key: ${s.key ? keyShort(s.key) : '—'}`,
+    ].join('\n'),
+  );
   vi.useRealTimers();
 });

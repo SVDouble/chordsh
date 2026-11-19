@@ -33,7 +33,9 @@ export function patternsAtEnd(chords: Chord[], key: Key | null): PatternMatch[] 
   const n = chords.length;
   const out: PatternMatch[] = [];
   if (n < 2) return out;
-  const c = chords[n - 1], b = chords[n - 2], a = chords[n - 3];
+  const c = chords[n - 1],
+    b = chords[n - 2],
+    a = chords[n - 3];
   // A plain tonic triad moving up a 4th is I–IV, not a V–I into a new key.
   const dominant = (x: Chord) => isDominant(x) || (isDominantLike(x) && !(key && x.root === key.tonic));
 
@@ -49,9 +51,16 @@ export function patternsAtEnd(chords: Chord[], key: Key | null): PatternMatch[] 
     out.push({ kind: 'subV-I', length: 2, label: 'Tritone sub → I', target: tonicOf(c) });
   }
   if (key) {
-    const bd = mod12(b.root - key.tonic), cd = mod12(c.root - key.tonic);
-    if (cd === 0 && bd === 5 && stable(b)) out.push({ kind: 'plagal', length: 2, label: b.quality === 'min' && key.mode === 'major' ? 'iv–I minor plagal' : 'Plagal (IV–I)' });
-    if (bd === 7 && isDominantLike(b) && cd === (key.mode === 'major' ? 9 : 8)) out.push({ kind: 'deceptive', length: 2, label: 'Deceptive cadence' });
+    const bd = mod12(b.root - key.tonic),
+      cd = mod12(c.root - key.tonic);
+    if (cd === 0 && bd === 5 && stable(b))
+      out.push({
+        kind: 'plagal',
+        length: 2,
+        label: b.quality === 'min' && key.mode === 'major' ? 'iv–I minor plagal' : 'Plagal (IV–I)',
+      });
+    if (bd === 7 && isDominantLike(b) && cd === (key.mode === 'major' ? 9 : 8))
+      out.push({ kind: 'deceptive', length: 2, label: 'Deceptive cadence' });
     if (bd === 10 && isDominant(b) && cd === 0) out.push({ kind: 'backdoor', length: 2, label: 'Backdoor ♭VII7–I' });
   }
   if (minorish(b) && dominant(c) && up4(b, c)) {

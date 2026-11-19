@@ -32,13 +32,21 @@ export function parseChordSymbol(symbol: string): Chord | null {
     }
   }
   let q = rest
-    .replace(/♭/g, 'b').replace(/♯/g, '#').replace(/𝄫/g, 'bb')
+    .replace(/♭/g, 'b')
+    .replace(/♯/g, '#')
+    .replace(/𝄫/g, 'bb')
     .replace(/[()\s,]/g, '')
-    .replace(/Δ/g, 'maj').replace(/^M(?=$|7|9|11|13)/, 'maj')
+    .replace(/Δ/g, 'maj')
+    .replace(/^M(?=$|7|9|11|13)/, 'maj')
     .replace(/^(-|min|mi)/, 'm')
-    .replace(/^ø7?/, 'm7b5').replace(/^(°|o)/, 'dim').replace(/^\+/, 'aug').replace(/\+/, '#5');
+    .replace(/^ø7?/, 'm7b5')
+    .replace(/^(°|o)/, 'dim')
+    .replace(/^\+/, 'aug')
+    .replace(/\+/, '#5');
 
-  let third = 4, fifth = 7, seventh = -1;
+  let third = 4,
+    fifth = 7,
+    seventh = -1;
   const ext: number[] = [];
   const take = (re: RegExp) => {
     const m = re.exec(q);
@@ -46,15 +54,21 @@ export function parseChordSymbol(symbol: string): Chord | null {
     return !!m;
   };
   const dim = take(/^dim/);
-  if (dim) { third = 3; fifth = 6; }
-  else if (take(/^aug/)) fifth = 8;
+  if (dim) {
+    third = 3;
+    fifth = 6;
+  } else if (take(/^aug/)) fifth = 8;
   else if (take(/^m(?!aj)/)) third = 3;
   if (take(/sus2/)) third = 2;
   else if (take(/sus4?/)) third = 5;
   if (take(/no3/)) third = -1;
   if (take(/no5/)) fifth = -1;
   if (take(/^5$/)) third = -1;
-  if (take(/alt/)) { seventh = 10; fifth = -1; ext.push(1, 3, 8); }
+  if (take(/alt/)) {
+    seventh = 10;
+    fifth = -1;
+    ext.push(1, 3, 8);
+  }
   const maj = take(/maj/);
   const num = /^(6\/9|69|13|11|9|7|6)/.exec(q);
   if (num) {

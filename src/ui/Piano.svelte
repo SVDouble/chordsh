@@ -2,7 +2,8 @@
   import { live, session, ui } from './store.svelte';
   import { mod12 } from '../theory/pitch';
 
-  const LO = 21, HI = 108; // full 88 keys
+  const LO = 21,
+    HI = 108; // full 88 keys
   const BLACK = new Set([1, 3, 6, 8, 10]);
   let canvas: HTMLCanvasElement;
   let width = $state(800);
@@ -35,7 +36,8 @@
     const playing = new Set(ui.playing ?? []);
     const colour = (n: number) => {
       const sounding = seg.held.has(n) || seg.sustained.has(n);
-      if (sounding) return seg.melodyNotes.has(n) ? css('--melody') : seg.harmony.has(n) ? css('--harmony') : css('--accent');
+      if (sounding)
+        return seg.melodyNotes.has(n) ? css('--melody') : seg.harmony.has(n) ? css('--harmony') : css('--accent');
       if (playing.has(n)) return css('--audition');
       return null;
     };
@@ -48,7 +50,10 @@
         ctx.fillStyle = c ?? (k.black ? css('--key-black') : css('--key-white'));
         ctx.fillRect(k.x + 0.5, 0, k.w - 1, h);
         ctx.globalAlpha = 1;
-        if (!k.black) { ctx.strokeStyle = css('--line'); ctx.strokeRect(k.x + 0.5, 0.5, k.w - 1, h - 1); }
+        if (!k.black) {
+          ctx.strokeStyle = css('--line');
+          ctx.strokeRect(k.x + 0.5, 0.5, k.w - 1, h - 1);
+        }
         if (guide.has(n)) {
           ctx.fillStyle = css('--guide');
           ctx.beginPath();
@@ -77,16 +82,30 @@
   let mouseNote: number | null = null;
   function hit(e: PointerEvent): number | null {
     const r = canvas.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const x = e.clientX - r.left,
+      y = e.clientY - r.top;
     let found: number | null = null;
-    for (const [n, k] of keys) if (x >= k.x && x < k.x + k.w && (!k.black || y < height * 0.62) && (k.black || found === null)) found = n;
+    for (const [n, k] of keys)
+      if (x >= k.x && x < k.x + k.w && (!k.black || y < height * 0.62) && (k.black || found === null)) found = n;
     return found;
   }
-  const down = (e: PointerEvent) => { mouseNote = hit(e); if (mouseNote !== null) live.noteOn(mouseNote, 90); };
-  const up = () => { if (mouseNote !== null) live.noteOff(mouseNote); mouseNote = null; };
+  const down = (e: PointerEvent) => {
+    mouseNote = hit(e);
+    if (mouseNote !== null) live.noteOn(mouseNote, 90);
+  };
+  const up = () => {
+    if (mouseNote !== null) live.noteOff(mouseNote);
+    mouseNote = null;
+  };
 </script>
 
 <svelte:window bind:innerHeight={winH} />
 <div class="piano" bind:clientWidth={width}>
-  <canvas bind:this={canvas} style="width:{width}px;height:{height}px" onpointerdown={down} onpointerup={up} onpointerleave={up}></canvas>
+  <canvas
+    bind:this={canvas}
+    style="width:{width}px;height:{height}px"
+    onpointerdown={down}
+    onpointerup={up}
+    onpointerleave={up}
+  ></canvas>
 </div>

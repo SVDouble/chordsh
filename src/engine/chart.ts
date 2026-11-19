@@ -14,7 +14,12 @@ export interface ChartChord {
   section?: string;
   roman?: Roman;
 }
-export interface Insight { from: number; to: number; text: string; where: string }
+export interface Insight {
+  from: number;
+  to: number;
+  text: string;
+  where: string;
+}
 export interface Chart {
   title: string;
   text: string;
@@ -32,17 +37,29 @@ export function parseChart(text: string, title = 'Untitled'): Chart {
   const chords: ChartChord[] = [];
   const errors: string[] = [];
   const usesBars = text.includes('|');
-  let bar = 1, section: string | undefined, barHasChord = false;
+  let bar = 1,
+    section: string | undefined,
+    barHasChord = false;
   for (const raw of text.split('\n')) {
     let line = raw.replace(/\/\/.*$/, '').trim();
     const sec = /^\[(.+?)\]/.exec(line);
-    if (sec) { section = sec[1]; line = line.slice(sec[0].length); }
+    if (sec) {
+      section = sec[1];
+      line = line.slice(sec[0].length);
+    }
     for (const tok of line.replace(/\|/g, ' | ').split(/\s+/)) {
       if (!tok || /^N\.?C\.?$/i.test(tok)) continue;
-      if (/^[|:]+$/.test(tok)) { if (barHasChord) bar++; barHasChord = false; continue; }
+      if (/^[|:]+$/.test(tok)) {
+        if (barHasChord) bar++;
+        barHasChord = false;
+        continue;
+      }
       const prev = chords[chords.length - 1];
       const chord = tok === '%' ? prev?.chord : parseChordSymbol(tok);
-      if (!chord) { errors.push(tok); continue; }
+      if (!chord) {
+        errors.push(tok);
+        continue;
+      }
       const b = usesBars ? bar : chords.length + 1;
       chords.push({ i: chords.length, symbol: tok === '%' ? prev!.symbol : tok, chord, bar: b, section });
       section = undefined;
@@ -75,9 +92,16 @@ export function analyzeChart(chart: Chart, key?: Key): Chart {
   chart.chords.forEach((c, i) => {
     if (!k) return;
     const deg = mod12(c.chord.root - k.tonic);
-    c.roman = blues && isDominant(c.chord) && (deg === 0 || deg === 5)
-      ? { numeral: baseNumeral(deg, 'maj') + '7', kind: 'blues', func: deg ? 'PD' : 'T', explain: 'Blues dominant — in the blues, dominant 7ths on I and IV are the home sound, not tensions to resolve.' }
-      : analyzeRoman(c.chord, k, cs[i + 1]);
+    c.roman =
+      blues && isDominant(c.chord) && (deg === 0 || deg === 5)
+        ? {
+            numeral: baseNumeral(deg, 'maj') + '7',
+            kind: 'blues',
+            func: deg ? 'PD' : 'T',
+            explain:
+              'Blues dominant — in the blues, dominant 7ths on I and IV are the home sound, not tensions to resolve.',
+          }
+        : analyzeRoman(c.chord, k, cs[i + 1]);
     if (c.roman.kind !== 'diatonic')
       raw.push({ from: i, to: i, text: `${chordName(c.chord, k)} — ${c.roman.numeral}: ${c.roman.explain}` });
     const found = patternsAtEnd(cs.slice(Math.max(0, i - 7), i + 1), k);
@@ -91,15 +115,25 @@ export function analyzeChart(chart: Chart, key?: Key): Chart {
   });
   // Group repeated observations: "bars 1, 3, 5: …"
   const bar = (i: number) => chart.chords[i].bar;
-  const span = (x: Omit<Insight, 'where'>) => (bar(x.from) === bar(x.to) ? `${bar(x.from)}` : `${bar(x.from)}–${bar(x.to)}`);
+  const span = (x: Omit<Insight, 'where'>) =>
+    bar(x.from) === bar(x.to) ? `${bar(x.from)}` : `${bar(x.from)}–${bar(x.to)}`;
   const grouped = new Map<string, Insight>();
   for (const x of raw) {
     const g = grouped.get(x.text);
     if (g) g.where += `, ${span(x)}`;
     else grouped.set(x.text, { ...x, where: span(x) });
   }
-  const insights = [...grouped.values()].map((x) => ({ ...x, where: (x.where.includes(',') || x.where.includes('–') ? 'bars ' : 'bar ') + x.where }));
-  if (blues) insights.unshift({ from: 0, to: 0, where: 'form', text: 'Blues — dominant 7ths on I and IV are the home colour; the real cadences are the ii–Vs.' });
+  const insights = [...grouped.values()].map((x) => ({
+    ...x,
+    where: (x.where.includes(',') || x.where.includes('–') ? 'bars ' : 'bar ') + x.where,
+  }));
+  if (blues)
+    insights.unshift({
+      from: 0,
+      to: 0,
+      where: 'form',
+      text: 'Blues — dominant 7ths on I and IV are the home colour; the real cadences are the ii–Vs.',
+    });
   return { ...chart, key: k, insights };
 }
 

@@ -3,10 +3,19 @@ export interface MidiHandlers {
   noteOff(note: number, t: number): void;
   pedal(on: boolean, t: number): void;
 }
-export interface Port { id: string; name: string; device: string; error?: string }
+export interface Port {
+  id: string;
+  name: string;
+  device: string;
+  error?: string;
+}
 
 /** "MPK mini Plus II:MPK mini Plus II MIDI Port 36:0" → "MPK mini Plus II" */
-const deviceOf = (name: string) => name.split(':')[0].replace(/\s+(MIDI|Port)\b.*$/i, '').trim() || name;
+const deviceOf = (name: string) =>
+  name
+    .split(':')[0]
+    .replace(/\s+(MIDI|Port)\b.*$/i, '')
+    .trim() || name;
 /** Loopback ports would feed our own output back in as "playing". */
 const isLoopback = (name: string) => /midi through|loopback/i.test(name);
 
@@ -28,7 +37,10 @@ export class Midi {
   constructor(private h: MidiHandlers) {}
 
   async init() {
-    if (!navigator.requestMIDIAccess) { this.status = 'unsupported'; return this.onPorts(); }
+    if (!navigator.requestMIDIAccess) {
+      this.status = 'unsupported';
+      return this.onPorts();
+    }
     try {
       this.access = await navigator.requestMIDIAccess();
       this.status = 'ready';
@@ -43,12 +55,19 @@ export class Midi {
     }
   }
 
-  get devices(): string[] { return [...new Set(this.inputs.filter((p) => !isLoopback(p.name)).map((p) => p.device))]; }
+  get devices(): string[] {
+    return [...new Set(this.inputs.filter((p) => !isLoopback(p.name)).map((p) => p.device))];
+  }
 
   refresh() {
     if (!this.access) return;
     const list = (m: MIDIInputMap | MIDIOutputMap) =>
-      [...m.values()].map((p) => ({ id: p.id, name: p.name ?? p.id, device: deviceOf(p.name ?? p.id), error: this.errors.get(p.id) }));
+      [...m.values()].map((p) => ({
+        id: p.id,
+        name: p.name ?? p.id,
+        device: deviceOf(p.name ?? p.id),
+        error: this.errors.get(p.id),
+      }));
     this.inputs = list(this.access.inputs);
     this.outputs = list(this.access.outputs);
     for (const input of this.access.inputs.values()) {

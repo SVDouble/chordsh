@@ -12,7 +12,8 @@ export interface Comparison {
   missing: string[];
 }
 
-const third = (c: Chord) => (c.quality === 'maj' || c.quality === 'aug' ? 'major' : c.quality === 'min' || c.quality === 'dim' ? 'minor' : 'no');
+const third = (c: Chord) =>
+  c.quality === 'maj' || c.quality === 'aug' ? 'major' : c.quality === 'min' || c.quality === 'dim' ? 'minor' : 'no';
 
 /** Compare what you played with what the chart says — forgiving about voicing, strict about function. */
 export function compareChord(played: Chord, written: Chord, key: Key | null): Comparison {
@@ -21,18 +22,41 @@ export function compareChord(played: Chord, written: Chord, key: Key | null): Co
   const wPcs = chordPcs(written);
   const missingIdx = wPcs.map((p, i) => (have.has(p) ? -1 : i)).filter((i) => i >= 0);
   const missing = missingIdx.map((i) => wTones[i].role);
-  const missText = missingIdx.length ? [`missing ${missingIdx.map((i) => `${wTones[i].name} (${wTones[i].role})`).join(', ')}`] : [];
-  const wName = chordName(written, key), pName = chordName(played, key);
+  const missText = missingIdx.length
+    ? [`missing ${missingIdx.map((i) => `${wTones[i].name} (${wTones[i].role})`).join(', ')}`]
+    : [];
+  const wName = chordName(written, key),
+    pName = chordName(played, key);
 
   if (!missingIdx.length && have.size === new Set(wPcs).size)
-    return { verdict: 'exact', notes: played.root !== written.root ? [`same notes — reads as ${pName}, the chart calls it ${wName}`] : played.bass !== written.bass ? ['different bass note — still the same chord'] : [], missing };
+    return {
+      verdict: 'exact',
+      notes:
+        played.root !== written.root
+          ? [`same notes — reads as ${pName}, the chart calls it ${wName}`]
+          : played.bass !== written.bass
+            ? ['different bass note — still the same chord']
+            : [],
+      missing,
+    };
   if (played.root === written.root) {
-    if (!missingIdx.length) return { verdict: 'exact', notes: played.bass !== written.bass ? ['different bass note — still the same chord'] : [], missing };
+    if (!missingIdx.length)
+      return {
+        verdict: 'exact',
+        notes: played.bass !== written.bass ? ['different bass note — still the same chord'] : [],
+        missing,
+      };
     if (third(played) !== third(written))
-      return { verdict: 'wrong', notes: [`${third(played)} 3rd instead of ${third(written)} 3rd — that changes the chord's colour`], missing };
+      return {
+        verdict: 'wrong',
+        notes: [`${third(played)} 3rd instead of ${third(written)} 3rd — that changes the chord's colour`],
+        missing,
+      };
     const notes = [...missText];
-    if (played.seventh === 'b7' && written.seventh === 'maj7') notes.push('♭7 instead of maj7 turns it into a dominant');
-    if (played.seventh === 'maj7' && written.seventh === 'b7') notes.push('maj7 instead of ♭7 takes the pull out of the dominant');
+    if (played.seventh === 'b7' && written.seventh === 'maj7')
+      notes.push('♭7 instead of maj7 turns it into a dominant');
+    if (played.seventh === 'maj7' && written.seventh === 'b7')
+      notes.push('maj7 instead of ♭7 takes the pull out of the dominant');
     return { verdict: 'match', notes, missing };
   }
 
@@ -50,15 +74,38 @@ export function compareChord(played: Chord, written: Chord, key: Key | null): Co
   }
   const shared = wPcs.filter((p) => have.has(p)).length;
   if (key && shared >= 3) {
-    const a = analyzeRoman(played, key), b = analyzeRoman(written, key);
-    if (a.func === b.func) return { verdict: 'substitute', notes: [`${pName} shares ${shared} notes and the same function as ${wName}`], missing: [] };
+    const a = analyzeRoman(played, key),
+      b = analyzeRoman(written, key);
+    if (a.func === b.func)
+      return {
+        verdict: 'substitute',
+        notes: [`${pName} shares ${shared} notes and the same function as ${wName}`],
+        missing: [],
+      };
   }
-  return { verdict: 'wrong', notes: [`chart has ${wName} (${wTones.map((t) => t.name).join(' ')})`, ...missText], missing };
+  return {
+    verdict: 'wrong',
+    notes: [`chart has ${wName} (${wTones.map((t) => t.name).join(' ')})`, ...missText],
+    missing,
+  };
 }
 
-const ROLE_GROUP: Record<string, string> = { R: 'root', '3': '3rd', '♭3': '3rd', '5': '5th', '♭5': '5th', '♯5': '5th', '♭7': '7th', '7': '7th', '𝄫7': '7th', '6': '6th' };
+const ROLE_GROUP: Record<string, string> = {
+  R: 'root',
+  '3': '3rd',
+  '♭3': '3rd',
+  '5': '5th',
+  '♭5': '5th',
+  '♯5': '5th',
+  '♭7': '7th',
+  '7': '7th',
+  '𝄫7': '7th',
+  '6': '6th',
+};
 
-export interface CellResult extends Comparison { played: string }
+export interface CellResult extends Comparison {
+  played: string;
+}
 
 /** Follows your playing through a chart, re-syncing when you skip or repeat chords. */
 export class SongFollower {
@@ -72,7 +119,9 @@ export class SongFollower {
 
   constructor(public chart: Chart) {}
 
-  get expected() { return this.chart.chords[this.pos] ?? null; }
+  get expected() {
+    return this.chart.chords[this.pos] ?? null;
+  }
 
   jump(i: number) {
     this.pos = i;
@@ -131,7 +180,8 @@ export class SongFollower {
   }
 
   private tally(cmp: Comparison) {
-    for (const role of new Set(cmp.missing.map((m) => ROLE_GROUP[m] ?? m))) this.missingTally.set(role, (this.missingTally.get(role) ?? 0) + 1);
+    for (const role of new Set(cmp.missing.map((m) => ROLE_GROUP[m] ?? m)))
+      this.missingTally.set(role, (this.missingTally.get(role) ?? 0) + 1);
     if (cmp.notes.some((x) => x.includes('3rd instead'))) this.wrongQuality++;
   }
 
@@ -140,7 +190,9 @@ export class SongFollower {
     const out: string[] = [];
     const sorted = [...this.missingTally].sort((a, b) => b[1] - a[1]).filter(([, n]) => n >= 2);
     for (const [role, n] of sorted.slice(0, 3))
-      out.push(`You left out the ${role} ${n}× — ${role === '5th' ? 'fine, the 5th is the most expendable note' : role === 'root' ? 'fine if someone else plays bass' : "it carries the chord's colour, try keeping it"}.`);
+      out.push(
+        `You left out the ${role} ${n}× — ${role === '5th' ? 'fine, the 5th is the most expendable note' : role === 'root' ? 'fine if someone else plays bass' : "it carries the chord's colour, try keeping it"}.`,
+      );
     if (this.wrongQuality >= 2) out.push(`Major/minor mix-ups ${this.wrongQuality}× — check the 3rd of each chord.`);
     return out;
   }

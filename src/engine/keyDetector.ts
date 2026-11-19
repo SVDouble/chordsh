@@ -8,13 +8,23 @@ const MINOR = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 
 const TONE_WEIGHT: Record<string, number> = { '1': 1.5, '3': 1, b3: 1, '5': 0.7, b7: 0.8, '7': 0.8 };
 
 function correlate(h: ArrayLike<number>, profile: number[], rot: number): number {
-  let mh = 0, mp = 0;
-  for (let i = 0; i < 12; i++) { mh += h[i]; mp += profile[i]; }
-  mh /= 12; mp /= 12;
-  let num = 0, dh = 0, dp = 0;
+  let mh = 0,
+    mp = 0;
   for (let i = 0; i < 12; i++) {
-    const a = h[mod12(i + rot)] - mh, b = profile[i] - mp;
-    num += a * b; dh += a * a; dp += b * b;
+    mh += h[i];
+    mp += profile[i];
+  }
+  mh /= 12;
+  mp /= 12;
+  let num = 0,
+    dh = 0,
+    dp = 0;
+  for (let i = 0; i < 12; i++) {
+    const a = h[mod12(i + rot)] - mh,
+      b = profile[i] - mp;
+    num += a * b;
+    dh += a * a;
+    dp += b * b;
   }
   return dh && dp ? num / Math.sqrt(dh * dp) : 0;
 }
@@ -32,7 +42,10 @@ export class KeyDetector {
   private last = 0;
 
   /** `chordDecay` < 1 makes recent chords dominate (live); use 1 and Infinity to weigh a whole chart evenly. */
-  constructor(public halfLifeMs = 40000, public chordDecay = 0.85) {}
+  constructor(
+    public halfLifeMs = 40000,
+    public chordDecay = 0.85,
+  ) {}
 
   reset() {
     this.hist.fill(0);
@@ -46,7 +59,10 @@ export class KeyDetector {
     const dt = t - this.last;
     const f = (dt > 0 && this.last ? Math.pow(0.5, dt / this.halfLifeMs) : 1) * extra;
     for (let i = 0; i < 12; i++) this.hist[i] *= f;
-    for (let i = 0; i < 24; i++) { this.fit[i] *= f; this.cad[i] *= f; }
+    for (let i = 0; i < 24; i++) {
+      this.fit[i] *= f;
+      this.cad[i] *= f;
+    }
     this.fitW *= f;
     this.last = t;
   }
@@ -86,11 +102,17 @@ export class KeyDetector {
     let max = -Infinity;
     for (let i = 0; i < 24; i++) {
       const k = keyFromIndex(i);
-      s[i] = 3 * correlate(this.hist, k.mode === 'major' ? MAJOR : MINOR, k.tonic) + 1.2 * (this.fit[i] / norm) + this.cad[i];
+      s[i] =
+        3 * correlate(this.hist, k.mode === 'major' ? MAJOR : MINOR, k.tonic) +
+        1.2 * (this.fit[i] / norm) +
+        this.cad[i];
       max = Math.max(max, s[i]);
     }
     let sum = 0;
-    for (let i = 0; i < 24; i++) { s[i] = Math.exp((s[i] - max) / 0.5); sum += s[i]; }
+    for (let i = 0; i < 24; i++) {
+      s[i] = Math.exp((s[i] - max) / 0.5);
+      sum += s[i];
+    }
     for (let i = 0; i < 24; i++) s[i] /= sum;
     return s;
   }
@@ -99,7 +121,8 @@ export class KeyDetector {
   flavour(k: Key): ScaleName | null {
     const total = this.hist.reduce((a, b) => a + b, 0);
     if (total < 2) return null;
-    const cands: ScaleName[] = k.mode === 'major' ? ['ionian', 'mixolydian', 'lydian'] : ['aeolian', 'dorian', 'phrygian', 'harmonicMinor'];
+    const cands: ScaleName[] =
+      k.mode === 'major' ? ['ionian', 'mixolydian', 'lydian'] : ['aeolian', 'dorian', 'phrygian', 'harmonicMinor'];
     const fitOf = (s: ScaleName) => {
       const set = new Set(SCALES[s].map((i) => mod12(i + k.tonic)));
       let v = 0;
@@ -107,8 +130,15 @@ export class KeyDetector {
       return v / total;
     };
     const base = fitOf(cands[0]);
-    let best = cands[0], bv = base;
-    for (const s of cands.slice(1)) { const v = fitOf(s); if (v > bv) { bv = v; best = s; } }
+    let best = cands[0],
+      bv = base;
+    for (const s of cands.slice(1)) {
+      const v = fitOf(s);
+      if (v > bv) {
+        bv = v;
+        best = s;
+      }
+    }
     return best !== cands[0] && bv - base > 0.06 ? best : null;
   }
 }

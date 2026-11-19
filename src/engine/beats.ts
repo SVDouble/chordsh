@@ -9,7 +9,8 @@
  */
 const BIN = 10; // ms
 const WINDOW = 8000;
-const MIN_P = 380, MAX_P = 1250; // ~158 … 48 bpm
+const MIN_P = 380,
+  MAX_P = 1250; // ~158 … 48 bpm
 
 export class BeatTracker {
   beatsPerBar = 4;
@@ -32,8 +33,10 @@ export class BeatTracker {
   onset(t: number, w: number, accent = 0) {
     if (accent > 0) this.accents.push({ t, accent });
     const last = this.onsets[this.onsets.length - 1];
-    if (last && t - last.t < 30) { last.w += w; last.accent += accent; }
-    else this.onsets.push({ t, w, accent });
+    if (last && t - last.t < 30) {
+      last.w += w;
+      last.accent += accent;
+    } else this.onsets.push({ t, w, accent });
     while (this.onsets.length && this.onsets[0].t < t - 4 * WINDOW) this.onsets.shift();
     if (t - this.lastUpdate > 1000) this.update(t);
   }
@@ -41,35 +44,58 @@ export class BeatTracker {
   update(now: number) {
     this.lastUpdate = now;
     const recent = this.onsets.filter((o) => o.t > now - WINDOW);
-    if (this.fixed) { this.period = this.fixed.period; this.confidence = 1; this.regrid(now, this.fixed.phase, this.fixed.period); return; }
+    if (this.fixed) {
+      this.period = this.fixed.period;
+      this.confidence = 1;
+      this.regrid(now, this.fixed.phase, this.fixed.period);
+      return;
+    }
     if (recent.length < 6) return;
-    const t0 = now - WINDOW, n = Math.ceil(WINDOW / BIN);
+    const t0 = now - WINDOW,
+      n = Math.ceil(WINDOW / BIN);
     const env = new Float64Array(n);
     for (const o of recent) {
       const i = Math.floor((o.t - t0) / BIN);
       for (let d = -3; d <= 3; d++) if (i + d >= 0 && i + d < n) env[i + d] += o.w * Math.exp(-(d * d) / 4);
     }
     // tempo: autocorrelation × prior, with half-tempo support (metrical consistency)
-    const ac = (lagF: number) => { const lag = Math.round(lagF); let s = 0; for (let i = lag; i < n; i++) s += env[i] * env[i - lag]; return s; };
-    let bestP = 0, bestS = -1, total = 0;
+    const ac = (lagF: number) => {
+      const lag = Math.round(lagF);
+      let s = 0;
+      for (let i = lag; i < n; i++) s += env[i] * env[i - lag];
+      return s;
+    };
+    let bestP = 0,
+      bestS = -1,
+      total = 0;
     for (let p = MIN_P; p <= MAX_P; p += 2 * BIN) {
       const lag = p / BIN;
       const prior = Math.exp(-0.5 * Math.pow(Math.log2(p / 600) / 0.6, 2));
       const s = (ac(lag) + 0.5 * ac(2 * lag)) * prior;
       total += s;
-      if (s > bestS) { bestS = s; bestP = p; }
+      if (s > bestS) {
+        bestS = s;
+        bestP = p;
+      }
     }
     if (bestS <= 0) return;
-    const conf = Math.min(1, (bestS / (total / ((MAX_P - MIN_P) / (2 * BIN) + 1))) / 6);
+    const conf = Math.min(1, bestS / (total / ((MAX_P - MIN_P) / (2 * BIN) + 1)) / 6);
     if (this.period && Math.abs(bestP - this.period) / this.period < 0.08) bestP = 0.7 * this.period + 0.3 * bestP; // smooth
     this.period = bestP;
     this.confidence = 0.6 * this.confidence + 0.4 * conf;
     // phase: where beat positions catch most onset energy
-    let bestPh = 0, bestE = -1;
+    let bestPh = 0,
+      bestE = -1;
     for (let ph = 0; ph < bestP; ph += BIN) {
       let e = 0;
-      for (let t = now - ph; t > t0; t -= bestP) { const i = Math.round((t - t0) / BIN); if (i >= 0 && i < n) e += env[i]; }
-      if (e > bestE) { bestE = e; bestPh = ph; }
+      for (let t = now - ph; t > t0; t -= bestP) {
+        const i = Math.round((t - t0) / BIN);
+        if (i >= 0 && i < n) e += env[i];
+      }
+      if (e > bestE) {
+        bestE = e;
+        bestPh = ph;
+      }
     }
     this.regrid(now, now - bestPh, bestP);
   }
@@ -87,8 +113,13 @@ export class BeatTracker {
   }
 
   private nearestBeat(t: number): number {
-    let lo = 0, hi = this.beats.length - 1;
-    while (lo < hi) { const m = (lo + hi) >> 1; if (this.beats[m] < t) lo = m + 1; else hi = m; }
+    let lo = 0,
+      hi = this.beats.length - 1;
+    while (lo < hi) {
+      const m = (lo + hi) >> 1;
+      if (this.beats[m] < t) lo = m + 1;
+      else hi = m;
+    }
     if (lo > 0 && Math.abs(this.beats[lo - 1] - t) < Math.abs(this.beats[lo] - t)) lo--;
     return this.period && Math.abs(this.beats[lo] - t) < this.period * 0.3 ? lo : -1;
   }
@@ -102,7 +133,8 @@ export class BeatTracker {
     let best: { m: number; pos: number[]; contrast: number } | null = null;
     for (const m of metres) {
       const pos = decodeBars(acc, m);
-      const on = acc.filter((_, i) => pos[i] === 0), off = acc.filter((_, i) => pos[i] !== 0);
+      const on = acc.filter((_, i) => pos[i] === 0),
+        off = acc.filter((_, i) => pos[i] !== 0);
       const contrast = avg(on) - avg(off) - (m === 3 ? 0.05 : 0); // slight preference for 4/4
       if (!best || contrast > best.contrast) best = { m, pos, contrast };
     }
@@ -122,7 +154,9 @@ export class BeatTracker {
     return acc;
   }
 
-  get bpm(): number | null { return this.period ? Math.round(60000 / this.period) : null; }
+  get bpm(): number | null {
+    return this.period ? Math.round(60000 / this.period) : null;
+  }
 }
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
@@ -152,10 +186,13 @@ function decodeBars(acc: number[], m: number, jump = 2.5): number[] {
   let V = Array.from({ length: m }, (_, p) => (p === 0 ? acc[0] : 0));
   const back: Int8Array[] = [];
   for (let i = 1; i < n; i++) {
-    const best = Math.max(...V), arg = V.indexOf(best);
-    const nv = Array.from({ length: m }, () => 0), bk = new Int8Array(m);
+    const best = Math.max(...V),
+      arg = V.indexOf(best);
+    const nv = Array.from({ length: m }, () => 0),
+      bk = new Int8Array(m);
     for (let p = 0; p < m; p++) {
-      const stay = V[mod(p - 1, m)], jumpV = best - jump;
+      const stay = V[mod(p - 1, m)],
+        jumpV = best - jump;
       [nv[p], bk[p]] = stay >= jumpV ? [stay, mod(p - 1, m)] : [jumpV, arg];
       // downbeats earn their accent, the half-bar (beat 3 of 4) a little
       nv[p] += p === 0 ? acc[i] : m === 4 && p === 2 ? 0.3 * acc[i] : 0;

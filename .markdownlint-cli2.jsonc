@@ -3,7 +3,7 @@
     "default": true,
     "MD013": false, // line length: prose and tables are long by nature
     "MD033": false, // inline HTML is fine
-    "MD060": false  // table pipe alignment: Prettier formats tables
+    "MD060": false, // table pipe alignment: Prettier formats tables
   },
-  "ignores": ["node_modules/**", "local/**", "dist/**"]
+  "ignores": ["node_modules/**", "local/**", "dist/**"],
 }

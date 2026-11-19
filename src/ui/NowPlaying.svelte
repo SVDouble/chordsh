@@ -10,7 +10,9 @@
 
   const v = $derived.by(() => {
     void ui.tick; // re-run when the engine changes
-    const id = session.now, key = session.activeKey, c = id.best;
+    const id = session.now,
+      key = session.activeKey,
+      c = id.best;
     return {
       kind: id.kind,
       name: c ? chordName(c, key) : id.notes.map((n) => session.spell(n)).join('–') || '—',
@@ -30,9 +32,13 @@
     <div class="big muted">Play a chord</div>
     <p class="muted">
       {#if v.devices.length}<b>{v.devices.join(', ')}</b> is connected.
-      {:else}No MIDI yet? Computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd>…<kbd>;</kbd> play notes (<kbd>Z</kbd>/<kbd>X</kbd> octave).{/if}
+      {:else}No MIDI yet? Computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd>…<kbd>;</kbd> play notes (<kbd>
+          Z
+        </kbd>/<kbd>X</kbd> octave).{/if}
     </p>
-    <button class="big-btn" onclick={() => (ui.nowPlaying ? stopPiece() : playPiece(BUILT_IN[0]))}>{ui.nowPlaying ? '■ Stop' : '▶ Play the demo'}</button>
+    <button class="big-btn" onclick={() => (ui.nowPlaying ? stopPiece() : playPiece(BUILT_IN[0]))}>
+      {ui.nowPlaying ? '■ Stop' : '▶ Play the demo'}
+    </button>
     <p class="small muted">More in the <b>Library</b> tab: your recordings, MIDI files and annotated pieces.</p>
   {:else}
     <div class="now-top">
@@ -50,7 +56,9 @@
     </div>
     {#if v.roman}<p class="explain">{v.roman.explain}</p>{/if}
     <div class="tones" title={v.alts.length ? `Also readable as ${v.alts.join(' · ')}` : ''}>
-      {#each v.tones as t}<span class="tone {roleClass(t.role)}" class:implied={t.implied}><b>{t.name}</b><i>{t.role}</i></span>{/each}
+      {#each v.tones as t}<span class="tone {roleClass(t.role)}" class:implied={t.implied}>
+          <b>{t.name}</b><i>{t.role}</i>
+        </span>{/each}
     </div>
   {/if}
 </div>

@@ -93,8 +93,13 @@ export class Segmenter {
   /** Largest pitch gap in recent onsets, if it clearly separates two hands. */
   private updateSplit() {
     const xs = [...this.onsets].sort((a, b) => a - b);
-    let gap = 0, at = -1;
-    for (let i = 1; i < xs.length; i++) if (xs[i] - xs[i - 1] > gap) { gap = xs[i] - xs[i - 1]; at = i; }
+    let gap = 0,
+      at = -1;
+    for (let i = 1; i < xs.length; i++)
+      if (xs[i] - xs[i - 1] > gap) {
+        gap = xs[i] - xs[i - 1];
+        at = i;
+      }
     const ok = xs.length >= 8 && gap >= 5 && at >= 3 && xs.length - at >= 3;
     this.autoSplit = ok ? Math.round((xs[at - 1] + xs[at]) / 2) + 1 : null;
   }
@@ -105,7 +110,8 @@ export class Segmenter {
     this.pending = [];
     if (!group.length) return;
     const t = group[group.length - 1].t;
-    for (const [n, h] of this.harmony) if (h.released !== null && t - h.released > RELEASE_MEMORY_MS) this.harmony.delete(n);
+    for (const [n, h] of this.harmony)
+      if (h.released !== null && t - h.released > RELEASE_MEMORY_MS) this.harmony.delete(n);
 
     // A held chord anchors the harmony: its top note acts as the hand split.
     const anchor = [...this.harmony.keys()].filter(this.sounding);
@@ -159,7 +165,8 @@ export class Segmenter {
     if (cur.length && !cur.some((x) => mod12(x) === mod12(n))) {
       let accumulate = n > Math.min(...cur); // a new lowest note = a new bass = a new chord
       if (accumulate && cur.length >= 2) {
-        const before = this.score(cur), after = this.score([...cur, n]);
+        const before = this.score(cur),
+          after = this.score([...cur, n]);
         accumulate = after !== null && (before === null || after >= before - 0.6);
       }
       if (!accumulate) for (const x of cur) if (!this.sounding(x)) this.harmony.delete(x);

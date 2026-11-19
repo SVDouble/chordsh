@@ -10,14 +10,32 @@ export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
 export const live = {
-  noteOn: (n: number, v: number, t = performance.now()) => { recorder.input('on', n, v, t); session.noteOn(n, v, t); if (ui.monitor) synth.noteOn(n, v); },
-  noteOff: (n: number, t = performance.now()) => { recorder.input('off', n, 0, t); session.noteOff(n, t); synth.noteOff(n); },
-  pedal: (on: boolean, t = performance.now()) => { recorder.input('pedal', 0, on ? 127 : 0, t); session.pedal(on, t); synth.setPedal(on); },
+  noteOn: (n: number, v: number, t = performance.now()) => {
+    recorder.input('on', n, v, t);
+    session.noteOn(n, v, t);
+    if (ui.monitor) synth.noteOn(n, v);
+  },
+  noteOff: (n: number, t = performance.now()) => {
+    recorder.input('off', n, 0, t);
+    session.noteOff(n, t);
+    synth.noteOff(n);
+  },
+  pedal: (on: boolean, t = performance.now()) => {
+    recorder.input('pedal', 0, on ? 127 : 0, t);
+    session.pedal(on, t);
+    synth.setPedal(on);
+  },
 };
 export const midi = new Midi(live);
 midi.onRaw = (d, port, t) => recorder.midi(d, port, t);
 
-const saved = (() => { try { return JSON.parse(localStorage.getItem('musify') ?? '{}'); } catch { return {}; } })();
+const saved = (() => {
+  try {
+    return JSON.parse(localStorage.getItem('musify') ?? '{}');
+  } catch {
+    return {};
+  }
+})();
 
 export const ui = $state({
   tick: 0,
@@ -51,14 +69,36 @@ let queued = false;
 const bump = () => {
   if (queued) return;
   queued = true;
-  requestAnimationFrame(() => { queued = false; ui.tick++; });
+  requestAnimationFrame(() => {
+    queued = false;
+    ui.tick++;
+  });
 };
 session.onChange = bump;
 midi.onPorts = bump;
 
 export function persist(extra: Record<string, unknown> = {}) {
-  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, monitor: ui.monitor, theme: ui.theme, meter: ui.meter, click: ui.click, charts: $state.snapshot(ui.charts) }, extra);
-  try { localStorage.setItem('musify', JSON.stringify(saved)); } catch { /* private mode */ }
+  Object.assign(
+    saved,
+    {
+      sound: ui.sound,
+      tempo: ui.tempo,
+      style: session.style,
+      input: midi.inputId,
+      output: midi.outputId,
+      monitor: ui.monitor,
+      theme: ui.theme,
+      meter: ui.meter,
+      click: ui.click,
+      charts: $state.snapshot(ui.charts),
+    },
+    extra,
+  );
+  try {
+    localStorage.setItem('musify', JSON.stringify(saved));
+  } catch {
+    /* private mode */
+  }
 }
 export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: string; output?: string };
 
@@ -71,10 +111,19 @@ export function audition(seq: number[][], id = '', beats: number | number[] = 2)
   const t0 = performance.now() + 60;
   let at = 0; // seconds
   seq.forEach((notes, i) => {
-    const dur = beat * (Array.isArray(beats) ? beats[i] ?? 2 : beats);
+    const dur = beat * (Array.isArray(beats) ? (beats[i] ?? 2) : beats);
     if (ui.sound === 'synth' || ui.sound === 'both') synth.play(notes, 0.06 + at, dur * 0.95);
     if (ui.sound === 'midi' || ui.sound === 'both') midi.send(notes, t0 + at * 1000, dur * 950);
-    timers.push(setTimeout(() => { ui.playing = notes; ui.playingId = id; ui.playingStep = i; }, 60 + at * 1000));
+    timers.push(
+      setTimeout(
+        () => {
+          ui.playing = notes;
+          ui.playingId = id;
+          ui.playingStep = i;
+        },
+        60 + at * 1000,
+      ),
+    );
     at += dur;
   });
   timers.push(setTimeout(stopAudition, 60 + at * 1000));
@@ -82,7 +131,12 @@ export function audition(seq: number[][], id = '', beats: number | number[] = 2)
 
 let metronome: ReturnType<typeof setTimeout> | null = null;
 /** Bars from the metronome (exact), a MIDI file, or estimated from playing. */
-export function setBars(mode: 'auto' | 'metronome' | 'file', bpm = ui.tempo, beatsPerBar = ui.meter, start = performance.now() + 100) {
+export function setBars(
+  mode: 'auto' | 'metronome' | 'file',
+  bpm = ui.tempo,
+  beatsPerBar = ui.meter,
+  start = performance.now() + 100,
+) {
   ui.bars = mode;
   if (metronome) clearTimeout(metronome);
   metronome = null;
@@ -113,7 +167,8 @@ let pieceTimers: ReturnType<typeof setTimeout>[] = [];
 /** Play any library piece into the app, exactly as if you played it (analysis, sound, recording). */
 export function playPiece(p: Piece) {
   stopPiece();
-  const lead = 300, start = performance.now() + lead;
+  const lead = 300,
+    start = performance.now() + lead;
   setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start);
   for (const [t, d, note, vel] of p.notes) {
     pieceTimers.push(setTimeout(() => live.noteOn(note, vel), lead + t));
@@ -132,7 +187,17 @@ export function stopPiece() {
 }
 
 export function startRecording() {
-  recorder.start({ style: session.style, split: session.seg.splitMode, keyLock: session.keyLock, monitor: ui.monitor, bars: ui.bars, bpm: ui.tempo, meter: ui.meter, inputs: midi.devices, userAgent: navigator.userAgent });
+  recorder.start({
+    style: session.style,
+    split: session.seg.splitMode,
+    keyLock: session.keyLock,
+    monitor: ui.monitor,
+    bars: ui.bars,
+    bpm: ui.tempo,
+    meter: ui.meter,
+    inputs: midi.devices,
+    userAgent: navigator.userAgent,
+  });
   session.trace = (e) => recorder.engine(e);
   ui.recording = true;
   ui.recMsg = '';

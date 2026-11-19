@@ -7,15 +7,36 @@ import { reharmHints } from '../src/engine/reharm';
 import { parseMidiFile } from '../src/io/midifile';
 import { keyShort } from '../src/theory/scales';
 
-const name = (s: string) => { const c = parseChordSymbol(s); return c ? chordName(c) : null; };
+const name = (s: string) => {
+  const c = parseChordSymbol(s);
+  return c ? chordName(c) : null;
+};
 const C = { tonic: 0, mode: 'major' as const };
 
 describe('chord symbols', () => {
   it.each([
-    ['Dm7', 'Dm7'], ['D-7', 'Dm7'], ['CΔ7', 'Cmaj7'], ['CM7', 'Cmaj7'], ['Bø', 'Bm7♭5'], ['Bø7', 'Bm7♭5'],
-    ['B°7', 'B°7'], ['Bdim', 'B°'], ['G7alt', 'G7♯5(♭9,♯9)'], ['G7(b9,#11)', 'G7(♭9,♯11)'], ['C6/9', 'C6/9'],
-    ['Fmaj7#11', 'Fmaj7(♯11)'], ['Asus4', 'Asus4'], ['C7sus4', 'C7sus4'], ['Cm(maj7)', 'Cm(maj7)'], ['E♭+', 'E♭+'],
-    ['F/A', 'F/A'], ['G13', 'G13'], ['Am9', 'Am9'], ['Cadd9', 'Cadd9'], ['F#m7b5', 'F♯m7♭5'], ['C7(no3)', 'C7(no3)'],
+    ['Dm7', 'Dm7'],
+    ['D-7', 'Dm7'],
+    ['CΔ7', 'Cmaj7'],
+    ['CM7', 'Cmaj7'],
+    ['Bø', 'Bm7♭5'],
+    ['Bø7', 'Bm7♭5'],
+    ['B°7', 'B°7'],
+    ['Bdim', 'B°'],
+    ['G7alt', 'G7♯5(♭9,♯9)'],
+    ['G7(b9,#11)', 'G7(♭9,♯11)'],
+    ['C6/9', 'C6/9'],
+    ['Fmaj7#11', 'Fmaj7(♯11)'],
+    ['Asus4', 'Asus4'],
+    ['C7sus4', 'C7sus4'],
+    ['Cm(maj7)', 'Cm(maj7)'],
+    ['E♭+', 'E♭+'],
+    ['F/A', 'F/A'],
+    ['G13', 'G13'],
+    ['Am9', 'Am9'],
+    ['Cadd9', 'Cadd9'],
+    ['F#m7b5', 'F♯m7♭5'],
+    ['C7(no3)', 'C7(no3)'],
   ])('%s → %s', (sym, expected) => expect(name(sym)).toBe(expected));
 
   it('rejects garbage', () => {
@@ -95,17 +116,50 @@ describe('reharm', () => {
   });
   it('offers a secondary dominant before a diatonic target', () => {
     const ch = parseChart('| C | Dm | G7 | C |');
-    expect(reharmHints(ch, 1).find((h) => h.label === 'Secondary dominant before it')!.chords.map((c) => chordName(c, ch.key))).toEqual(['A7', 'Dm']);
+    expect(
+      reharmHints(ch, 1)
+        .find((h) => h.label === 'Secondary dominant before it')!
+        .chords.map((c) => chordName(c, ch.key)),
+    ).toEqual(['A7', 'Dm']);
   });
 });
 
 describe('midi file', () => {
   it('reads notes with tempo', () => {
     // format 0, 1 track, 96 ticks/beat; tempo 120 bpm; C4 on at 0, off at 96 ticks (= 500 ms)
-    const track = [0x00, 0xff, 0x51, 0x03, 0x07, 0xa1, 0x20, 0x00, 0x90, 60, 100, 0x60, 0x80, 60, 0, 0x00, 0xff, 0x2f, 0x00];
-    const bytes = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 96, 0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, track.length, ...track];
+    const track = [
+      0x00, 0xff, 0x51, 0x03, 0x07, 0xa1, 0x20, 0x00, 0x90, 60, 100, 0x60, 0x80, 60, 0, 0x00, 0xff, 0x2f, 0x00,
+    ];
+    const bytes = [
+      0x4d,
+      0x54,
+      0x68,
+      0x64,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0,
+      0,
+      1,
+      0,
+      96,
+      0x4d,
+      0x54,
+      0x72,
+      0x6b,
+      0,
+      0,
+      0,
+      track.length,
+      ...track,
+    ];
     const ev = parseMidiFile(new Uint8Array(bytes).buffer);
-    expect(ev).toEqual([{ t: 0, type: 'on', note: 60, vel: 100 }, { t: 500, type: 'off', note: 60, vel: 0 }]);
+    expect(ev).toEqual([
+      { t: 0, type: 'on', note: 60, vel: 100 },
+      { t: 500, type: 'off', note: 60, vel: 0 },
+    ]);
   });
 });
 

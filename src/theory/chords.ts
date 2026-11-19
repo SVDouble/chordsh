@@ -71,23 +71,57 @@ function analyzeRoot(root: number, rel: Set<number>, bassRel: number): Chord | n
   else score -= 3.5;
 
   let quality: Quality;
-  if (has(4)) { quality = 'maj'; add(4, '3', 2); score += 2; }
-  else if (has(3)) { quality = 'min'; add(3, 'b3', 2); score += 2; }
-  else if (has(5)) { quality = 'sus4'; add(5, '4', 3); score += 0.7; }
-  else if (has(2)) { quality = 'sus2'; add(2, '2', 1); score += 0.4; }
-  else { quality = 'power'; score -= 0.5; }
+  if (has(4)) {
+    quality = 'maj';
+    add(4, '3', 2);
+    score += 2;
+  } else if (has(3)) {
+    quality = 'min';
+    add(3, 'b3', 2);
+    score += 2;
+  } else if (has(5)) {
+    quality = 'sus4';
+    add(5, '4', 3);
+    score += 0.7;
+  } else if (has(2)) {
+    quality = 'sus2';
+    add(2, '2', 1);
+    score += 0.4;
+  } else {
+    quality = 'power';
+    score -= 0.5;
+  }
 
-  if (has(7)) { add(7, '5', 4); score += 0.6; }
-  else if (quality === 'min' && has(6)) { quality = 'dim'; add(6, 'b5', 4); score += 0.6; }
-  else if (quality === 'maj' && has(8)) { quality = 'aug'; add(8, '#5', 4); score += 0.3; }
+  if (has(7)) {
+    add(7, '5', 4);
+    score += 0.6;
+  } else if (quality === 'min' && has(6)) {
+    quality = 'dim';
+    add(6, 'b5', 4);
+    score += 0.6;
+  } else if (quality === 'maj' && has(8)) {
+    quality = 'aug';
+    add(8, '#5', 4);
+    score += 0.3;
+  }
 
   // Suspended chords without a perfect 5th are rarely the intended reading.
   if ((quality === 'sus4' || quality === 'sus2') && !has(7)) score -= 1.2;
 
   let seventh: Seventh = 'none';
-  if (has(10)) { seventh = 'b7'; add(10, 'b7', 6); score += 0.8; }
-  else if (has(11)) { seventh = 'maj7'; add(11, '7', 6); score += 0.7; }
-  else if (quality === 'dim' && has(9)) { seventh = 'dim7'; add(9, 'bb7', 6); score += 0.9; }
+  if (has(10)) {
+    seventh = 'b7';
+    add(10, 'b7', 6);
+    score += 0.8;
+  } else if (has(11)) {
+    seventh = 'maj7';
+    add(11, '7', 6);
+    score += 0.7;
+  } else if (quality === 'dim' && has(9)) {
+    seventh = 'dim7';
+    add(9, 'bb7', 6);
+    score += 0.9;
+  }
 
   let flat5 = false;
   if (quality === 'maj' && seventh === 'b7' && !has(7) && has(6)) {
@@ -109,13 +143,26 @@ function analyzeRoot(root: number, rel: Set<number>, bassRel: number): Chord | n
     if (!has(i) || used.has(i)) continue;
     let pen: number;
     switch (i) {
-      case 1: pen = domLike ? 0.7 : 2.5; break; // ♭9 really only lives on dominants
-      case 3: pen = domLike ? 0.7 : 2.5; break; // ♯9 likewise
-      case 2: pen = 0.15; break;
-      case 5: pen = quality === 'maj' || quality === 'aug' ? 1.4 : 0.3; break; // 11 over a major 3rd clashes
-      case 6: pen = quality === 'min' ? 1.0 : 0.45; break;
-      case 8: pen = domLike ? 0.7 : 2.5; break;
-      default: pen = seventh === 'none' ? 0.7 : 0.2; // 13
+      case 1:
+        pen = domLike ? 0.7 : 2.5;
+        break; // ♭9 really only lives on dominants
+      case 3:
+        pen = domLike ? 0.7 : 2.5;
+        break; // ♯9 likewise
+      case 2:
+        pen = 0.15;
+        break;
+      case 5:
+        pen = quality === 'maj' || quality === 'aug' ? 1.4 : 0.3;
+        break; // 11 over a major 3rd clashes
+      case 6:
+        pen = quality === 'min' ? 1.0 : 0.45;
+        break;
+      case 8:
+        pen = domLike ? 0.7 : 2.5;
+        break;
+      default:
+        pen = seventh === 'none' ? 0.7 : 0.2; // 13
     }
     score -= pen;
     add(i, TENSIONS[i].role, TENSIONS[i].step);
@@ -193,8 +240,10 @@ function buildSuffix(q: Quality, seventh: Seventh, sixth: boolean, flat5: boolea
     case 'maj':
       if (seventh === 'b7') s = ext(false) ?? '7';
       else if (seventh === 'maj7') s = 'maj' + (ext(false) ?? '7');
-      else if (sixth) { s = t.has('9') ? '6/9' : '6'; shown.add('9'); }
-      else s = adds();
+      else if (sixth) {
+        s = t.has('9') ? '6/9' : '6';
+        shown.add('9');
+      } else s = adds();
       break;
     case 'aug':
       if (seventh === 'b7') s = (ext(false) ?? '7') + '♯5';
@@ -204,19 +253,29 @@ function buildSuffix(q: Quality, seventh: Seventh, sixth: boolean, flat5: boolea
     case 'min':
       if (seventh === 'b7') s = 'm' + (ext(true) ?? '7');
       else if (seventh === 'maj7') s = 'm(maj' + (ext(false) ?? '7') + ')';
-      else if (sixth) { s = t.has('9') ? 'm6/9' : 'm6'; shown.add('9'); }
-      else { const a = adds(); s = a ? `m(${a})` : 'm'; }
+      else if (sixth) {
+        s = t.has('9') ? 'm6/9' : 'm6';
+        shown.add('9');
+      } else {
+        const a = adds();
+        s = a ? `m(${a})` : 'm';
+      }
       break;
     case 'dim':
-      if (seventh === 'b7') { const e = ext(true); s = e ? `m${e}♭5` : 'm7♭5'; }
-      else if (seventh === 'dim7') s = '°7';
+      if (seventh === 'b7') {
+        const e = ext(true);
+        s = e ? `m${e}♭5` : 'm7♭5';
+      } else if (seventh === 'dim7') s = '°7';
       else s = '°';
       break;
     case 'sus4':
       if (seventh === 'b7') s = (ext(false) ?? '7') + 'sus4';
       else if (seventh === 'maj7') s = 'maj' + (ext(false) ?? '7') + 'sus4';
       else if (sixth) s = '6sus4';
-      else { const a = adds(); s = 'sus4' + (a ? `(${a})` : ''); }
+      else {
+        const a = adds();
+        s = 'sus4' + (a ? `(${a})` : '');
+      }
       break;
     case 'sus2':
       s = seventh === 'b7' ? '7sus2' : seventh === 'maj7' ? 'maj7sus2' : sixth ? '6sus2' : 'sus2';
@@ -365,4 +424,5 @@ export function chordFromIntervals(root: number, intervals: Iterable<number>, ba
   return analyzeRoot(r, rel, mod12((bass ?? r) - r))!;
 }
 
-export const chordOf = (root: number, kind: KindName, bass?: number): Chord => chordFromIntervals(root, KINDS[kind], bass);
+export const chordOf = (root: number, kind: KindName, bass?: number): Chord =>
+  chordFromIntervals(root, KINDS[kind], bass);

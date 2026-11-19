@@ -23,8 +23,34 @@ export function spellingToString(s: Spelling): string {
 }
 
 const toSp = ([letter, acc]: number[]): Spelling => ({ letter, acc });
-const SHARP_SP = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [3, 0], [3, 1], [4, 0], [4, 1], [5, 0], [5, 1], [6, 0]].map(toSp);
-const FLAT_SP = [[0, 0], [1, -1], [1, 0], [2, -1], [2, 0], [3, 0], [4, -1], [4, 0], [5, -1], [5, 0], [6, -1], [6, 0]].map(toSp);
+const SHARP_SP = [
+  [0, 0],
+  [0, 1],
+  [1, 0],
+  [1, 1],
+  [2, 0],
+  [3, 0],
+  [3, 1],
+  [4, 0],
+  [4, 1],
+  [5, 0],
+  [5, 1],
+  [6, 0],
+].map(toSp);
+const FLAT_SP = [
+  [0, 0],
+  [1, -1],
+  [1, 0],
+  [2, -1],
+  [2, 0],
+  [3, 0],
+  [4, -1],
+  [4, 0],
+  [5, -1],
+  [5, 0],
+  [6, -1],
+  [6, 0],
+].map(toSp);
 
 export function plainSpelling(pc: number, preferFlats = false): Spelling {
   return (preferFlats ? FLAT_SP : SHARP_SP)[mod12(pc)];
@@ -50,6 +76,16 @@ export const midiName = (m: number, preferFlats = false): string => pcName(m, pr
 export const DEFAULT_STEP = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
 export const DEGREE_LABEL = ['1', '♭2', '2', '♭3', '3', '4', '♯4', '5', '♭6', '6', '♭7', '7'];
 export const INTERVAL_NAME = [
-  'unison', 'minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', 'perfect 4th',
-  'tritone', 'perfect 5th', 'minor 6th', 'major 6th', 'minor 7th', 'major 7th',
+  'unison',
+  'minor 2nd',
+  'major 2nd',
+  'minor 3rd',
+  'major 3rd',
+  'perfect 4th',
+  'tritone',
+  'perfect 5th',
+  'minor 6th',
+  'major 6th',
+  'minor 7th',
+  'major 7th',
 ];

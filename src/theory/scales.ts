@@ -72,7 +72,18 @@ export const naturalScale = (k: Key): number[] =>
 
 // Major-key tonic spellings with the fewest accidentals.
 const MAJOR_TONIC: Spelling[] = [
-  [0, 0], [1, -1], [1, 0], [2, -1], [2, 0], [3, 0], [3, 1], [4, 0], [5, -1], [5, 0], [6, -1], [6, 0],
+  [0, 0],
+  [1, -1],
+  [1, 0],
+  [2, -1],
+  [2, 0],
+  [3, 0],
+  [3, 1],
+  [4, 0],
+  [5, -1],
+  [5, 0],
+  [6, -1],
+  [6, 0],
 ].map(([letter, acc]) => ({ letter, acc }));
 
 export function tonicSpelling(k: Key): Spelling {

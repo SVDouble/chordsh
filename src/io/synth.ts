@@ -1,4 +1,7 @@
-interface Voice { osc: OscillatorNode[]; gain: GainNode }
+interface Voice {
+  osc: OscillatorNode[];
+  gain: GainNode;
+}
 
 /** A small electric-piano-ish WebAudio synth: live notes (held / pedal) and scheduled auditions. */
 export class Synth {
@@ -12,7 +15,9 @@ export class Synth {
   onState: () => void = () => {};
 
   /** Browsers only allow audio after a user gesture on the page; MIDI notes don't count. */
-  get blocked(): boolean { return !this.ctx || this.ctx.state !== 'running'; }
+  get blocked(): boolean {
+    return !this.ctx || this.ctx.state !== 'running';
+  }
 
   /** Call from a click/keydown handler to unlock audio. */
   unlock() {
@@ -76,7 +81,10 @@ export class Synth {
 
   noteOff(note: number) {
     if (!this.ctx || !this.live.has(note)) return;
-    if (this.pedal) { this.sustained.add(note); return; }
+    if (this.pedal) {
+      this.sustained.add(note);
+      return;
+    }
     this.release(this.live.get(note)!, this.ctx.currentTime);
     this.live.delete(note);
   }
@@ -97,7 +105,8 @@ export class Synth {
     const ctx = this.ensure();
     if (ctx.state !== 'running') return;
     const t0 = ctx.currentTime + delay;
-    const o = ctx.createOscillator(), g = ctx.createGain();
+    const o = ctx.createOscillator(),
+      g = ctx.createGain();
     o.frequency.value = accent ? 1760 : 1175;
     g.gain.setValueAtTime(accent ? 0.35 : 0.2, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);

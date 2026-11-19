@@ -1,11 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc",
-    "import"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc", "import"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -19,19 +14,12 @@
       }
     ],
     "typescript/no-explicit-any": "error",
-    "eqeqeq": [
-      "error",
-      "smart"
-    ],
+    "eqeqeq": ["error", "smart"],
     "unicorn/no-array-sort": "off",
     "unicorn/no-array-reverse": "off",
     "no-underscore-dangle": "off",
     "unicorn/prefer-add-event-listener": "off",
     "import/no-unassigned-import": "off"
   },
-  "ignorePatterns": [
-    "local/**",
-    "dist/**",
-    "node_modules/**"
-  ]
+  "ignorePatterns": ["local/**", "dist/**", "node_modules/**"]
 }

@@ -1,5 +1,14 @@
 import { DEGREE_LABEL, mod12 } from '../theory/pitch';
-import { type Chord, type Identification, chordName, chordPcs, corePcs, identify, noteRole, toneNames } from '../theory/chords';
+import {
+  type Chord,
+  type Identification,
+  chordName,
+  chordPcs,
+  corePcs,
+  identify,
+  noteRole,
+  toneNames,
+} from '../theory/chords';
 import { type Roman, analyzeRoman, isDiatonic } from '../theory/roman';
 import { type PatternKind, patternsAtEnd } from '../theory/patterns';
 import { type Key, type ScaleName, keyEq, keyIndex, keyShort, nameInKey } from '../theory/scales';
@@ -29,11 +38,35 @@ export interface ChordEntry {
   /** Still being played — may change. */
   tentative?: boolean;
 }
-export interface KeyEntry { type: 'key'; id: number; key: Key; from: Key | null; t0: number }
+export interface KeyEntry {
+  type: 'key';
+  id: number;
+  key: Key;
+  from: Key | null;
+  t0: number;
+}
 export type HistoryItem = ChordEntry | KeyEntry;
-export interface PatternMark { kind: PatternKind; label: string; startId: number; endId: number }
-export interface MelodyEntry { id: number; note: number; name: string; t: number; degree: string | null; role: ReturnType<typeof noteRole> | null; over: string | null }
-export interface TheorySummary { key: Key; prob: number; label: string; since: number | null }
+export interface PatternMark {
+  kind: PatternKind;
+  label: string;
+  startId: number;
+  endId: number;
+}
+export interface MelodyEntry {
+  id: number;
+  note: number;
+  name: string;
+  t: number;
+  degree: string | null;
+  role: ReturnType<typeof noteRole> | null;
+  over: string | null;
+}
+export interface TheorySummary {
+  key: Key;
+  prob: number;
+  label: string;
+  since: number | null;
+}
 export interface Practice {
   path: Path;
   index: number;
@@ -66,7 +99,9 @@ export class Session {
   onChange: () => void = () => {};
   /** Set to receive every engine decision (session recording). */
   trace: ((e: TraceEvent) => void) | null = null;
-  private log(e: TraceEvent) { this.trace?.(e); }
+  private log(e: TraceEvent) {
+    this.trace?.(e);
+  }
 
   now: Identification = EMPTY;
   nowRoman: Roman | null = null;
@@ -125,14 +160,36 @@ export class Session {
   }
 
   // ── derived views (rebuilt lazily from the harmonizer) ──
-  get history(): HistoryItem[] { this.sync(); return this._history; }
-  get patterns(): PatternMark[] { this.sync(); return this._patterns; }
-  get key(): Key | null { this.sync(); return this._key; }
-  get activeKey(): Key | null { return this.keyLock ?? this.key; }
-  get chords(): ChordEntry[] { return this.history.filter((h): h is ChordEntry => h.type === 'chord'); }
+  get history(): HistoryItem[] {
+    this.sync();
+    return this._history;
+  }
+  get patterns(): PatternMark[] {
+    this.sync();
+    return this._patterns;
+  }
+  get key(): Key | null {
+    this.sync();
+    return this._key;
+  }
+  get activeKey(): Key | null {
+    return this.keyLock ?? this.key;
+  }
+  get chords(): ChordEntry[] {
+    return this.history.filter((h): h is ChordEntry => h.type === 'chord');
+  }
   /** Bar start times from the beat tracker (empty until a tempo is found). */
-  get bars(): number[] { return this.beats.period ? this.beats.bars() : []; }
-  get tempo() { return { bpm: this.beats.bpm, confidence: this.beats.confidence, beatsPerBar: this.beats.beatsPerBar, fixed: !!this.beats.fixed }; }
+  get bars(): number[] {
+    return this.beats.period ? this.beats.bars() : [];
+  }
+  get tempo() {
+    return {
+      bpm: this.beats.bpm,
+      confidence: this.beats.confidence,
+      beatsPerBar: this.beats.beatsPerBar,
+      fixed: !!this.beats.fixed,
+    };
+  }
 
   // ── input ──
   noteOn(note: number, vel: number, t = performance.now()) {
@@ -164,10 +221,23 @@ export class Session {
   }
 
   // ── settings / actions ──
-  setStyle(s: Style) { this.style = s; this.refresh(); }
-  setKeyLock(k: Key | null) { this.keyLock = k; this.invalidate(true); }
-  setTarget(k: Key | null) { this.target = k; this.practice = null; this.refresh(); }
-  setViewTheory(k: number | null) { this.viewTheory = k; this.invalidate(true); }
+  setStyle(s: Style) {
+    this.style = s;
+    this.refresh();
+  }
+  setKeyLock(k: Key | null) {
+    this.keyLock = k;
+    this.invalidate(true);
+  }
+  setTarget(k: Key | null) {
+    this.target = k;
+    this.practice = null;
+    this.refresh();
+  }
+  setViewTheory(k: number | null) {
+    this.viewTheory = k;
+    this.invalidate(true);
+  }
   /** Fix the tempo (metronome / MIDI file) so bars are exact; null = estimate from playing. */
   setTempo(bpm: number | null, beatsPerBar = 4, phase = performance.now()) {
     this.beats.fixed = bpm ? { period: 60000 / bpm, phase } : null;
@@ -176,11 +246,23 @@ export class Session {
     this.beats.update(performance.now());
     this.onChange();
   }
-  startPractice(path: Path) { this.practice = { path, index: 0, done: false, hit: [], missing: [] }; this.updatePracticeFeedback(); this.onChange(); }
-  stopPractice() { this.practice = null; this.onChange(); }
-  loadSong(chart: Chart | null) { this.song = chart ? new SongFollower(chart) : null; this.onChange(); }
+  startPractice(path: Path) {
+    this.practice = { path, index: 0, done: false, hit: [], missing: [] };
+    this.updatePracticeFeedback();
+    this.onChange();
+  }
+  stopPractice() {
+    this.practice = null;
+    this.onChange();
+  }
+  loadSong(chart: Chart | null) {
+    this.song = chart ? new SongFollower(chart) : null;
+    this.onChange();
+  }
   /** What you've played so far, as chart text (to save, edit or reharmonise). */
-  historyAsChart(): string { return toChartText(this.chords.map((c) => c.name)); }
+  historyAsChart(): string {
+    return toChartText(this.chords.map((c) => c.name));
+  }
   /** Notes to highlight as a target on the piano. */
   get guideNotes(): number[] {
     const p = this.practice;
@@ -189,7 +271,15 @@ export class Session {
     return e ? voiceChord(e.chord, this.lastVoicing) : [];
   }
   clear() {
-    Object.assign(this, { now: EMPTY, nowRoman: null, melody: [], practice: null, lastVoicing: null, theories: [], viewTheory: null });
+    Object.assign(this, {
+      now: EMPTY,
+      nowRoman: null,
+      melody: [],
+      practice: null,
+      lastVoicing: null,
+      theories: [],
+      viewTheory: null,
+    });
     this.harmonizer.reset();
     this.detector.reset();
     this.seg.reset();
@@ -200,7 +290,14 @@ export class Session {
   // ── instant layer: the chord you're holding ──
   private onHarmony(notes: number[], t: number, strike: boolean) {
     const ident = identify(notes, this.activeKey);
-    this.log({ t, kind: 'harmony', notes, strike, chord: ident.best ? chordName(ident.best, this.activeKey) : null, alts: ident.alternatives.map((a) => chordName(a, this.activeKey)) });
+    this.log({
+      t,
+      kind: 'harmony',
+      notes,
+      strike,
+      chord: ident.best ? chordName(ident.best, this.activeKey) : null,
+      alts: ident.alternatives.map((a) => chordName(a, this.activeKey)),
+    });
     if (!ident.best && ident.kind !== 'interval') return;
     this.now = ident;
     const key = this.activeKey;
@@ -227,7 +324,11 @@ export class Session {
   // ── analysis layer: rebuild the history from the harmonizer's best path ──
   private invalidate(now = false) {
     this.dirty = true;
-    if (now) { this.sync(); this.refresh(); return; }
+    if (now) {
+      this.sync();
+      this.refresh();
+      return;
+    }
     this.rebuildTimer ??= setTimeout(() => {
       this.rebuildTimer = null;
       this.sync();
@@ -272,19 +373,33 @@ export class Session {
       const label = `${name}|${keyIndex(p.key)}`;
       const before = this.labels.get(id);
       const e: ChordEntry = {
-        type: 'chord', id, chord: p.chord, name, roman: analyzeRoman(p.chord, p.key, next), key: p.key,
-        t0: p.t0, t1: p.t1, notes: voiceChord(p.chord, null),
+        type: 'chord',
+        id,
+        chord: p.chord,
+        name,
+        roman: analyzeRoman(p.chord, p.key, next),
+        key: p.key,
+        t0: p.t0,
+        t1: p.t1,
+        notes: voiceChord(p.chord, null),
         tentative: openT0 !== null && p.t1 >= openT0,
       };
-      if (before && before !== label) { e.revisedAt = now; revised.push(`${before.split('|')[0]} → ${name}`); }
-      else if (this.revisedAt.has(id) && now - this.revisedAt.get(id)! < 2500) e.revisedAt = this.revisedAt.get(id);
+      if (before && before !== label) {
+        e.revisedAt = now;
+        revised.push(`${before.split('|')[0]} → ${name}`);
+      } else if (this.revisedAt.has(id) && now - this.revisedAt.get(id)! < 2500) e.revisedAt = this.revisedAt.get(id);
       if (e.revisedAt) this.revisedAt.set(id, e.revisedAt);
       this.labels.set(id, label);
       // pivot: the chord where the key changed, if it belongs to both keys
       if (prevKey && !keyEq(p.key, prevKey)) {
-        const prev = items.slice(0, -1).reverse().find((x): x is ChordEntry => x.type === 'chord');
-        if (isDiatonic(p.chord, prevKey)) e.pivot = { from: analyzeRoman(p.chord, prevKey).numeral, to: e.roman!.numeral };
-        else if (prev && isDiatonic(prev.chord, p.key)) prev.pivot = { from: prev.roman!.numeral, to: analyzeRoman(prev.chord, p.key, p.chord).numeral };
+        const prev = items
+          .slice(0, -1)
+          .reverse()
+          .find((x): x is ChordEntry => x.type === 'chord');
+        if (isDiatonic(p.chord, prevKey))
+          e.pivot = { from: analyzeRoman(p.chord, prevKey).numeral, to: e.roman!.numeral };
+        else if (prev && isDiatonic(prev.chord, p.key))
+          prev.pivot = { from: prev.roman!.numeral, to: analyzeRoman(prev.chord, p.key, p.chord).numeral };
       }
       prevKey = p.key;
       items.push(e);
@@ -300,7 +415,12 @@ export class Session {
       let since: number | null = null;
       for (let i = th.path.length - 1; i >= 0 && keyEq(th.path[i].key, th.key); i--) since = th.path[i].t0;
       const changes = th.path.filter((x, i) => i > 0 && !keyEq(x.key, th.path[i - 1].key)).length;
-      return { key: th.key, prob: th.prob, since, label: `${keyShort(th.key)}${changes ? ` (${changes} key change${changes > 1 ? 's' : ''})` : ''}` };
+      return {
+        key: th.key,
+        prob: th.prob,
+        since,
+        label: `${keyShort(th.key)}${changes ? ` (${changes} key change${changes > 1 ? 's' : ''})` : ''}`,
+      };
     });
   }
 
@@ -309,11 +429,17 @@ export class Session {
     const out: PatternMark[] = [];
     for (let i = 1; i < chords.length; i++) {
       const key = chords[i].key;
-      const found = patternsAtEnd(chords.slice(Math.max(0, i - 7), i + 1).map((e) => e.chord), key);
+      const found = patternsAtEnd(
+        chords.slice(Math.max(0, i - 7), i + 1).map((e) => e.chord),
+        key,
+      );
       const mark = (m: (typeof found)[number]) => {
         const startId = chords[i - m.length + 1].id;
-        for (let j = out.length - 1; j >= 0; j--) if (out[j].startId === startId && (out[j].kind === 'ii-V' || out[j].kind === m.kind)) out.splice(j, 1);
-        if (m.kind === 'cycle') for (let j = out.length - 1; j >= 0; j--) if (out[j].kind === 'cycle' && out[j].endId === chords[i - 1].id) out.splice(j, 1);
+        for (let j = out.length - 1; j >= 0; j--)
+          if (out[j].startId === startId && (out[j].kind === 'ii-V' || out[j].kind === m.kind)) out.splice(j, 1);
+        if (m.kind === 'cycle')
+          for (let j = out.length - 1; j >= 0; j--)
+            if (out[j].kind === 'cycle' && out[j].endId === chords[i - 1].id) out.splice(j, 1);
         out.push({ kind: m.kind, label: m.label, startId, endId: chords[i].id });
       };
       const cadence = found.find((m) => m.kind !== 'cycle' && m.kind !== 'loop');
@@ -329,7 +455,10 @@ export class Session {
     const key = this.activeKey;
     const over = this.now.best ?? this.chords[this.chords.length - 1]?.chord ?? null;
     this.melody.push({
-      id: this.id++, note, t, name: this.spell(note),
+      id: this.id++,
+      note,
+      t,
+      name: this.spell(note),
       degree: key ? DEGREE_LABEL[mod12(note - key.tonic)] : null,
       role: over ? noteRole(over, note) : null,
       over: over ? chordName(over, key) : null,
@@ -345,8 +474,18 @@ export class Session {
     this.next = key ? suggestNext(key, last, this.style, this.lastVoicing) : [];
     const recent = this.chords.slice(-3).map((e) => e.chord);
     const t = performance.now();
-    this.reach = computeReach(key, this.keyProbs, recent, this.melody.filter((m) => t - m.t < 6000).map((m) => m.note), this.style);
-    if (!this.practice) this.paths = key && this.target && !keyEq(key, this.target) ? suggestPaths(key, this.target, last, this.lastVoicing, this.style) : [];
+    this.reach = computeReach(
+      key,
+      this.keyProbs,
+      recent,
+      this.melody.filter((m) => t - m.t < 6000).map((m) => m.note),
+      this.style,
+    );
+    if (!this.practice)
+      this.paths =
+        key && this.target && !keyEq(key, this.target)
+          ? suggestPaths(key, this.target, last, this.lastVoicing, this.style)
+          : [];
     this.onChange();
   }
 
@@ -373,14 +512,23 @@ export class Session {
     const names = toneNames(want, key);
     const pcs = chordPcs(want);
     p.hit = names.filter((_, i) => played.has(pcs[i])).map((n) => `${n.name} (${n.role})`);
-    p.missing = notes.length ? names.filter((_, i) => !played.has(pcs[i]) && corePcs(want).includes(pcs[i])).map((n) => `${n.name} (${n.role})`) : [];
+    p.missing = notes.length
+      ? names
+          .filter((_, i) => !played.has(pcs[i]) && corePcs(want).includes(pcs[i]))
+          .map((n) => `${n.name} (${n.role})`)
+      : [];
   }
 
   /** Name of the pitch class in the current key (for UI). */
-  spell(pc: number): string { return this.activeKey ? nameInKey(pc, this.activeKey) : ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][mod12(pc)]; }
+  spell(pc: number): string {
+    return this.activeKey
+      ? nameInKey(pc, this.activeKey)
+      : ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'][mod12(pc)];
+  }
 }
 
-const family = (c: Chord) => (c.quality === 'sus4' || c.quality === 'sus2' || c.quality === 'power' ? 'maj' : c.quality);
+const family = (c: Chord) =>
+  c.quality === 'sus4' || c.quality === 'sus2' || c.quality === 'power' ? 'maj' : c.quality;
 function matches(got: Chord, want: Chord): boolean {
   if (got.root !== want.root) return false;
   if (want.quality === 'dim') return got.quality === 'dim';

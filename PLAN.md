@@ -134,8 +134,19 @@ recorded chords, no recording retrigger and equal-velocity preview/playback timb
 - [x] Train a chord-quality-aware next-chord model using recent sequence context and tune-split data only.
 - [x] Use learned ranking in Ideas while retaining harmonic explanations and colour alternatives.
 - [x] Expose prediction controls in shared Settings and reset sequence context at local key changes.
-- [ ] Measure next-chord prediction separately from recognition and record test-split results.
-- [ ] Verify inference regression, browser interactions and documentation.
+- [x] Measure next-chord prediction separately from recognition and record test-split results.
+- [x] Verify inference regression, browser interactions and documentation.
 
 The accuracy/segmentation research, vocabulary layer, voicing coach and native host delivery above
 remain roadmap work; completed interface work is not evidence that those are delivered.
+
+Prediction validation: 134 tests and production build; existing desktop/mobile sketch interactions and
+new browser checks for ii–V ideas, region/gap context, settings persistence and no analysis reset.
+Model regeneration is byte-for-byte reproducible. The full test split improves Ideas @1 37.1% → 47.5%
+and @3 62.3% → 68.5%; all note-recognition metrics are unchanged. See [results](benchmarks/PREDICTION.md).
+
+## Voicing coach
+
+- [ ] Offer shell, rootless and drop-2 choices in chord editing without typing MIDI note numbers.
+- [ ] Preview a choice, apply it as one undoable chord edit and preserve it in MIDI export.
+- [ ] Verify musical invariants, editing/undo and browser interactions.

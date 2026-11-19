@@ -192,3 +192,25 @@ uses the same candidates/limits as before learned ranking, on exactly the same e
 averaged equally across corpora; within a corpus every change counts once. Display scores are ranking
 weights, not calibrated probabilities of what a musician should play. Runs are retained in
 `benchmarks/prediction-history.jsonl` with settings and data hash.
+
+### 2026-11-19 — sequence-aware Ideas
+
+On **684 test pieces and 41,398 annotated chord changes**, corpus-macro Ideas @1 improved from
+**37.1% to 47.5%**, and Ideas @3 from **62.3% to 68.5%**. Every corpus improved in both measures:
+
+| corpus | Ideas @1, rules → learned | Ideas @3, rules → learned |
+| ------ | ------------------------- | ------------------------- |
+| bps-fh | 44.3 → 62.9               | 74.9 → 80.0               |
+| chopin | 34.0 → 46.2               | 61.0 → 64.3               |
+| jazz * | 34.9 → 37.1               | 47.0 → 58.0               |
+| mozart | 49.2 → 57.8               | 75.4 → 79.3               |
+| pop909 | 23.2 → 33.4               | 53.4 → 60.8               |
+
+The model's macro NLL improves from 2.1464 for the root-transition reference to 2.0594 with chord
+quality and 1.9894 with two-chord context. These are forecasts from annotated context, using canonical
+triads when comparing Ideas; they do not establish better chord recognition or seventh/extension
+prediction. The existing test-split reuse caveat above remains relevant.
+
+Both prediction and recognition reports identify source commit `77ac9ad`. The complete recognition
+regression matches every preceding per-corpus chord/key, beat/bar and error-breakdown value exactly;
+the harmonic objective remains 1.7407. Prediction settings apply without replacing the harmonizer.

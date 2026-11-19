@@ -20,6 +20,7 @@ written in scale degrees, and explicit change penalties. Max-marginals (forward 
 top-k rankings used in the benchmark.
 
 **Next candidates:**
+
 - **Semi-Markov / segmental models.** A semi-CRF jointly segments the score into chord spans and labels them,
   instead of labelling onset segments ([Masada & Bunescu 2019](https://arxiv.org/pdf/1810.10002)). Our benchmark
   says 37–66 % of chord misses are *boundary* errors — exactly what a segmental model targets.

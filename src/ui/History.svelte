@@ -7,7 +7,7 @@
   const MAX_BARS = 24;
 
   const v = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const items = session.history;
     const chords = items.filter((h): h is ChordEntry => h.type === 'chord');
     const now = performance.now();
@@ -66,7 +66,8 @@
   });
 
   $effect(() => {
-    v.barView.length; v.chips.length;
+    void v.barView.length; // scroll to the end when the history grows
+    void v.chips.length;
     scroller?.scrollTo({ left: scroller.scrollWidth, behavior: 'smooth' });
   });
   const hear = (c: ChordEntry) => audition([c.notes], '', 1.5);

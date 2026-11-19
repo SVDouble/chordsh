@@ -145,7 +145,7 @@ export class Segmenter {
       const retract = bass.filter((n) => this.melodyNotes.delete(n));
       if (retract.length) this.ev.retractMelody(retract);
       harmonic.push(...bass);
-      for (const n of [...this.harmony.keys()]) if (!this.held.has(n)) this.harmony.delete(n);
+      for (const n of this.harmony.keys()) if (!this.held.has(n)) this.harmony.delete(n);
       for (const n of harmonic) this.harmony.set(n, { t, released: null });
     } else {
       for (const n of harmonic) this.addSingle(n, t);

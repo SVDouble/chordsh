@@ -4,7 +4,7 @@ How Musify turns a stream of MIDI notes into chords, keys, bars and advice. All 
 (`src/theory`, `src/engine`) with no UI dependencies, unit-tested in `tests/` and measured in the
 [benchmark](benchmark.md).
 
-```
+```text
 MIDI / keyboard / library piece
         │ noteOn / noteOff / pedal
         ▼

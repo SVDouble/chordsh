@@ -4,7 +4,7 @@
   import { commonTones, fifthsDistance, keyLong, keyShort } from '../theory/scales';
 
   const v = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const from = session.activeKey, to = session.target;
     const p = session.practice;
     return {

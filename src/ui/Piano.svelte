@@ -24,7 +24,7 @@
   const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   $effect(() => {
-    ui.tick; ui.playing; // redraw on engine ticks and audition
+    void ui.tick; // re-run when the engine changes ui.playing; // redraw on engine ticks and audition
     const ctx = canvas.getContext('2d')!;
     const dpr = devicePixelRatio || 1;
     canvas.width = width * dpr;

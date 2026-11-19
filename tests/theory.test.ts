@@ -49,8 +49,9 @@ describe('chord recognition', () => {
   });
 });
 
+const rn = (c: ReturnType<typeof chordOf>, k: Key, next?: ReturnType<typeof chordOf>) => analyzeRoman(c, k, next);
+
 describe('roman analysis', () => {
-  const rn = (c: ReturnType<typeof chordOf>, k: Key, next?: ReturnType<typeof chordOf>) => analyzeRoman(c, k, next);
   it('diatonic', () => {
     expect(rn(chordOf(2, 'm7'), C).numeral).toBe('ii7');
     expect(rn(chordOf(7, '7'), C).func).toBe('D');

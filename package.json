@@ -12,11 +12,19 @@
     "replay": "REPLAY=1 vitest run --silent=false",
     "fetch-data": "python3 -I scripts/fetch_datasets.py",
     "benchmark": "EVAL=scripts/benchmark.test.ts vitest run --silent=false",
-    "tune": "EVAL=scripts/tune.test.ts vitest run --silent=false"
+    "tune": "EVAL=scripts/tune.test.ts vitest run --silent=false",
+    "lint": "oxlint && markdownlint-cli2 \"**/*.md\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.6",
+    "markdownlint-cli2": "^0.24.1",
+    "oxlint": "^1.94.0",
+    "prettier": "^3.10.1",
+    "prettier-plugin-svelte": "^4.2.0",
     "svelte": "^5.58.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",

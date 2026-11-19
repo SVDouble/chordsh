@@ -27,7 +27,7 @@ Defined in [`scripts/datasets.json`](../scripts/datasets.json) (repo, pinned com
 The converter [`scripts/fetch_datasets.py`](../scripts/fetch_datasets.py) (Python standard library only)
 writes one format for all of them:
 
-```
+```text
 local/data/<corpus>/<id>.json = {
   corpus, id, title, genre, synthetic,
   notes:  [[onset_ms, dur_ms, midi, vel]],

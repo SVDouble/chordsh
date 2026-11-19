@@ -47,7 +47,7 @@
 
 
   const v = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const f = session.song;
     if (!f) return null;
     const ch = f.chart;

@@ -115,6 +115,8 @@ export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoic
         `same pull as V7/${degreeNumeral(td, key.mode)} but smoother: every note of the °7 sits a half step from ${tName}`, 'leading-tone °7');
     }
     // Passing °7: chromatic bass between two chords a whole step apart (I–♯i°7–ii, IV–♯iv°7–V, iii–♭iii°7–ii).
+    // iterate a snapshot: the loop appends passing °7s to opts
+    // oxlint-disable-next-line unicorn/no-useless-spread
     for (const o of [...opts]) {
       const step = mod12(o.chord.root - last.root);
       if (r.kind === 'diatonic' && (step === 2 || step === 10)) {

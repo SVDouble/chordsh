@@ -127,7 +127,7 @@ export function playPiece(p: Piece) {
 export function stopPiece() {
   pieceTimers.forEach(clearTimeout);
   pieceTimers = [];
-  for (const n of [...session.seg.held.keys()]) live.noteOff(n);
+  for (const n of session.seg.held.keys()) live.noteOff(n);
   ui.nowPlaying = null;
 }
 

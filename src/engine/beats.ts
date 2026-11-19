@@ -103,7 +103,6 @@ export class BeatTracker {
     for (const m of metres) {
       const pos = decodeBars(acc, m);
       const on = acc.filter((_, i) => pos[i] === 0), off = acc.filter((_, i) => pos[i] !== 0);
-      const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
       const contrast = avg(on) - avg(off) - (m === 3 ? 0.05 : 0); // slight preference for 4/4
       if (!best || contrast > best.contrast) best = { m, pos, contrast };
     }
@@ -115,7 +114,7 @@ export class BeatTracker {
 
   /** Downbeat evidence gathered around each beat. */
   private beatAccents(): number[] {
-    const acc = new Array(this.beats.length).fill(0);
+    const acc = Array.from({ length: this.beats.length }, () => 0);
     for (const o of this.accents) {
       const i = this.nearestBeat(o.t);
       if (i >= 0) acc[i] += o.accent;
@@ -127,6 +126,7 @@ export class BeatTracker {
 }
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
+const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
 
 /** Downbeat evidence for an onset group: a new bass note or fresh harmony counts most. */
 export class AccentDetector {
@@ -153,7 +153,7 @@ function decodeBars(acc: number[], m: number, jump = 2.5): number[] {
   const back: Int8Array[] = [];
   for (let i = 1; i < n; i++) {
     const best = Math.max(...V), arg = V.indexOf(best);
-    const nv = new Array(m), bk = new Int8Array(m);
+    const nv = Array.from({ length: m }, () => 0), bk = new Int8Array(m);
     for (let p = 0; p < m; p++) {
       const stay = V[mod(p - 1, m)], jumpV = best - jump;
       [nv[p], bk[p]] = stay >= jumpV ? [stay, mod(p - 1, m)] : [jumpV, arg];
@@ -163,7 +163,7 @@ function decodeBars(acc: number[], m: number, jump = 2.5): number[] {
     V = nv;
     back.push(bk);
   }
-  const pos = new Array(n);
+  const pos = Array.from({ length: n }, () => 0);
   pos[n - 1] = V.indexOf(Math.max(...V));
   for (let i = n - 1; i > 0; i--) pos[i - 1] = back[i - 1][pos[i]];
   return pos;

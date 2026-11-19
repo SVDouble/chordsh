@@ -59,7 +59,10 @@ export function evaluate(piece: Piece, params: HarmonizerParams = DEFAULT_PARAMS
     for (let k = 1; k < 24; k++) if (dist[k] > dist[bk]) bk = k;
     live.push({ t: seg.t0, chords: dedupe(h.liveChords(6).map((x) => [x.root, KIND_FAMILY[x.kind]])), key: ALL_KEYS[bk] });
   });
-  for (const e of piece.events) e.kind === 'on' ? sb.noteOn(e.note, e.vel, e.t) : sb.noteOff(e.note, e.t);
+  for (const e of piece.events) {
+    if (e.kind === 'on') sb.noteOn(e.note, e.vel, e.t);
+    else sb.noteOff(e.note, e.t);
+  }
   sb.close(piece.durationMs + 800);
   const path = h.path();
   const ranked = h.ranked(8, 3);
@@ -138,11 +141,21 @@ export function evaluateBars(piece: Piece): { barF: number; beatF: number; bpm: 
   }
   flush();
   bt.update(piece.durationMs);
-  const fm = (est: number[], truth: number[]) => {
-    const hit = (xs: number[], ys: number[]) => { let j = 0, k = 0; for (const x of xs) { while (j < ys.length && ys[j] < x - 100) j++; if (j < ys.length && Math.abs(ys[j] - x) < 100) k++; } return k; };
-    const p = est.length ? hit(est, truth) / est.length : 0, r = truth.length ? hit(truth, est) / truth.length : 0;
-    return p + r ? (2 * p * r) / (p + r) : 0;
-  };
   const inside = (xs: number[]) => xs.filter((b) => b >= 0 && b <= piece.durationMs);
   return { barF: fm(inside(bt.bars()), piece.bars), beatF: fm(inside(bt.beats), piece.beats), bpm: bt.bpm };
+}
+
+/** Count events in xs that have a partner in ys within ±100 ms (both sorted). */
+function hits(xs: number[], ys: number[]): number {
+  let j = 0, k = 0;
+  for (const x of xs) {
+    while (j < ys.length && ys[j] < x - 100) j++;
+    if (j < ys.length && Math.abs(ys[j] - x) < 100) k++;
+  }
+  return k;
+}
+/** F-measure of estimated vs true event times. */
+function fm(est: number[], truth: number[]): number {
+  const p = est.length ? hits(est, truth) / est.length : 0, r = truth.length ? hits(truth, est) / truth.length : 0;
+  return p + r ? (2 * p * r) / (p + r) : 0;
 }

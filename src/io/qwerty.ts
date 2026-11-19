@@ -3,10 +3,13 @@ import type { MidiHandlers } from './midi';
 // Two rows like a piano: A W S E D F T G Y H U J K O L P ; → C4…E5.  Z/X = octave, Space = pedal.
 const KEYS = 'awsedftgyhujkolp;';
 
+/** Don't play notes while the user is typing in a form field. */
+const typing = (e: KeyboardEvent) =>
+  e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
+
 export function attachQwerty(h: MidiHandlers): () => void {
   let octave = 0;
   const down = new Map<string, number>();
-  const typing = (e: KeyboardEvent) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
 
   const onDown = (e: KeyboardEvent) => {
     if (e.repeat || typing(e) || e.metaKey || e.ctrlKey) return;

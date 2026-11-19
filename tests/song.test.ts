@@ -50,8 +50,9 @@ describe('charts', () => {
   });
 });
 
+const v = (played: number[], written: string) => compareChord(identify(played).best!, parseChordSymbol(written)!, C);
+
 describe('comparison', () => {
-  const v = (played: number[], written: string) => compareChord(identify(played).best!, parseChordSymbol(written)!, C);
   it('is forgiving about voicing but names what is missing', () => {
     expect(v([50, 53, 57, 60], 'Dm7').verdict).toBe('exact');
     expect(v([53, 57, 60, 62], 'Dm7').verdict).toBe('exact'); // inversion

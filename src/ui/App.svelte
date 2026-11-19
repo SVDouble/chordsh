@@ -40,7 +40,7 @@
   });
 
   const m = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const errors = midi.inputs.filter((p) => p.error);
     return {
       inputs: midi.inputs, outputs: midi.outputs, inputId: midi.inputId, outputId: midi.outputId,

@@ -250,7 +250,7 @@ export class Harmonizer {
   ranked(kChords = 5, kKeys = 3): { chords: { root: number; kind: KindName; delta: number }[]; keys: { key: Key; delta: number }[] }[] {
     const n = this.segments.length, p = this.params;
     if (!n || this.cols.length !== n) return [];
-    const out: ReturnType<Harmonizer['ranked']> = new Array(n);
+    const out: ReturnType<Harmonizer['ranked']> = Array.from({ length: n }, () => ({ chords: [], keys: [] }));
     let B = new Float64Array(NS); // backward scores for the last segment: 0
     for (let t = n - 1; t >= 0; t--) {
       const F = this.cols[t];
@@ -371,7 +371,7 @@ export class Harmonizer {
     const n = v.segments.length;
     if (!n) return [];
     let s = this.argmax(v.V, endKey);
-    const states: number[] = new Array(n);
+    const states: number[] = Array.from({ length: n }, () => 0);
     for (let i = n - 1; i >= 0; i--) {
       states[i] = s;
       const bc = v.back[i][s], bk = v.backKey[i][s];

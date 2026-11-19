@@ -2,7 +2,7 @@
   import { audition, session, ui } from './store.svelte';
 
   const moves = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     return session.next.map((m) => ({ ...m, id: `next:${m.name}` }));
   });
 </script>

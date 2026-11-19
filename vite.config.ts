@@ -32,6 +32,8 @@ function recordings(): Plugin {
   };
 }
 
+const ls = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : []);
+
 /** Dev-only library: list and serve pieces from ./local (your recordings and the benchmark corpora). */
 function library(): Plugin {
   const root = path.resolve('local');
@@ -42,7 +44,6 @@ function library(): Plugin {
         const url = new URL(req.url ?? '/', 'http://x');
         res.setHeader('content-type', 'application/json');
         if (url.pathname === '/' || url.pathname === '') {
-          const ls = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : []);
           const corpora = Object.fromEntries(ls(path.join(root, 'data')).filter((d) => !d.startsWith('.'))
             .map((d) => [d, ls(path.join(root, 'data', d)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))]));
           res.end(JSON.stringify({ recordings: ls(path.join(root, 'recordings')).filter((f) => f.endsWith('.json')).sort().reverse(), corpora }));

@@ -9,7 +9,7 @@
   const FUNC = { T: 'Tonic', PD: 'Predominant', D: 'Dominant', '?': 'Colour' };
 
   const v = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const id = session.now, key = session.activeKey, c = id.best;
     return {
       kind: id.kind,

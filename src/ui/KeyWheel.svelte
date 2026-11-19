@@ -29,7 +29,7 @@
   let hover = $state<KeyReach | null>(null);
 
   const v = $derived.by(() => {
-    ui.tick;
+    void ui.tick; // re-run when the engine changes
     const k = session.activeKey;
     return {
       reach: new Map(session.reach.map((r) => [keyIndex(r.key), r])),

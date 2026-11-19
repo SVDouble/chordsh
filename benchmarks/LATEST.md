@@ -1,21 +1,48 @@
 # Latest benchmark
 
-2026-11-19 · commit 6bb03c5 · split `all` · reproduce with `npm run fetch-data && npm run benchmark`
+2026-11-19 · commit af74534 · split `test` · reproduce with `npm run fetch-data && SPLIT=test npm run benchmark`
 
 All numbers are % of 250 ms samples (chords, keys) or F-measure (beats, bars). `*` = synthetic performance rendered from chord changes. See [docs/benchmark.md](../docs/benchmark.md) for what each column means.
 
-| corpus | pieces | chord live @1 / @3 | chord hindsight @1 / @3 / @5 | root @1 | key live | key @1 / @3 / close | changes ×truth | key changes | beat F | bar F |
-| ------ | ------ | ------------------ | ---------------------------- | ------- | -------- | ------------------- | -------------- | ----------- | ------ | ----- |
-| bps-fh | 32     | 62.2 / 77.3        | 71.2 / 86.6 / 91.2           | 73.3    | 63.8     | 73.7 / 93.6 / 79.6  | 1.00           | 686 / 801   | 71.6   | 52.4  |
-| chopin | 55     | 62.5 / 77.2        | 73.5 / 88.5 / 93.0           | 75.9    | 56.1     | 66.0 / 87.7 / 76.3  | 0.88           | 268 / 141   | 99.2   | 58.2  |
-| jazz * | 1170   | 80.2 / 91.9        | 91.6 / 99.1 / 99.5           | 94.3    | 39.6     | 46.2 / 70.8 / 62.8  | 0.95           | 2894 / 0    | 66.0   | 53.1  |
-| mozart | 54     | 56.9 / 74.4        | 65.8 / 86.7 / 92.1           | 67.7    | 69.7     | 77.3 / 95.9 / 80.8  | 0.80           | 350 / 299   | 84.1   | 53.6  |
-| pop909 | 60     | 75.2 / 88.0        | 83.3 / 94.7 / 96.8           | 88.5    | 63.9     | 68.5 / 88.2 / 89.3  | 1.00           | 116 / 0     | 68.5   | 49.1  |
+Parameters (including any `P_` overrides):
+
+```json
+{
+  "chordChange": 0.61,
+  "keyChange": 3.6,
+  "extraNote": 0.6,
+  "missingTone": 0.2,
+  "prior": {
+    "diatonic": 0,
+    "secondary": -0.065,
+    "borrowed": -0.25,
+    "other": -0.74,
+    "tonic": 0.43,
+    "dominant": 0.44
+  },
+  "keyFit": 0.47,
+  "bassRoot": 0.3,
+  "bassInChord": 0.02,
+  "bassOutside": -0.04,
+  "heldDecayMs": 2460,
+  "durExp": 0.8,
+  "saturation": 1.5,
+  "durationWeight": 0
+}
+```
+
+| corpus | pieces | chord live @1 / @3 | chord hindsight @1 / @3 / @5 | root @1 | key live | key @1 / @3 / close  | changes ×truth | key changes | beat F | bar F |
+| ------ | ------ | ------------------ | ---------------------------- | ------- | -------- | -------------------- | -------------- | ----------- | ------ | ----- |
+| bps-fh | 17     | 60.7 /  74.9       | 70.6 /  85.3 /  89.4         | 72.7    | 67.5     | 79.0 /  94.5 /  84.3 | 1.24           | 255 / 487   | 70.3   | 51.1  |
+| chopin | 28     | 60.4 /  74.5       | 69.9 /  86.5 /  91.3         | 72.5    | 64.2     | 76.9 /  88.9 /  86.5 | 0.97           | 79 / 66     | 98.9   | 51.5  |
+| jazz * | 585    | 80.3 /  90.8       | 91.6 /  99.2 /  99.5         | 94.4    | 41.5     | 46.2 /  73.0 /  68.8 | 0.96           | 579 / 0     | 65.9   | 53.1  |
+| mozart | 24     | 54.1 /  69.9       | 65.5 /  84.8 /  90.1         | 67.8    | 73.3     | 83.7 /  96.9 /  88.3 | 0.99           | 90 / 137    | 82.2   | 52.5  |
+| pop909 | 30     | 73.7 /  86.8       | 81.0 /  93.7 /  96.2         | 85.9    | 67.9     | 72.3 /  88.2 /  88.8 | 1.04           | 23 / 0      | 66.4   | 47.3  |
 
 | corpus | chord misses: boundary / same root, wrong quality / a fifth away / other | key misses: relative / parallel / a fifth away / other |
 | ------ | ------------------------------------------------------------------------ | ------------------------------------------------------ |
-| bps-fh | 37.3 / 4.5 / 21.5 / 36.6                                                 | 11.8 / 10.6 / 51.1 / 26.6                              |
-| chopin | 66.0 / 2.7 / 11.2 / 20.1                                                 | 18.5 / 11.7 / 33.5 / 36.3                              |
-| jazz   | 53.6 / 12.6 / 1.3 / 32.5                                                 | 26.3 / 4.6 / 18.4 / 50.7                               |
-| mozart | 60.1 / 2.6 / 14.7 / 22.6                                                 | 6.5 / 8.9 / 62.2 / 22.4                                |
-| pop909 | 45.7 / 19.4 / 7.4 / 27.6                                                 | 64.4 / 1.6 / 4.5 / 29.4                                |
+| bps-fh | 33.6 /   4.6 /  22.2 /  39.6                                             | 13.9 /  11.6 /  42.9 /  31.6                           |
+| chopin | 62.2 /   3.4 /  10.8 /  23.6                                             | 22.2 /  19.6 /  29.6 /  28.6                           |
+| jazz   | 52.7 /  13.4 /   0.7 /  33.2                                             | 35.1 /   6.9 /  13.5 /  44.6                           |
+| mozart | 59.8 /   3.0 /  17.0 /  20.2                                             | 16.4 /  11.7 /  57.2 /  14.7                           |
+| pop909 | 41.6 /  16.8 /   6.4 /  35.1                                             | 59.4 /   0.0 /   0.0 /  40.6                           |

@@ -52,6 +52,30 @@ describe('session', () => {
     expect(s.melody.length).toBe(15);
   });
 
+  it('a held left-hand chord stays one chord while the right hand improvises', () => {
+    [48, 52, 55, 59].forEach((n) => s.noteOn(n, 80, t)); // hold Cmaj7, never released
+    vi.advanceTimersByTime(400); t += 400;
+    const tap = (notes: number[], gap = 0) => {
+      notes.forEach((n, i) => s.noteOn(n, 90, t + i * gap));
+      vi.advanceTimersByTime(150); t += 150;
+      notes.forEach((n) => s.noteOff(n, t));
+      vi.advanceTimersByTime(250); t += 250;
+    };
+    tap([64, 67]);          // double-stop
+    tap([72, 74], 30);      // fast run, both inside one onset window
+    tap([69]); tap([62]); tap([65, 69, 71].slice(0, 2)); tap([77]);
+    expect(s.chords.map((c) => c.name)).toEqual(['Cmaj7']);
+    expect(s.melody.map((m) => m.note)).toEqual([64, 67, 72, 74, 69, 62, 65, 69, 77]);
+  });
+
+  it('a new right-hand voicing over a held bass still changes the chord', () => {
+    s.noteOn(41, 80, t); vi.advanceTimersByTime(400); t += 400; // hold F bass
+    [57, 60, 64].forEach((n) => s.noteOn(n, 80, t)); vi.advanceTimersByTime(400); t += 400;
+    [57, 60, 64].forEach((n) => s.noteOff(n, t));
+    [55, 59, 62].forEach((n) => s.noteOn(n, 80, t)); vi.advanceTimersByTime(400); t += 400;
+    expect(s.chords.map((c) => c.name)).toEqual(['Fmaj7', 'G7/F']);
+  });
+
   it('practice accepts any voicing of the right chord', () => {
     play(Dm7); play(G7); play(Cmaj7);
     s.setTarget({ tonic: 7, mode: 'major' });

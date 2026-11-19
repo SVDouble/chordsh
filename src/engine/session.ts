@@ -78,7 +78,12 @@ export class Session {
       {
         harmony: (n, t, strike) => this.onHarmony(n, t, strike),
         melody: (n, _v, t) => this.onMelody(n, t),
-        retractMelody: (n) => { this.melody = this.melody.filter((m) => !n.includes(m.note) || performance.now() - m.t > 400); },
+        retractMelody: (notes) => {
+          for (const n of notes) {
+            const i = this.melody.findLastIndex((m) => m.note === n);
+            if (i >= 0) this.melody.splice(i, 1);
+          }
+        },
       },
       (notes) => identify(notes).best?.score ?? null,
     );
@@ -146,6 +151,9 @@ export class Session {
     const chords = this.chords;
     const last = chords[chords.length - 1];
     if (last && last.name === name) { last.count++; this.onChange(); return; }
+    // Same chord with an added colour tone (Cmaj7 → Cmaj9): not a new chord in the progression.
+    const l = last?.chord;
+    if (l && l.root === c.root && l.quality === c.quality && l.seventh === c.seventh && l.bass === c.bass) return;
 
     const entry: ChordEntry = { type: 'chord', id: this.id++, chord: c, name, roman: key ? analyzeRoman(c, key) : null, key, t0: p.t, count: 1, notes: p.notes };
     if (last?.key) last.roman = analyzeRoman(last.chord, last.key, c); // the resolution confirms applied chords

@@ -6,7 +6,9 @@ import { mod12 } from '../theory/pitch';
  * Heuristics (in order):
  *  - notes struck within `groupMs` form one onset group;
  *  - with an auto-detected hand split, left-hand notes are always harmony;
- *  - a group of 2+ notes is a chord strike;
+ *  - while a chord is held (keys or pedal), notes above it are melody — even
+ *    double-stops and fast runs; only a 3+ note voicing replaces the harmony;
+ *  - otherwise a group of 2+ notes is a chord strike, and held notes below it are its bass;
  *  - a single right-hand note is melody, unless it completes a rolled chord;
  *  - single left-hand notes (broken chords, Alberti bass) accumulate into the
  *    current harmony while they still make a sensible chord, otherwise start a new one.
@@ -105,15 +107,20 @@ export class Segmenter {
     const t = group[group.length - 1].t;
     for (const [n, h] of this.harmony) if (h.released !== null && t - h.released > RELEASE_MEMORY_MS) this.harmony.delete(n);
 
-    const split = this.split;
+    // A held chord anchors the harmony: its top note acts as the hand split.
+    const anchor = [...this.harmony.keys()].filter(this.sounding);
+    const anchored = anchor.length >= 2 && t - this.lastStrike.t > ROLL_MS;
+    const split = this.split ?? (anchored ? Math.max(...anchor) + 1 : null);
     const low = split === null ? [] : group.filter((g) => g.note < split);
     const high = split === null ? group : group.filter((g) => g.note >= split);
     const harmonic = low.map((g) => g.note);
     let block = low.length >= 2;
 
-    if (high.length >= 2) {
+    if (high.length >= 3 || (high.length === 2 && !anchored)) {
       harmonic.push(...high.map((g) => g.note));
       block = true;
+    } else if (high.length === 2) {
+      high.forEach((g) => this.emitMelody(g)); // double-stop / fast run over a held chord
     } else if (high.length === 1) {
       const g = high[0];
       const rolled = [...this.held].filter(([, h]) => g.t - h.t <= ROLL_MS).map(([n]) => n);
@@ -132,6 +139,12 @@ export class Segmenter {
     if (!harmonic.length) return;
 
     if (block) {
+      // keys still held below a new chord are its bass, even if they were first heard as melody
+      const lowest = Math.min(...harmonic);
+      const bass = [...this.held.keys()].filter((n) => n < lowest && !this.harmony.has(n));
+      const retract = bass.filter((n) => this.melodyNotes.delete(n));
+      if (retract.length) this.ev.retractMelody(retract);
+      harmonic.push(...bass);
       for (const n of [...this.harmony.keys()]) if (!this.held.has(n)) this.harmony.delete(n);
       for (const n of harmonic) this.harmony.set(n, { t, released: null });
     } else {

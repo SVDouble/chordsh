@@ -121,13 +121,20 @@
     >
       <option value="">Open chart…</option>
       <optgroup label="Examples">
-        {#each EXAMPLES as c}<option>{c.title}</option>{/each}
+        {#each EXAMPLES as c}
+          <option>{c.title}</option>
+        {/each}
       </optgroup>
-      {#if ui.charts.length}<optgroup label="Saved">
-          {#each ui.charts as c}<option>{c.title}</option>{/each}
-        </optgroup>{/if}
+      {#if ui.charts.length}
+        <optgroup label="Saved">
+          {#each ui.charts as c}
+            <option>{c.title}</option>
+          {/each}
+        </optgroup>
+      {/if}
     </select>
     <button
+      type="button"
       onclick={() => {
         title = 'New song';
         text = '';
@@ -137,6 +144,7 @@
       New
     </button>
     <button
+      type="button"
       disabled={!session.chords.length}
       onclick={() => edit(true)}
       title="Turn the progression you played into a chart"
@@ -147,7 +155,7 @@
 
   {#if editing}
     <div class="editor">
-      <input class="title-in" bind:value={title} placeholder="Title" />
+      <input class="title-in" bind:value={title} placeholder="Title">
       <textarea
         bind:value={text}
         rows="8"
@@ -157,11 +165,15 @@
       <div class="row small">
         {#if draft}
           <span class="muted">{draft.chords.length} chords · {draft.key ? keyLong(draft.key) : '—'}</span>
-          {#if draft.errors.length}<span class="warn">Can't read: {draft.errors.join(', ')}</span>{/if}
+          {#if draft.errors.length}
+            <span class="warn">Can't read: {draft.errors.join(', ')}</span>
+          {/if}
         {/if}
         <span class="right row tight">
-          <button onclick={() => (editing = false)}>Cancel</button>
-          <button class="active" disabled={!draft?.chords.length || !title.trim()} onclick={save}>Save & open</button>
+          <button type="button" onclick={() => (editing = false)}>Cancel</button>
+          <button type="button" class="active" disabled={!draft?.chords.length || !title.trim()} onclick={save}>
+            Save & open
+          </button>
         </span>
       </div>
     </div>
@@ -174,6 +186,7 @@
     <div class="row small">
       <b>{v.title}</b><span class="muted">{v.key}</span>
       <button
+        type="button"
         class="link"
         onclick={() =>
           hear(
@@ -192,24 +205,32 @@
             session.songGuide = e.currentTarget.checked;
             session.onChange();
           }}
-        /> show on piano
+        >
+        show on piano
       </label>
       <span class="right row tight">
-        {#if v.passes.length}<span class="muted" title="Score per pass through the song">
+        {#if v.passes.length}
+          <span class="muted" title="Score per pass through the song">
             {v.passes.map((p) => p + '%').join(' · ')}
-          </span>{/if}
-        <button class="link" onclick={() => edit()}>edit</button>
-        {#if !v.builtin}<button class="link" onclick={() => remove(v.title)}>delete</button>{/if}
-        <button class="link" onclick={() => session.loadSong(null)}>close</button>
+          </span>
+        {/if}
+        <button type="button" class="link" onclick={() => edit()}>edit</button>
+        {#if !v.builtin}
+          <button type="button" class="link" onclick={() => remove(v.title)}>delete</button>
+        {/if}
+        <button type="button" class="link" onclick={() => session.loadSong(null)}>close</button>
       </span>
     </div>
 
     <div class="bars">
       {#each v.bars as bar}
         <div class="bar">
-          {#if bar.section}<span class="section">{bar.section}</span>{/if}
+          {#if bar.section}
+            <span class="section">{bar.section}</span>
+          {/if}
           {#each bar.cells as c (c.i)}
             <button
+              type="button"
               class="cell f-{c.func} v-{c.result?.verdict ?? 'none'} k-{c.kind}"
               class:current={c.current}
               class:sel={selected === c.i}
@@ -236,9 +257,11 @@
     {:else if v.expected}
       <p>
         Next <b>{v.expected.symbol}</b> <span class="muted">{v.expected.roman}</span>
-        {#each v.expected.tones as t}<span class="tone mini {roleClass(t.role)}">
+        {#each v.expected.tones as t}
+          <span class="tone mini {roleClass(t.role)}">
             <b>{t.name}</b><i>{t.role}</i>
-          </span>{/each}
+          </span>
+        {/each}
       </p>
     {/if}
 
@@ -246,26 +269,36 @@
       <div class="label">Ideas for {v.sel.symbol} <span class="muted">{v.sel.roman?.numeral}</span></div>
       {#each v.hints as h, i}
         <div class="hint">
-          <button onclick={() => hear(h.chords, `hint${i}`)} class:playing={ui.playingId === `hint${i}`}>▶</button>
+          <button type="button" onclick={() => hear(h.chords, `hint${i}`)} class:playing={ui.playingId === `hint${i}`}>
+            ▶
+          </button>
           <div>
             <b>{h.label}</b>
             {h.names.join(' → ')}
             <div class="small muted">{h.why}</div>
           </div>
         </div>
-      {:else}<p class="small muted">No obvious reharm here — it's already doing its job.</p>{/each}
+      {:else}
+        <p class="small muted">No obvious reharm here — it's already doing its job.</p>
+      {/each}
     {/if}
     {#if v.habits.length}
       <div class="label">What you tend to miss</div>
       <ul class="small">
-        {#each v.habits as h}<li>{h}</li>{/each}
+        {#each v.habits as h}
+          <li>{h}</li>
+        {/each}
       </ul>
     {/if}
     <div class="label">Big picture</div>
     {#if v.insights.length}
       <ul class="small insights">
-        {#each v.insights as x}<li><span class="muted">{x.where}:</span> {x.text}</li>{/each}
+        {#each v.insights as x}
+          <li><span class="muted">{x.where}:</span> {x.text}</li>
+        {/each}
       </ul>
-    {:else}<p class="small muted">All diatonic — a good chart to try reharmonising (click a chord).</p>{/if}
+    {:else}
+      <p class="small muted">All diatonic — a good chart to try reharmonising (click a chord).</p>
+    {/if}
   {/if}
 </div>

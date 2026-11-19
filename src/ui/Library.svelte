@@ -33,6 +33,7 @@
       error = '';
       session.clear();
       playPiece(await load());
+      ui.tab = 'progression';
     } catch (e) {
       error = (e as Error).message;
     }
@@ -59,24 +60,23 @@
 <div class="panel library">
   {#if ui.nowPlaying}
     <div class="row playing-now">
-      <span>▶ <b>{ui.nowPlaying}</b></span><button class="right" onclick={stopPiece}>■ Stop</button>
+      <span>▶ <b>{ui.nowPlaying}</b></span><button type="button" class="right" onclick={stopPiece}>■ Stop</button>
     </div>
   {/if}
-  {#if error}<p class="warn small">{error}</p>{/if}
+  {#if error}
+    <p class="warn small">{error}</p>
+  {/if}
 
   <div class="label">Play into the app <span class="muted">— analysed exactly as if you played it</span></div>
   <div class="lib-list">
     {#each [...BUILT_IN, ...opened] as p (p.id)}
-      <button class="lib-item" onclick={() => play(async () => p)}>
+      <button type="button" class="lib-item" onclick={() => play(async () => p)}>
         <b>{p.title}</b><span class="muted small">{p.source}{p.bpm ? ` · ♩${Math.round(p.bpm)}` : ''}</span>
       </button>
     {/each}
     <label class="lib-item filebtn">
-      <b>Open a MIDI file…</b><span class="muted small">a recording or a score</span><input
-        type="file"
-        accept=".mid,.midi"
-        onchange={openFile}
-      />
+      <b>Open a MIDI file…</b><span class="muted small">a recording or a score</span>
+      <input type="file" accept=".mid,.midi" onchange={openFile}>
     </label>
   </div>
 
@@ -84,10 +84,13 @@
     <div class="label">Your recordings</div>
     <div class="lib-list">
       {#each recordings as f (f)}
-        <button class="lib-item" onclick={() => play(async () => fromRecording(f, await getJson(`recordings/${f}`)))}>
-          <b>{f.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2')}</b><span class="muted small">
-            recording
-          </span>
+        <button
+          type="button"
+          class="lib-item"
+          onclick={() => play(async () => fromRecording(f, await getJson(`recordings/${f}`)))}
+        >
+          <b>{f.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2')}</b
+          ><span class="muted small"> recording </span>
         </button>
       {/each}
     </div>
@@ -99,12 +102,15 @@
     </div>
     <div class="row">
       <select bind:value={corpus}>
-        {#each Object.keys(corpora) as c}<option value={c}>{c} ({corpora[c].length})</option>{/each}
+        {#each Object.keys(corpora) as c}
+          <option value={c}>{c} ({corpora[c].length})</option>
+        {/each}
       </select>
     </div>
     <div class="lib-list scrolly">
       {#each (corpora[corpus] ?? []).slice(0, 200) as id (id)}
         <button
+          type="button"
           class="lib-item"
           onclick={() => play(async () => fromBenchmark(`${corpus}/${id}`, await getJson(`data/${corpus}/${id}.json`)))}
         >
@@ -117,7 +123,7 @@
   <div class="label">Chord charts <span class="muted">— play along</span></div>
   <div class="lib-list">
     {#each [...EXAMPLES, ...ui.charts] as c (c.title)}
-      <button class="lib-item" onclick={() => openChart(c)}>
+      <button type="button" class="lib-item" onclick={() => openChart(c)}>
         <b>{c.title}</b><span class="muted small">chart</span>
       </button>
     {/each}

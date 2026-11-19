@@ -49,8 +49,10 @@ export const ui = $state({
   charts: (saved.charts ?? []) as { title: string; text: string }[],
   /** Title of the library piece currently playing. */
   nowPlaying: null as string | null,
-  /** Right-hand panel: song chart or key-change routes. */
-  tab: 'library' as 'library' | 'song' | 'route',
+  /** Main panel: the live progression, a song chart, or the library. */
+  tab: 'progression' as 'progression' | 'library' | 'song',
+  /** Chord suggestions and key-change routes share Where next. */
+  nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
   monitor: (saved.monitor ?? true) as boolean,
   audioBlocked: true,
@@ -64,6 +66,7 @@ export const ui = $state({
   recMsg: '',
 });
 synth.onState = () => (ui.audioBlocked = synth.blocked);
+synth.init(); // show the browser's actual audio state before the first note
 
 let queued = false;
 const bump = () => {

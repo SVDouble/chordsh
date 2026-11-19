@@ -33,7 +33,7 @@
       <div class="label">Most natural destinations now</div>
       <div class="row">
         {#each v.likely as r}
-          <button class="pill" onclick={() => session.setTarget(r.key)}>
+          <button type="button" class="pill" onclick={() => session.setTarget(r.key)}>
             {keyLong(r.key)} <span class="muted">· {r.relation}</span>
           </button>
         {/each}
@@ -42,12 +42,8 @@
   {:else if v.practice}
     {@const p = v.practice}
     <div class="row">
-      <b>Practise {p.path.technique} → {keyShort(v.to)}</b><button
-        class="link right"
-        onclick={() => session.stopPractice()}
-      >
-        stop
-      </button>
+      <b>Practise {p.path.technique} → {keyShort(v.to)}</b
+      ><button type="button" class="link right" onclick={() => session.stopPractice()}>stop</button>
     </div>
     <div class="row steps">
       {#each p.steps as s, i}
@@ -60,21 +56,27 @@
       <p class="success">Arrived in {keyLong(v.to)} 🎉 — try it from another key, the moves are the same.</p>
     {:else}
       <p>Play <b>{p.steps[p.index].name}</b> — any voicing or inversion counts.</p>
-      {#if p.hit.length}<p class="small">✓ {p.hit.join(', ')}</p>{/if}
-      {#if p.missing.length}<p class="small warn">missing: {p.missing.join(', ')}</p>{/if}
-      <button onclick={() => audition([p.steps[p.index].voicing], 'hint')}>Hear it</button>
+      {#if p.hit.length}
+        <p class="small">✓ {p.hit.join(', ')}</p>
+      {/if}
+      {#if p.missing.length}
+        <p class="small warn">missing: {p.missing.join(', ')}</p>
+      {/if}
+      <button type="button" onclick={() => audition([p.steps[p.index].voicing], 'hint')}>Hear it</button>
     {/if}
   {:else}
     <div class="row">
       <b class="route-title">{keyShort(v.from)} → {keyShort(v.to)}</b><span class="muted small">{v.info}</span>
-      <button class="link right" onclick={() => session.setTarget(null)}>clear</button>
+      <button type="button" class="link right" onclick={() => session.setTarget(null)}>clear</button>
     </div>
     {#if v.pivots.length}
       <div class="row small">
         <span class="muted">Shared chords:</span>
-        {#each v.pivots as p}<span class="pill" title={p.kind}>
+        {#each v.pivots as p}
+          <span class="pill" title={p.kind}>
             {p.name} <span class="muted">{p.fromNumeral} → {p.toNumeral}</span>
-          </span>{/each}
+          </span>
+        {/each}
       </div>
     {:else}
       <p class="small muted">No shared chords — use a dominant, a °7 or a tritone sub to jump.</p>
@@ -85,6 +87,7 @@
           <b>{path.technique}</b>
           <span class="right row tight">
             <button
+              type="button"
               onclick={() =>
                 audition(
                   path.steps.map((s) => s.voicing),
@@ -93,7 +96,7 @@
             >
               ▶ Play
             </button>
-            <button onclick={() => session.startPractice(path)}>Practise</button>
+            <button type="button" onclick={() => session.startPractice(path)}>Practise</button>
           </span>
         </div>
         <div class="row steps">

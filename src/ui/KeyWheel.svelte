@@ -32,7 +32,7 @@
   const rampCss = $derived(RAMP.map((c) => `rgb(${c})`).join(', '));
   /** Colour for a key, relative to the most likely destination (so the scale always uses its full range). */
   function heat(l: number): string {
-    const t = Math.pow(Math.min(1, Math.max(0, l / v.maxL)), 1.3) * (RAMP.length - 1);
+    const t = Math.min(1, Math.max(0, l / v.maxL)) ** 1.3 * (RAMP.length - 1);
     const i = Math.min(RAMP.length - 2, Math.floor(t)),
       f = t - i;
     const c = RAMP[i].map((a, k) => Math.round(a + (RAMP[i + 1][k] - a) * f));
@@ -64,7 +64,7 @@
   function pick(k: Key) {
     const off = keyEq(k, session.target) || keyEq(k, session.activeKey);
     session.setTarget(off ? null : k);
-    if (!off) ui.tab = 'route';
+    if (!off) ui.nextTab = 'key';
   }
 </script>
 
@@ -76,13 +76,17 @@
     Tonal map
   </div>
   <svg viewBox="-196 -196 392 392" preserveAspectRatio="xMidYMid meet">
-    {#if route}<path d={route} class="route-line" />{/if}
+    <title>Tonal map — select a key to explore routes</title>
+    {#if route}
+      <path d={route} class="route-line" />
+    {/if}
     {#each nodes as n (keyIndex(n.key))}
       {@const r = v.reach.get(keyIndex(n.key))}
       {@const l = r?.likelihood ?? 0}
       {@const cur = keyEq(n.key, v.current)}
       {@const strong = !cur && !!v.current && l / v.maxL >= 0.55}
       {@const dark = cur || (!!v.current && l / v.maxL > 0.62)}
+      <!-- biome-ignore lint/a11y/useSemanticElements: SVG groups cannot be replaced by HTML buttons. -->
       <g
         class="node {r?.smooth ?? ''}"
         class:current={cur}
@@ -102,12 +106,16 @@
           style="fill:{cur ? 'var(--current-fill)' : v.current ? heat(l) : 'var(--card-2)'}"
         />
         <text x={n.x} y={n.y - (strong ? 6 : 0)} class:dark>{keyShort(n.key)}</text>
-        {#if strong}<text class="pct" class:dark x={n.x} y={n.y + 11}>{Math.round(l * 100)}%</text>{/if}
+        {#if strong}
+          <text class="pct" class:dark x={n.x} y={n.y + 11}>{Math.round(l * 100)}%</text>
+        {/if}
       </g>
     {/each}
     <text class="centre" y="-10">{v.label}</text>
     <text class="centre small" y="14">{v.sub}</text>
-    {#if v.flavour}<text class="centre small" y="34">{v.flavour} colour</text>{/if}
+    {#if v.flavour}
+      <text class="centre small" y="34">{v.flavour} colour</text>
+    {/if}
   </svg>
   {#if hover && hover.relation !== 'home'}
     <div class="wheel-info">
@@ -116,9 +124,8 @@
     </div>
   {:else if v.current}
     <div class="wheel-legend">
-      <span>less</span><span class="ramp" style="background:linear-gradient(90deg, {rampCss})"></span><span>
-        more likely
-      </span>
+      <span>less</span><span class="ramp" style="background:linear-gradient(90deg, {rampCss})"></span
+      ><span> more likely </span>
       <span class="ring close"></span><span>close key</span><span class="ring remote"></span><span>remote</span>
     </div>
   {/if}

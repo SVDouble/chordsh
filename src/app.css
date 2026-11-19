@@ -25,14 +25,14 @@
   --shadow: #000a;
   color-scheme: dark;
   font:
-    16px/1.4 system-ui,
+    16px / 1.4 system-ui,
     -apple-system,
-    'Segoe UI',
+    "Segoe UI",
     sans-serif;
   background: var(--bg);
   color: var(--text);
 }
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --bg: #eef0f4;
   --card: #ffffff;
   --card-2: #f2f4f8;
@@ -102,7 +102,7 @@ kbd {
   font-size: 14px;
 }
 code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 13px;
 }
 button,
@@ -189,8 +189,10 @@ select {
 /* ── app shell: fills the window, never scrolls ── */
 .app {
   height: 100vh;
+  /* biome-ignore lint/suspicious/noDuplicateProperties: viewport fallback for older browsers */
   height: 100dvh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   overflow: hidden;
 }
@@ -310,7 +312,7 @@ select {
   gap: var(--gap);
   padding: var(--gap);
   grid-template-columns: minmax(320px, 1.05fr) minmax(0, 1fr) minmax(340px, 1.05fr);
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
 }
 .pane {
   min-height: 0;
@@ -318,9 +320,6 @@ select {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-}
-.pane.bottom {
-  grid-column: 1 / -1;
 }
 .card,
 .pane.right {
@@ -331,6 +330,7 @@ select {
   min-width: 0;
 }
 .pane.right {
+  margin-left: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -363,6 +363,32 @@ select {
   overflow: auto;
   padding: 10px 14px;
 }
+.next-tabs {
+  flex: none;
+  margin-bottom: 10px;
+}
+.pane.right .history {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.pane.right .h-head {
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.pane.right .hbars {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+.pane.right .hbar {
+  flex: 1 1 150px;
+  min-width: 0;
+}
 
 /* now playing */
 .now {
@@ -386,7 +412,7 @@ select {
 .numeral {
   font-size: clamp(28px, 1.8vw + 1.2vh, 50px);
   font-weight: 600;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Georgia, "Times New Roman", serif;
 }
 .badges {
   display: flex;
@@ -657,8 +683,10 @@ select {
   flex-direction: column;
 }
 .h-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   scrollbar-width: thin;
 }
 .h-grid {
@@ -823,7 +851,7 @@ textarea {
   color: var(--text);
 }
 textarea {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 15px;
   resize: vertical;
 }
@@ -977,6 +1005,7 @@ footer {
 }
 .piano canvas {
   display: block;
+  max-width: 100%;
   touch-action: none;
   cursor: pointer;
   border-radius: 4px;
@@ -988,12 +1017,13 @@ footer {
     height: auto;
     overflow: visible;
   }
+  .topbar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
   .stage {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
-  }
-  .pane.bottom {
-    grid-column: auto;
   }
   .wheel svg {
     height: auto;
@@ -1107,7 +1137,7 @@ footer {
   color: var(--muted);
 }
 .fl::before {
-  content: '';
+  content: "";
   width: 9px;
   height: 9px;
   border-radius: 2px;

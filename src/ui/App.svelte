@@ -15,13 +15,12 @@
     ui,
   } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
-  import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
+  import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { midiName } from '../theory/pitch';
   import NowPlaying from './NowPlaying.svelte';
   import KeyWheel from './KeyWheel.svelte';
   import History from './History.svelte';
   import NextMoves from './NextMoves.svelte';
-  import Route from './Route.svelte';
   import Piano from './Piano.svelte';
   import Song from './Song.svelte';
   import Library from './Library.svelte';
@@ -65,7 +64,6 @@
       devices: midi.devices,
       last: midi.last,
       errors,
-      target: session.target,
       song: session.song?.chart.title ?? '',
       label:
         midi.status === 'unsupported'
@@ -93,45 +91,59 @@
         m.last ? `last message: ${m.last.text} from ${m.last.port}` : 'no messages received yet',
       ].join('\n')}
     >
-      {#key m.last?.t}<i class="led" class:flash={m.last}></i>{/key}
+      {#key m.last?.t}
+        <i class="led" class:flash={m.last}></i>
+      {/key}
       {m.label}
-      {#if m.last}<code class="muted">{m.last.text}</code>{:else if m.devices.length}<span class="muted">
-          · press a key
-        </span>{/if}
+      {#if m.last}
+        <code class="muted">{m.last.text}</code>
+      {:else if m.devices.length}
+        <span class="muted"> · press a key </span>
+      {/if}
     </span>
-    {#if m.errors.length}<span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>{/if}
-    {#if ui.audioBlocked && ui.monitor}<button
+    {#if m.errors.length}
+      <span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>
+    {/if}
+    {#if ui.audioBlocked && ui.monitor}
+      <button
+        type="button"
         class="sound-btn"
         onclick={() => synth.unlock()}
-        title="Browsers only allow sound after you click the page"
+        title="Your browser has paused audio. Click anywhere or press a computer key to enable it; MIDI input cannot unlock it."
       >
         Click to enable sound
-      </button>{/if}
+      </button>
+    {/if}
     {#if ui.recording}
       <span class="rec-on"><i class="rec-dot"></i>{recClock}</span>
       <input
         class="rec-note"
         bind:value={ui.recNote}
         placeholder="What are you playing? e.g. held Cmaj7 LH, improvising RH"
-      />
-      <button class="rec-stop" onclick={stopRecording}>■ Save</button>
+      >
+      <button type="button" class="rec-stop" onclick={stopRecording}>■ Save</button>
     {:else}
       <button
+        type="button"
         onclick={startRecording}
         title="Record your MIDI and the app's analysis to a file, for debugging the predictions"
       >
         ● Rec
       </button>
     {/if}
-    {#if ui.recMsg && !ui.recording}<span class="small rec-msg" title={ui.recMsg}>
+    {#if ui.recMsg && !ui.recording}
+      <span class="small rec-msg" title={ui.recMsg}>
         {ui.recMsg.startsWith('Saved') ? '✓ saved' : ui.recMsg}
-      </span>{/if}
+      </span>
+    {/if}
     <span class="spacer"></span>
     <label>
       Key
       <select bind:value={lock} onchange={() => session.setKeyLock(lock === 'auto' ? null : keyFromIndex(+lock))}>
         <option value="auto">Auto-detect</option>
-        {#each ALL_KEYS as k}<option value={String(keyIndex(k))}>{keyLong(k)}</option>{/each}
+        {#each ALL_KEYS as k}
+          <option value={String(keyIndex(k))}>{keyLong(k)}</option>
+        {/each}
       </select>
     </label>
     <label>
@@ -143,10 +155,12 @@
           persist();
         }}
       >
-        <option value="jazz">Jazz (7ths)</option><option value="triads">Triads</option>
+        <option value="jazz">Jazz (7ths)</option>
+        <option value="triads">Triads</option>
       </select>
     </label>
     <button
+      type="button"
       class="icon"
       class:dim={!ui.monitor}
       onclick={toggleSound}
@@ -157,6 +171,7 @@
       {ui.monitor ? '🔊' : '🔇'}
     </button>
     <button
+      type="button"
       class="icon"
       onclick={() => {
         ui.theme = ui.theme === 'dark' ? 'light' : 'dark';
@@ -180,7 +195,9 @@
             }}
           >
             <option value="all">All devices</option>
-            {#each m.inputs as p}<option value={p.id}>{p.name}</option>{/each}
+            {#each m.inputs as p}
+              <option value={p.id}>{p.name}</option>
+            {/each}
           </select>
         </label>
         <label>
@@ -195,9 +212,15 @@
               }}
             >
               <option value="">None</option>
-              {#each m.outputs as p}<option value={p.id}>{p.name}</option>{/each}
+              {#each m.outputs as p}
+                <option value={p.id}>{p.name}</option>
+              {/each}
             </select>
-            <button disabled={!m.outputId} onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}>
+            <button
+              type="button"
+              disabled={!m.outputId}
+              onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}
+            >
               Test
             </button>
           </span>
@@ -205,8 +228,10 @@
         <label>
           Suggestions sound
           <select bind:value={ui.sound} onchange={() => persist()}>
-            <option value="synth">Browser synth</option><option value="midi">MIDI out</option>
-            <option value="both">Both</option><option value="off">Off</option>
+            <option value="synth">Browser synth</option>
+            <option value="midi">MIDI out</option>
+            <option value="both">Both</option>
+            <option value="off">Off</option>
           </select>
         </label>
         <label>
@@ -215,12 +240,16 @@
             bind:value={split}
             onchange={() => (session.seg.splitMode = split === 'auto' || split === 'off' ? split : +split)}
           >
-            <option value="auto">Auto</option><option value="off">Off (one hand)</option>
-            {#each [48, 53, 55, 57, 60, 62, 64] as n}<option value={String(n)}>at {midiName(n)}</option>{/each}
+            <option value="auto">Auto</option>
+            <option value="off">Off (one hand)</option>
+            {#each [48, 53, 55, 57, 60, 62, 64] as n}
+              <option value={String(n)}>at {midiName(n)}</option>
+            {/each}
           </select>
         </label>
         <label>
-          Tempo <span class="row tight">
+          Tempo
+          <span class="row tight">
             <input
               type="range"
               min="50"
@@ -230,7 +259,7 @@
                 persist();
                 if (ui.bars === 'metronome') setBars('metronome');
               }}
-            />
+            >
             {ui.tempo}
           </span>
         </label>
@@ -241,7 +270,8 @@
               value={ui.bars === 'metronome' ? 'metronome' : 'auto'}
               onchange={(e) => setBars(e.currentTarget.value as 'auto' | 'metronome')}
             >
-              <option value="auto">From my playing</option><option value="metronome">Metronome</option>
+              <option value="auto">From my playing</option>
+              <option value="metronome">Metronome</option>
             </select>
             <select
               bind:value={ui.meter}
@@ -250,13 +280,15 @@
                 if (ui.bars !== 'auto') setBars(ui.bars);
               }}
             >
-              <option value={3}>3/4</option><option value={4}>4/4</option><option value={6}>6/8</option>
+              <option value={3}>3/4</option>
+              <option value={4}>4/4</option>
+              <option value={6}>6/8</option>
             </select>
           </span>
         </label>
-        {#if ui.bars === 'metronome'}<label>
-            Click <input type="checkbox" bind:checked={ui.click} onchange={() => persist()} />
-          </label>{/if}
+        {#if ui.bars === 'metronome'}
+          <label> Click <input type="checkbox" bind:checked={ui.click} onchange={() => persist()}> </label>
+        {/if}
         <p class="small muted">
           Piano colours: <b style="color:var(--harmony)">harmony</b> · <b style="color:var(--melody)">melody</b> ·
           <b style="color:var(--audition)">suggestion</b>
@@ -274,19 +306,24 @@
     <section class="pane centre"><KeyWheel /></section>
     <section class="pane right">
       <nav class="tabs">
-        <button class:on={ui.tab === 'library'} onclick={() => (ui.tab = 'library')}>Library</button>
-        <button class:on={ui.tab === 'song'} onclick={() => (ui.tab = 'song')}>
+        <button type="button" class:on={ui.tab === 'progression'} onclick={() => (ui.tab = 'progression')}>
+          Progression
+        </button>
+        <button type="button" class:on={ui.tab === 'song'} onclick={() => (ui.tab = 'song')}>
           Song{m.song ? `: ${m.song}` : ''}
         </button>
-        <button class:on={ui.tab === 'route'} onclick={() => (ui.tab = 'route')}>
-          Change key{m.target ? ` → ${keyShort(m.target)}` : ''}
-        </button>
+        <button type="button" class:on={ui.tab === 'library'} onclick={() => (ui.tab = 'library')}>Library</button>
       </nav>
       <div class="tab-body">
-        {#if ui.tab === 'library'}<Library />{:else if ui.tab === 'song'}<Song />{:else}<Route />{/if}
+        {#if ui.tab === 'progression'}
+          <History />
+        {:else if ui.tab === 'song'}
+          <Song />
+        {:else}
+          <Library />
+        {/if}
       </div>
     </section>
-    <section class="pane bottom"><History /></section>
   </main>
 
   <footer><Piano /></footer>

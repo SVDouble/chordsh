@@ -13,20 +13,29 @@ npm run dev        # open the printed URL in Chrome or Edge (Web MIDI)
   flashes, see _MIDI troubleshooting_ in the [README](../README.md).
 - No keyboard? Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5 (`Z`/`X` octave, `Space` pedal),
   or click the on-screen piano.
-- Click once anywhere to let the browser play sound (🔊 toggles hearing what you play; ☀/☾ switches theme).
+- Sound starts automatically when the browser permits it. Otherwise, click anywhere or press a computer
+  key once (🔊 toggles hearing what you play; ☀/☾ switches theme).
+
+### Why a click can still be needed
+
+The sound prompt reflects the actual audio engine state, including before the first note. When a browser
+blocks Web Audio autoplay, MIDI messages cannot count as a page gesture: one click, tap or computer key
+press is still needed. The app unlocks audio on any of these interactions, and preserves a held first note
+while audio resumes. Chrome may allow autoplay after sufficient use of the site; its
+[autoplay policy](https://developer.chrome.com/blog/autoplay/) describes the browser-controlled exceptions.
+Installing the app is not a guaranteed way to remove the prompt.
 
 ## The screen
 
-| area            | what it shows                                                                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Now playing** | the chord you're holding (name, inversion, tones coloured by role), its numeral and function in the key, a one-line explanation                                      |
-| **Where next**  | likely next chords plus colour moves (secondary dominants, tritone sub, borrowed iv, passing / common-tone / leading-tone °7); click to hear from your hand position |
-| **Tonal map**   | circle of fifths; colour = how likely you're heading to each key; ring = how close it is; click a key to plan a route                                                |
-| **Library**     | play the demo, your recordings, MIDI files or annotated benchmark pieces into the app; open chord charts                                                             |
-| **Song**        | a chord chart to play along with: per-chord verdicts, what you tend to miss, the song's big picture, reharmonisation ideas                                           |
-| **Change key**  | routes from your current key to the chosen one (pivot chord, ii–V–I, tritone sub, dominant chain, °7 pivot…); play or practise them                                  |
-| **Progression** | your chords — in bars when there's a steady pulse, otherwise as a sequence — with functions, cadences, key changes and pivots                                        |
-| **Piano**       | what's sounding: harmony blue, melody amber, suggestions violet, practice targets green                                                                              |
+| area            | what it shows                                                                                                                      |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Now playing** | the chord you're holding (name, inversion, tones coloured by role), its numeral and function in the key, a one-line explanation    |
+| **Where next**  | Next chord suggests playable moves; Change key shows destinations and routes to hear or practise                                   |
+| **Tonal map**   | circle of fifths; colour = how likely you're heading to each key; ring = how close it is; click a key to plan a route              |
+| **Library**     | play the demo, your recordings, MIDI files or annotated benchmark pieces into the app; open chord charts                           |
+| **Song**        | a chord chart to play along with: per-chord verdicts, what you tend to miss, the song's big picture, reharmonisation ideas         |
+| **Progression** | the default main panel: your chords, functions, cadences, key changes and pivots — bars when there's a pulse, otherwise a sequence |
+| **Piano**       | what's sounding: harmony blue, melody amber, suggestions violet, practice targets green                                            |
 
 ### Colours
 
@@ -55,7 +64,7 @@ a timeline — useful for reporting "it got this wrong".
 
 ## Practising
 
-- **Change key → Practise**: the app waits for each chord of a route; any voicing counts; missing chord tones are listed.
+- **Where next → Change key → Practise**: the app waits for each chord of a route; any voicing counts; missing chord tones are listed.
 - **Song**: chords turn green (exact / close enough), violet (a valid substitute) or red; _From playing_ turns your session into a chart.
 
 ## Settings (⚙)

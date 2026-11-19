@@ -9,20 +9,40 @@ export class Synth {
   private out!: GainNode;
   private scheduled = new Set<Voice>();
   private live = new Map<number, Voice>();
+  private waiting = new Map<number, number>();
   private sustained = new Set<number>();
   private pedal = false;
   /** Called when the browser's autoplay block lifts or engages. */
   onState: () => void = () => {};
 
-  /** Browsers only allow audio after a user gesture on the page; MIDI notes don't count. */
+  /** Audio may need a page gesture when the browser blocks autoplay; MIDI notes don't count. */
   get blocked(): boolean {
-    return !this.ctx || this.ctx.state !== 'running';
+    return this.ctx?.state !== 'running';
+  }
+
+  /** Create the audio engine now, so `blocked` reflects the browser's real autoplay decision. */
+  init() {
+    this.ensure();
+    this.onState();
   }
 
   /** Call from a click/keydown handler to unlock audio. */
   unlock() {
     const ctx = this.ensure();
-    if (ctx.state !== 'running') void ctx.resume().then(() => this.onState());
+    if (ctx.state !== 'running')
+      void ctx.resume().then(
+        () => this.stateChanged(),
+        () => this.onState(),
+      );
+  }
+
+  private stateChanged() {
+    if (this.ctx?.state === 'running') {
+      const notes = [...this.waiting];
+      this.waiting.clear();
+      for (const [note, velocity] of notes) this.noteOn(note, velocity);
+    }
+    this.onState();
   }
 
   private ensure(): AudioContext {
@@ -32,14 +52,14 @@ export class Synth {
       this.out.gain.value = 0.5;
       const comp = this.ctx.createDynamicsCompressor();
       this.out.connect(comp).connect(this.ctx.destination);
-      this.ctx.onstatechange = () => this.onState();
+      this.ctx.onstatechange = () => this.stateChanged();
     }
     return this.ctx;
   }
 
   private voice(note: number, t0: number, vel: number): Voice {
     const ctx = this.ensure();
-    const f = 440 * Math.pow(2, (note - 69) / 12);
+    const f = 440 * 2 ** ((note - 69) / 12);
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -72,14 +92,20 @@ export class Synth {
   // ── live playing ──
   noteOn(note: number, velocity: number) {
     const ctx = this.ensure();
-    if (ctx.state !== 'running') return this.onState(); // still blocked: tell the UI
+    if (ctx.state !== 'running') {
+      // Keep held notes through a permitted resume; released notes must not sound later.
+      this.waiting.set(note, velocity);
+      this.unlock();
+      return this.onState();
+    }
     const old = this.live.get(note);
     if (old) this.release(old, ctx.currentTime);
     this.sustained.delete(note);
-    this.live.set(note, this.voice(note, ctx.currentTime, Math.pow(velocity / 127, 0.8)));
+    this.live.set(note, this.voice(note, ctx.currentTime, (velocity / 127) ** 0.8));
   }
 
   noteOff(note: number) {
+    this.waiting.delete(note);
     if (!this.ctx || !this.live.has(note)) return;
     if (this.pedal) {
       this.sustained.add(note);

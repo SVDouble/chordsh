@@ -31,34 +31,50 @@
   {#if v.kind === 'none'}
     <div class="big muted">Play a chord</div>
     <p class="muted">
-      {#if v.devices.length}<b>{v.devices.join(', ')}</b> is connected.
-      {:else}No MIDI yet? Computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd>…<kbd>;</kbd> play notes (<kbd>
-          Z
-        </kbd>/<kbd>X</kbd> octave).{/if}
+      {#if v.devices.length}
+        <b>{v.devices.join(', ')}</b> is connected.
+      {:else}
+        No MIDI yet? Computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd>…<kbd>;</kbd> play notes (<kbd> Z </kbd>/<kbd
+          >X</kbd
+        >
+        octave).
+      {/if}
     </p>
-    <button class="big-btn" onclick={() => (ui.nowPlaying ? stopPiece() : playPiece(BUILT_IN[0]))}>
+    <button type="button" class="big-btn" onclick={() => (ui.nowPlaying ? stopPiece() : playPiece(BUILT_IN[0]))}>
       {ui.nowPlaying ? '■ Stop' : '▶ Play the demo'}
     </button>
     <p class="small muted">More in the <b>Library</b> tab: your recordings, MIDI files and annotated pieces.</p>
   {:else}
     <div class="now-top">
       <span class="big">{v.name}</span>
-      {#if v.roman}<span class="numeral f-{v.roman.func}">{v.roman.numeral}</span>{/if}
+      {#if v.roman}
+        <span class="numeral f-{v.roman.func}">{v.roman.numeral}</span>
+      {/if}
     </div>
     <div class="badges">
       {#if v.roman}
         <span class="func f-{v.roman.func}">{FUNC[v.roman.func]}</span>
         <span class="badge">{v.roman.kind.replaceAll('-', ' ')}</span>
       {/if}
-      {#if v.interval}<span class="badge">{v.interval}</span>{/if}
-      {#if v.inversion}<span class="badge">{v.inversion}</span>{/if}
-      {#if v.key}<span class="muted small">in {v.key}</span>{/if}
+      {#if v.interval}
+        <span class="badge">{v.interval}</span>
+      {/if}
+      {#if v.inversion}
+        <span class="badge">{v.inversion}</span>
+      {/if}
+      {#if v.key}
+        <span class="muted small">in {v.key}</span>
+      {/if}
     </div>
-    {#if v.roman}<p class="explain">{v.roman.explain}</p>{/if}
+    {#if v.roman}
+      <p class="explain">{v.roman.explain}</p>
+    {/if}
     <div class="tones" title={v.alts.length ? `Also readable as ${v.alts.join(' · ')}` : ''}>
-      {#each v.tones as t}<span class="tone {roleClass(t.role)}" class:implied={t.implied}>
+      {#each v.tones as t}
+        <span class="tone {roleClass(t.role)}" class:implied={t.implied}>
           <b>{t.name}</b><i>{t.role}</i>
-        </span>{/each}
+        </span>
+      {/each}
     </div>
   {/if}
 </div>

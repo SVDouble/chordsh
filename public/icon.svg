@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Musify piano</title>
+  <rect width="512" height="512" rx="96" fill="#161920" />
+  <g fill="#f3f4f6">
+    <rect x="64" y="160" width="76" height="260" rx="10" />
+    <rect x="148" y="160" width="76" height="260" rx="10" />
+    <rect x="232" y="160" width="76" height="260" rx="10" />
+    <rect x="316" y="160" width="76" height="260" rx="10" />
+    <rect x="400" y="160" width="48" height="260" rx="10" />
+  </g>
+  <g fill="#5b8cff">
+    <rect x="114" y="160" width="52" height="160" rx="8" />
+    <rect x="282" y="160" width="52" height="160" rx="8" />
+  </g>
+  <rect x="198" y="160" width="52" height="160" rx="8" fill="#ffb347" />
+  <rect x="366" y="160" width="52" height="160" rx="8" fill="#c792ea" />
+  <circle cx="256" cy="98" r="40" fill="#3ddc97" />
+</svg>

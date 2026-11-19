@@ -78,6 +78,14 @@ The **error breakdown** classifies every hindsight top-1 miss, so we know what t
 
 Latest: [benchmarks/LATEST.md](../benchmarks/LATEST.md) · all runs: `benchmarks/history.jsonl`.
 
+### 2026-11-19 — timeline and key-region editor regression check
+
+The unified timeline, editable key regions and new input/recording bridge leave the shipped inference
+model unchanged. The full 684-piece test split at commit `c670a66` exactly matches the previous
+per-corpus metrics and error breakdowns, including beat/bar F-measures. The objective remains **1.7407**.
+Region editing, recording/undo, playback, MIDI and responsive interactions are checked separately in
+unit and browser tests; this benchmark is an inference regression check.
+
 ### 2026-11-19 — shared settings regression check
 
 After moving defaults into the shared configuration schema, the full test split (684 pieces) matches

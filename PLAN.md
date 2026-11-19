@@ -100,4 +100,4 @@ play a sequence through it). MPK mini: no speakers — sound comes from the brow
 - [x] Consolidate Song tools into contextual controls/menus.
 - [x] Keep seek and transport on one toolbar row; use a consistent icon set.
 - [x] Verify editing, capture, region changes, playback/pause/seek, MIDI, responsive layout and persistence.
-- [ ] Update documentation and record the final regression checks.
+- [x] Update documentation and record the final regression checks.

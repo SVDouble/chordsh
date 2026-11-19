@@ -191,4 +191,8 @@ its replacement interaction has been chosen.
 - [x] Keep quarter-note document timing stable while grid, durations, snapping and bar counts follow the signature.
 - [x] Carry signatures through playback, metronome, recordings, saved songs, chart paste and undo.
 - [x] Export/import native MIDI signatures and preserve non-binary timing with explicit conversion feedback.
-- [ ] Validate legacy /4 songs, new-song defaults, unusual meters and browser interactions; record inference regression.
+- [x] Validate legacy /4 songs, new-song defaults, unusual meters and browser interactions; record inference regression.
+
+Validation: 170 tests, production build, recorded-clock replay, desktop/mobile browser checks for 6/8,
+5/3 and 13/6 editing/seek/resize/pause/recording/chart paste, migration/persistence, and MIDI export/import.
+The 684-piece inference regression at `618b846` matches every prior metric exactly.

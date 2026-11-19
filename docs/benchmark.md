@@ -215,3 +215,12 @@ The prediction report identifies source commit `77ac9ad`. Full recognition regre
 and, after adding the voicing coach, `99b5d96` match every preceding per-corpus chord/key, beat/bar
 and error-breakdown value exactly; the harmonic objective remains 1.7407. Prediction settings apply
 without replacing the harmonizer.
+
+### 2026-11-19 — flexible-meter regression
+
+The time-signature editor, quarter-note/notated-beat conversions, fixed clock and MIDI interchange
+changes at `618b846` leave recognition defaults unchanged. The full 684-piece test split matches all
+previous chord/key metrics, error breakdowns and beat/bar F-measures exactly (objective 1.7407).
+Time-signature behavior is checked separately by 170 unit tests and browser checks for 6/8, 5/3 and
+13/6, including recording metadata, playback/seek, unchanged notes after regrouping, persistence and
+native/non-binary MIDI interchange. These are meter/editor improvements, not recognition gains.

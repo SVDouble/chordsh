@@ -1,6 +1,6 @@
 # Latest benchmark
 
-2026-11-19 · commit 99b5d96 · split `test` · reproduce with `npm run fetch-data && SPLIT=test npm run benchmark`
+2026-11-19 · commit 618b846 · split `test` · reproduce with `npm run fetch-data && SPLIT=test npm run benchmark`
 
 All numbers are % of 250 ms samples (chords, keys) or F-measure (beats, bars). `*` = synthetic performance rendered from chord changes. See [docs/benchmark.md](../docs/benchmark.md) for what each column means.
 

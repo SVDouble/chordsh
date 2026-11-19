@@ -220,5 +220,5 @@ signatures are written directly. For other denominators, `midiExportInfo()` choo
 and scales file BPM so elapsed note and bar timing are preserved at 960 PPQ. At very slow tempos it
 selects the lower binary denominator to stay within the three-byte tempo range. A `chord.sh meter`
 text meta event records the original signature/BPM and exported signature/tempo. Import restores that
-notation only while the actual MIDI header events still match. The reader walks track events instead
+notation only while the initial MIDI signature and tempo events still match. The reader walks track events instead
 of scanning arbitrary payload bytes for signature-looking data. Export feedback states the conversion.

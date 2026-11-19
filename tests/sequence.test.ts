@@ -188,7 +188,7 @@ describe('Standard MIDI export', () => {
     ]);
     const piece = sequencePiece(editor.document);
     const data = writeMidi(piece);
-    expect(midiFileMeta(data.buffer)).toEqual({ bpm: expect.closeTo(90, 3), beatsPerBar: 3 });
+    expect(midiFileMeta(data.buffer)).toEqual({ bpm: expect.closeTo(90, 3), beatsPerBar: 3, denominator: 4 });
     const events = parseMidiFile(data.buffer);
     expect(
       events

@@ -24,8 +24,8 @@ against the browser clock; it does not currently follow the DAW's transport, tem
 Web MIDI availability and device permissions depend on the browser and OS.
 
 For file interchange, use **Export MIDI** (⇩) for the current song/performance and drop the `.mid` file
-into an instrument track. Export is Standard MIDI File format 0 at 480 ticks per quarter note, with
-tempo, quarter-note meter, notes, durations, velocities and sustain. Gaps and voicings are retained.
+into an instrument track. Export is Standard MIDI File format 0 at 960 ticks per quarter note, with
+tempo, time signature, notes, durations, velocities and sustain. Gaps and voicings are retained.
 There is one output channel and one tempo/meter; arbitrary controllers, original track structure and
 changing tempo maps are not preserved.
 
@@ -74,3 +74,17 @@ off the audio thread.
 The remaining native work is the wrapper/bridge, host-state save/restore, transport synchronization,
 per-platform builds and a tested host matrix. Browser MIDI routing is useful immediately but is not a
 substitute for sample-accurate native hosting.
+
+## Non-binary time signatures
+
+The editor accepts /3, /6 and other positive integer denominators. Standard MIDI files encode a
+power-of-two denominator, so those signatures export using an equivalent binary signature and tempo.
+A 5/3 song at quarter-note BPM 120 exports as 5/4 at BPM 90: the beat count, bar duration and elapsed
+note/sustain timing are preserved at MIDI resolution. The app reports the conversion after export;
+it does not change the song or pretend the file contains a native /3 signature. Binary signatures
+such as 7/8 export directly.
+
+An ordinary text meta event retains the original signature for chord.sh reimport. It is used only
+while the exported signature and tempo still match; another application's changed tempo or removed
+metadata takes precedence. A DAW can display the binary equivalent rather than the original notation.
+See the [SMF time-signature definition](https://www.music.mcgill.ca/~ich/classes/mumt306/midiformat.pdf).

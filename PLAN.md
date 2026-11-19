@@ -184,3 +184,11 @@ Validation: 143 tests, production build and desktop/mobile browser checks for sh
 boundaries, editing/undo, seeking, one timeline scroller and the existing sketch/playback/MIDI workflow.
 The circle concepts are interactive design comparisons; the production list remains available until
 its replacement interaction has been chosen.
+
+## Flexible time signatures
+
+- [x] Separate meter numerator/denominator; support /3, /6, /8 and custom values.
+- [x] Keep quarter-note document timing stable while grid, durations, snapping and bar counts follow the signature.
+- [x] Carry signatures through playback, metronome, recordings, saved songs, chart paste and undo.
+- [x] Export/import native MIDI signatures and preserve non-binary timing with explicit conversion feedback.
+- [ ] Validate legacy /4 songs, new-song defaults, unusual meters and browser interactions; record inference regression.

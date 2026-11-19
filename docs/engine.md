@@ -21,7 +21,7 @@ MIDI / keyboard / library piece
 
 ## Composition core
 
-`engine/sequence.ts` owns songs independently of the UI. A sequence has a tempo, quarter-note meter,
+`engine/sequence.ts` owns songs independently of the UI. A sequence has a quarter-note tempo and numerator/denominator time signature,
 home key and chord blocks with explicit beat starts/durations, note voicings, velocities and optional
 key regions. `SequenceEditor` applies atomic edits with up to 100 undo snapshots. Placement preserves
 rests and shifts later blocks only where overlap requires it. Moving, resizing, replacing, duplication,
@@ -39,7 +39,7 @@ buttons and reharmonisation ✓ buttons all edit this same object; previews leav
 Svelte bridge persists documents and refreshes a running arrangement at its current beat after an edit.
 `sequenceChart()` retains per-block key context for numerals and further suggestions.
 
-`io/midiexport.ts` writes Standard MIDI File format 0 with 480 ticks per quarter, a tempo/meter, note
+`io/midiexport.ts` writes Standard MIDI File format 0 with 960 ticks per quarter, a tempo/meter, note
 velocities and sustain. MIDI imports and recordings retain pedal changes; notes held when recording
 ends are clipped to the recording length. Playback and previews share synth/MIDI output selection.
 See [DAW integration](daw.md) for current routing and the proposed native host boundary.
@@ -199,3 +199,26 @@ The timeline supplies earlier chords only, up to the focused chord/insertion cur
 boundary clears sequence context, and a cursor in a gap uses that region's key. Changing prediction
 settings updates coaching without resetting the harmonizer or song. The shared settings schema owns
 ranking strength, context/smoothing and visible idea counts.
+
+## Meter units and interchange
+
+`theory/meter.ts` converts between notated beats and canonical quarter-note positions. `Sequence.meter`
+is the numerator and optional `denominator` defaults to 4 for legacy documents. One notated beat spans
+`4 / denominator` quarters; a bar spans `numerator × 4 / denominator`. Sequence steps/regions keep
+quarter-note positions/durations, so signature changes affect grouping rather than elapsed timing.
+The UI converts cell positions, displayed durations and snapping at the boundary. Rational-meter
+comparisons tolerate floating-point roundoff to avoid phantom wrap fragments, overlap errors or
+nearly duplicate key boundaries.
+
+Fixed beat tracking and metronome clicks use the denominator's beat period; `Session.tempo.bpm`
+continues reporting quarter-note BPM. Playback, recordings, library metadata and replay retain both
+signature numbers. New chords and chart imports derive bar durations from the current signature.
+
+SMF time signatures encode a power-of-two denominator, as specified in the
+[MIDI File specification](https://www.music.mcgill.ca/~ich/classes/mumt306/midiformat.pdf). Native binary
+signatures are written directly. For other denominators, `midiExportInfo()` chooses a binary denominator
+and scales file BPM so elapsed note and bar timing are preserved at 960 PPQ. At very slow tempos it
+selects the lower binary denominator to stay within the three-byte tempo range. A `chord.sh meter`
+text meta event records the original signature/BPM and exported signature/tempo. Import restores that
+notation only while the actual MIDI header events still match. The reader walks track events instead
+of scanning arbitrary payload bytes for signature-looking data. Export feedback states the conversion.

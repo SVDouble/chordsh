@@ -33,7 +33,7 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
 - Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Short chord
   blocks scale their text to fit, with the full symbol/duration available on hover. Long chords
   continue on the next row and retain one identity; dragging can move chords between rows.
-- Tempo and quarter-note meter belong to the song. **Key changes** appear as vertical delimiters at
+- Tempo and time signature belong to the song. **Key changes** appear as vertical delimiters at
   their exact beats. Click the small key handle in the ruler to name a region (Verse, Bridge…) or
   change its key; hover reveals the name and key. Select a beat and use the key icon beside tempo to
   add a modulation. The current local key stays beside tempo. Continuing a region onto another row
@@ -157,3 +157,20 @@ changed. Kept input preserves its played velocity, and captured chord blocks ave
 attacks. Different velocities intentionally change loudness and brightness. The oscillator/filter
 patch is unchanged. Development updates silence and close the previous audio engine before replacing
 it, so old voices cannot accumulate across code reloads.
+
+## Time signatures
+
+Edit the two numbers beside the quarter-note tempo independently: 6/8, 7/8, 5/3, 4/6, 13/16 and other
+integer ratios are supported (numerator 1–255; denominator 1–256). Old songs retain their original /4.
+Each timeline cell and duration beat is the denominator's note value: in 6/8, one beat is an eighth
+note and a full bar is six beats. Snap/resize/seek use those units too. Tempo stays **quarter notes per
+minute** (♩); changing a signature regroups existing notes without moving or stretching them.
+New chords and pasted chart bars use the current full-bar length. Meter changes are undoable and save
+with the song; new-song defaults and metronome signatures are in Settings.
+
+MIDI exports binary denominators such as /8 and /16 directly. For /3, /6 and other non-binary values,
+export uses an equivalent binary meter and adjusted tempo, with a notification explaining the result.
+For example, 5/3 at ♩=120 becomes MIDI 5/4 at ♩=90, retaining note timing and bar duration at MIDI
+resolution. A text marker preserves the original notation for chord.sh reimport while its exported
+meter and tempo remain intact. DAWs may discard that marker; their visible signature remains the
+reported MIDI equivalent. See [MIDI interchange](daw.md).

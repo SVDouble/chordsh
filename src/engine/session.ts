@@ -220,7 +220,8 @@ export class Session {
   }
   get tempo() {
     return {
-      bpm: this.beats.bpm,
+      bpm: this.beats.bpm === null ? null : (this.beats.bpm * 4) / this.meterDenominator,
+      denominator: this.meterDenominator,
       confidence: this.beats.confidence,
       beatsPerBar: this.beats.beatsPerBar,
       fixed: !!this.beats.fixed,
@@ -275,8 +276,10 @@ export class Session {
     this.invalidate(true);
   }
   /** Fix the tempo (metronome / MIDI file) so bars are exact; null = estimate from playing. */
-  setTempo(bpm: number | null, beatsPerBar = 4, phase = performance.now()) {
-    this.beats.fixed = bpm ? { period: 60000 / bpm, phase } : null;
+  private meterDenominator = 4;
+  setTempo(bpm: number | null, beatsPerBar = 4, phase = performance.now(), denominator = 4) {
+    this.meterDenominator = bpm ? denominator : 4;
+    this.beats.fixed = bpm ? { period: ((60000 / bpm) * 4) / denominator, phase } : null;
     this.beats.autoMeter = !bpm;
     this.beats.beatsPerBar = beatsPerBar;
     this.beats.update(performance.now());

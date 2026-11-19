@@ -11,6 +11,7 @@ export interface Piece {
   /** Known tempo → exact bars; absent → bars are estimated from the playing. */
   bpm?: number;
   beatsPerBar?: number;
+  denominator?: number;
   /** Optional full clip length, including the final rest/release gap. */
   durationMs?: number;
   /** Sustain changes retained from MIDI files and recordings. */
@@ -85,7 +86,7 @@ export function fromMidi(
   id: string,
   title: string,
   events: MidiEvent[],
-  meta?: { bpm: number; beatsPerBar: number },
+  meta?: { bpm: number; beatsPerBar: number; denominator?: number },
 ): Piece {
   return {
     id,
@@ -96,12 +97,13 @@ export function fromMidi(
     ),
     bpm: meta?.bpm,
     beatsPerBar: meta?.beatsPerBar,
+    denominator: meta?.denominator ?? 4,
     pedal: events.filter((e) => e.type === 'pedal').map((e) => [e.t, e.vel >= 64]),
   };
 }
 
 export function fromRecording(id: string, rec: Recording): Piece {
-  const s = rec.settings as { bars?: string; bpm?: number; meter?: number };
+  const s = rec.settings as { bars?: string; bpm?: number; meter?: number; meterDenominator?: number };
   return {
     id,
     title: rec.note || `Recording ${rec.started.slice(0, 16).replace('T', ' ')}`,
@@ -113,8 +115,9 @@ export function fromRecording(id: string, rec: Recording): Piece {
         .map((e) => ({ t: e.t, on: e.kind === 'on', note: e.note, vel: e.vel })),
       rec.durationMs,
     ),
-    bpm: s.bars === 'metronome' ? s.bpm : undefined,
+    bpm: s.bars === 'metronome' || s.bars === 'file' ? s.bpm : undefined,
     beatsPerBar: s.meter,
+    denominator: s.meterDenominator ?? 4,
     pedal: rec.input.filter((e) => e.kind === 'pedal').map((e) => [e.t, e.vel >= 64]),
     durationMs: rec.durationMs,
   };

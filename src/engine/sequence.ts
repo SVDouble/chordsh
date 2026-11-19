@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS, MUSIC_LIMITS, editorSchema, type EditorSettings } from '../config/settings';
 import { analyzeChart, parseChart, type Chart } from './chart';
 import { chordName } from '../theory/chords';
+import { barQuarters, meterPosition, validateMeter, type TimeSignature } from '../theory/meter';
 import { mod12 } from '../theory/pitch';
 import type { Key } from '../theory/scales';
 import { parseChordSymbol } from '../theory/symbols';
@@ -11,6 +12,7 @@ import type { Piece } from '../library/pieces';
 export interface SequenceStep {
   id: string;
   symbol: string;
+  /** Absolute position and duration in quarter notes, independent of time signature. */
   start: number;
   beats: number;
   notes: number[];
@@ -31,6 +33,8 @@ export interface Sequence {
   title: string;
   bpm: number;
   meter: number;
+  /** Bottom number; absent in legacy songs means 4. Positions/durations stay in quarter notes. */
+  denominator?: number;
   key: Key | null;
   steps: SequenceStep[];
   regions?: KeyRegion[];
@@ -50,7 +54,15 @@ export function emptySequence(
   id: string = crypto.randomUUID(),
   settings: EditorSettings = DEFAULT_SETTINGS.editor,
 ): Sequence {
-  return { id, title, bpm: settings.newTempo, meter: settings.newMeter, key: { tonic: 0, mode: 'major' }, steps: [] };
+  return {
+    id,
+    title,
+    bpm: settings.newTempo,
+    meter: settings.newMeter,
+    denominator: settings.newDenominator,
+    key: { tonic: 0, mode: 'major' },
+    steps: [],
+  };
 }
 
 export function sequenceRegions(sequence: Sequence): KeyRegion[] {
@@ -64,7 +76,7 @@ export function sequenceRegions(sequence: Sequence): KeyRegion[] {
 }
 
 export function sequenceKeyAt(sequence: Sequence, beat: number): Key | null {
-  return sequenceRegions(sequence).findLast((r) => r.start <= beat)?.key ?? null;
+  return sequenceRegions(sequence).findLast((r) => r.start <= beat + 1e-8)?.key ?? null;
 }
 
 function step(
@@ -119,7 +131,9 @@ export class SequenceEditor {
   }
   constructor(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor) {
     this.options = editorSchema.parse(settings);
+    validateMeter(sequence.meter, sequence.denominator ?? 4);
     this.value = structuredClone(sequence);
+    this.value.denominator ??= 4;
     this.value.regions = structuredClone(sequenceRegions(sequence));
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
@@ -154,13 +168,12 @@ export class SequenceEditor {
     this.future = [];
   }
 
-  update(patch: Partial<Pick<Sequence, 'title' | 'bpm' | 'meter' | 'key'>>) {
+  update(patch: Partial<Pick<Sequence, 'title' | 'bpm' | 'meter' | 'denominator' | 'key'>>) {
     const next = { ...this.value, ...patch };
     if (!next.title.trim()) throw new Error('Give the sequence a title.');
     if (!Number.isFinite(next.bpm) || next.bpm < MUSIC_LIMITS.minBpm || next.bpm > MUSIC_LIMITS.maxBpm)
       throw new Error(`Tempo must be between ${MUSIC_LIMITS.minBpm} and ${MUSIC_LIMITS.maxBpm} BPM.`);
-    if (!Number.isInteger(next.meter) || next.meter < MUSIC_LIMITS.minMeter || next.meter > MUSIC_LIMITS.maxMeter)
-      throw new Error('Meter must be between 1 and 12 quarter-note beats.');
+    validateMeter(next.meter, next.denominator ?? 4);
     if (
       next.key &&
       (!Number.isInteger(next.key.tonic) ||
@@ -183,12 +196,12 @@ export class SequenceEditor {
   place(inputs: ChordInput[], at: number, removeId?: string): string | null {
     if (!Number.isFinite(at) || at < 0) throw new Error('Choose a timeline position at or after beat zero.');
     const remaining = this.value.steps.filter((s) => s.id !== removeId);
-    const before = remaining.filter((s) => s.start < at);
+    const before = remaining.filter((s) => s.start < at - 1e-8);
     if (before.some((s) => s.start + s.beats > at + 1e-8)) throw new Error('Choose an empty spot or a chord boundary.');
     let previous = before[before.length - 1]?.notes ?? null;
     let cursor = at;
     const added = inputs.map((input) => {
-      const s = step(input, previous, this.value.meter, this.settings.velocity);
+      const s = step(input, previous, barQuarters(this.value.meter, this.value.denominator), this.settings.velocity);
       s.start = cursor;
       cursor += s.beats;
       previous = s.notes;
@@ -200,7 +213,7 @@ export class SequenceEditor {
     }
     const next = {
       ...this.value,
-      steps: this.ripple([...before, ...added, ...remaining.filter((s) => s.start >= at)]),
+      steps: this.ripple([...before, ...added, ...remaining.filter((s) => s.start >= at - 1e-8)]),
       regions: structuredClone(this.value.regions ?? []),
     };
     // Existing region boundaries anchored to later chords follow ripple edits.
@@ -226,7 +239,7 @@ export class SequenceEditor {
     const next = step(
       { ...old, ...input, notes: input.notes ?? (input.symbol === old.symbol ? old.notes : undefined) },
       this.value.steps[index - 1]?.notes ?? null,
-      this.value.meter,
+      barQuarters(this.value.meter, this.value.denominator),
       this.settings.velocity,
     );
     next.id = id;
@@ -246,7 +259,8 @@ export class SequenceEditor {
       (!Number.isInteger(key.tonic) || key.tonic < 0 || key.tonic > 11 || !['major', 'minor'].includes(key.mode))
     )
       throw new Error('Choose a valid key.');
-    const existing = this.value.regions?.find((r) => r.start === start);
+    const existing = this.value.regions?.find((r) => Math.abs(r.start - start) < 1e-8);
+    if (existing) start = existing.start;
     const region = {
       id: existing?.id ?? crypto.randomUUID(),
       start,
@@ -303,14 +317,14 @@ export class SequenceEditor {
     const old = this.value.steps[this.index(id)];
     if (!Number.isFinite(at) || at < 0) throw new Error('Choose a valid timeline position.');
     const remaining = this.value.steps.filter((s) => s.id !== id);
-    if (remaining.some((s) => s.start < at && s.start + s.beats > at))
+    if (remaining.some((s) => s.start < at - 1e-8 && s.start + s.beats > at + 1e-8))
       throw new Error('Choose an empty spot or a chord boundary.');
     this.commit({
       ...this.value,
       steps: this.ripple([
-        ...remaining.filter((s) => s.start < at),
+        ...remaining.filter((s) => s.start < at - 1e-8),
         { ...old, start: at },
-        ...remaining.filter((s) => s.start >= at),
+        ...remaining.filter((s) => s.start >= at - 1e-8),
       ]),
     });
   }
@@ -370,17 +384,21 @@ export class SequenceEditor {
   }
 }
 
-export function sequenceFromChart(text: string, title: string, id?: string): Sequence {
+export function sequenceFromChart(text: string, title: string, id?: string, signature?: TimeSignature): Sequence {
   const chart = parseChart(text, title);
   if (chart.errors.length) throw new Error(`Can't read: ${chart.errors.join(', ')}`);
   const initial = emptySequence(title, id);
   initial.key = chart.key;
+  if (signature) {
+    initial.meter = signature.numerator;
+    initial.denominator = signature.denominator;
+  }
   const editor = new SequenceEditor(initial);
   editor.insert(
     chart.chords.map((c) => ({
       symbol: c.symbol,
       section: c.section,
-      beats: 4 / chart.chords.filter((x) => x.bar === c.bar).length,
+      beats: barQuarters(initial.meter, initial.denominator) / chart.chords.filter((x) => x.bar === c.bar).length,
     })),
   );
   return editor.document;
@@ -392,7 +410,7 @@ export function sequenceChart(sequence: Sequence): Chart {
       i,
       symbol: s.symbol,
       chord: parseChordSymbol(s.symbol)!,
-      bar: Math.floor(s.start / sequence.meter) + 1,
+      bar: meterPosition(s.start, sequence.meter, sequence.denominator).bar,
       section: s.section,
     };
     return cell;
@@ -428,6 +446,7 @@ export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEF
     notes,
     bpm: sequence.bpm,
     beatsPerBar: sequence.meter,
+    denominator: sequence.denominator ?? 4,
     durationMs: sequence.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0) * ms,
   };
 }

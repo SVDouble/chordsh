@@ -5,7 +5,7 @@ import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
 import { BUILT_IN, type Piece } from '../library/pieces';
 import { Recorder, saveRecording, type Recording } from '../io/recorder';
-import { writeMidi } from '../io/midiexport';
+import { writeMidi, midiExportInfo } from '../io/midiexport';
 
 const saved = (() => {
   try {
@@ -173,7 +173,8 @@ export function applySettings(value: unknown) {
   const timingChanged =
     previous.bars !== next.preferences.bars ||
     previous.tempo !== next.preferences.tempo ||
-    previous.meter !== next.preferences.meter;
+    previous.meter !== next.preferences.meter ||
+    previous.meterDenominator !== next.preferences.meterDenominator;
   if (engineChanged || routingChanged || timingChanged) stopPlayback();
   if (engineChanged) session.configure(next);
   Object.assign(settings, next);
@@ -250,13 +251,14 @@ export function setBars(
   bpm = settings.preferences.tempo,
   beatsPerBar = settings.preferences.meter,
   start = performance.now() + 100,
+  denominator = settings.preferences.meterDenominator,
 ) {
   ui.bars = mode;
   if (metronome) clearTimeout(metronome);
   metronome = null;
-  session.setTempo(mode === 'auto' ? null : bpm, beatsPerBar, start);
+  session.setTempo(mode === 'auto' ? null : bpm, beatsPerBar, start, denominator);
   if (mode !== 'metronome') return;
-  const period = 60000 / bpm;
+  const period = ((60000 / bpm) * 4) / denominator;
   let i = 0;
   const tick = () => {
     if (settings.preferences.click) synth.click(i % beatsPerBar === 0);
@@ -342,6 +344,11 @@ export function downloadMidi(piece: Piece = selectedPiece) {
   a.href = url;
   a.download = `${piece.title.replace(/[^\p{L}\p{N}_ -]/gu, '').trim() || 'sequence'}.mid`;
   a.click();
+  const info = midiExportInfo(piece);
+  if (info.converted)
+    notify(
+      `MIDI uses ${info.numerator}/${info.denominator} at ${+info.bpm.toFixed(3)} BPM; ${info.numerator}/${info.originalDenominator} timing preserved.`,
+    );
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
@@ -390,7 +397,13 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
   ui.playbackPosition = playbackOffset;
   const start = performance.now() + lead;
   playbackStarted = start;
-  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? settings.preferences.tempo, p.beatsPerBar ?? 4, start - playbackOffset);
+  setBars(
+    p.bpm ? 'file' : 'auto',
+    p.bpm ?? settings.preferences.tempo,
+    p.beatsPerBar ?? 4,
+    start - playbackOffset,
+    p.denominator ?? 4,
+  );
   const initialPedal = p.pedal?.findLast(([at]) => at <= playbackOffset)?.[1] ?? false;
   if (initialPedal) {
     pieceTimers.push(setTimeout(() => live.pedal(true, performance.now(), false), lead));
@@ -458,15 +471,17 @@ export function stopPlayback() {
 export const recordingHooks = { start: () => {}, noteOn: (_t: number) => {}, stop: (_recording: Recording) => {} };
 
 export function startRecording() {
+  const clock = selectedPiece.source === 'sequence' ? selectedPiece : null;
   recorder.start({
     configuration: $state.snapshot(settings),
     style: session.style,
     split: session.seg.splitMode,
     keyLock: session.keyLock,
     monitor: settings.preferences.monitor,
-    bars: ui.bars,
-    bpm: session.tempo.bpm ?? settings.preferences.tempo,
-    meter: session.tempo.beatsPerBar,
+    bars: clock ? 'file' : ui.bars,
+    bpm: clock?.bpm ?? session.tempo.bpm ?? settings.preferences.tempo,
+    meter: clock?.beatsPerBar ?? session.tempo.beatsPerBar,
+    meterDenominator: clock?.denominator ?? session.tempo.denominator,
     inputs: midi.devices,
     userAgent: navigator.userAgent,
   });

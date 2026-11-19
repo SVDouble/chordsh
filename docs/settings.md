@@ -24,17 +24,17 @@ it has no Svelte or browser dependency. Standalone trackers and editors use the 
 harmonizer's existing `DEFAULT_PARAMS` export remains compatible with benchmark and tuning scripts,
 and now comes from the shared schema.
 
-| Section                  | Controls                                                                                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                      |
-| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                            |
-| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                              |
-| Editor                   | new-song tempo/meter, timeline snap/length, piano width/label size and root/name/interval visibility, undo depth, chord velocity and note gate |
-| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights       |
-| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                      |
-| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                           |
-| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                        |
-| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                               |
+| Section                  | Controls                                                                                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter numerator/denominator/click                                      |
+| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                                                  |
+| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                                                    |
+| Editor                   | new-song tempo/meter numerator/denominator, timeline snap/length, piano width/label size and root/name/interval visibility, undo depth, chord velocity and note gate |
+| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights                             |
+| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                                            |
+| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                                                 |
+| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                                              |
+| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                                                     |
 
 ## Beat and bar detection
 
@@ -62,8 +62,8 @@ operations; changing the schema changes both validation and the displayed ranges
 MIDI byte widths and musical interval definitions remain model/protocol data rather than preference
 controls. The learned transition table remains the trained artifact; its contribution is adjustable.
 
-`MUSIC_LIMITS` in the same module supplies document/UI/export validation: 4–1,000 BPM, 1–12 quarter-note
-beats per bar and 1/64–4,096 beats per chord. These are document guardrails, independent of beat detection
+`MUSIC_LIMITS` in the same module supplies document/UI/export validation: 4–1,000 quarter-note BPM,
+meter numerator 1–255, denominator 1–256, and 1/64–4,096 quarter notes per chord. These are document guardrails, independent of beat detection
 and timeline snap. MIDI notes remain 0–127 and sounding velocities 1–127. The former 20–300 BPM and
 ¼–64 beat editor restrictions have been widened; existing documents retain their durations.
 
@@ -94,3 +94,13 @@ on unplayed keys. **Piano note names** and **Piano chord tones** are optional an
 has shortcuts to these same saved settings. Hover still identifies notes and both harmonic references.
 **Piano label size** defaults to 18 px (12–28); the minimum white-key width is the larger of the configured
 key width and twice this label size when root labels are shown. Horizontal scrolling preserves legibility.
+
+## Meter and beat units
+
+New song defaults have independent numerator and denominator controls, as does the metronome. Positive
+integer denominators include 3 and 6. These manual signatures are separate from automatic meter
+inference's configured candidate counts. Song timing is stored in quarter notes, while the timeline,
+chord-duration controls and snap setting count the current signature's notated beats. Changing a meter
+does not retime existing notes. For example, 6/8 at quarter-note tempo 120 has 250 ms cells and 1,500 ms
+bars; a 0.25-beat snap is a quarter of an eighth note. Recordings retain the song/metronome signature
+and quarter-note tempo, including when saved under the song's clock while playback is stopped.

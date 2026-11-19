@@ -1,14 +1,31 @@
 import { MUSIC_LIMITS } from '../config/settings';
+import { binaryDenominator, validateMeter } from '../theory/meter';
 import type { Piece } from '../library/pieces';
+
+export const METER_TEXT_PREFIX = 'chord.sh meter ';
+const PPQ = 960;
+
+/** Non-binary meters use equivalent MIDI meter/tempo so every notated beat retains its duration. */
+export function midiExportInfo(piece: Piece) {
+  const originalBpm = piece.bpm ?? 120;
+  const { numerator, denominator: originalDenominator } = validateMeter(piece.beatsPerBar ?? 4, piece.denominator ?? 4);
+  if (!Number.isFinite(originalBpm) || originalBpm < MUSIC_LIMITS.minBpm || originalBpm > MUSIC_LIMITS.maxBpm)
+    throw new Error(`MIDI export needs a tempo from ${MUSIC_LIMITS.minBpm} to ${MUSIC_LIMITS.maxBpm} BPM.`);
+  const converted = !binaryDenominator(originalDenominator);
+  let denominator = converted ? 2 ** Math.round(Math.log2(originalDenominator)) : originalDenominator;
+  // A MIDI tempo occupies three bytes. At very slow tempos, choose the lower binary denominator.
+  if (Math.round(60e6 / ((originalBpm * originalDenominator) / denominator)) > 0xffffff)
+    denominator = 2 ** Math.floor(Math.log2(originalDenominator));
+  const bpm = (originalBpm * originalDenominator) / denominator;
+  const tempoUs = Math.round(60e6 / bpm);
+  return { numerator, denominator, bpm, tempoUs, converted, originalBpm, originalDenominator };
+}
 
 /** Standard MIDI File, format 0, one tempo/meter and one note track. No synth or host dependency. */
 export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
-  const bpm = piece.bpm ?? 120,
-    meter = piece.beatsPerBar ?? 4;
-  if (!Number.isFinite(bpm) || bpm < MUSIC_LIMITS.minBpm || bpm > MUSIC_LIMITS.maxBpm)
-    throw new Error(`MIDI export needs a tempo from ${MUSIC_LIMITS.minBpm} to ${MUSIC_LIMITS.maxBpm} BPM.`);
+  const info = midiExportInfo(piece);
+  const { bpm, numerator: meter, denominator, tempoUs: tempo } = info;
   if (!Number.isInteger(channel) || channel < 0 || channel > 15) throw new Error('MIDI channel must be from 0 to 15.');
-  if (!Number.isInteger(meter) || meter < 1 || meter > 127) throw new Error('Invalid MIDI meter.');
   const vlq = (n: number) => {
     if (!Number.isSafeInteger(n) || n < 0 || n > 0x0fffffff)
       throw new Error('MIDI event is outside the supported time range.');
@@ -21,8 +38,7 @@ export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
     return bytes;
   };
   const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
-  const tick = (ms: number) => Math.round((ms * bpm * 480) / 60000);
-  const tempo = Math.round(60e6 / bpm);
+  const tick = (ms: number) => Math.round((ms * bpm * PPQ) / 60000);
   const title = [...new TextEncoder().encode(piece.title)];
   const track = [
     0,
@@ -42,10 +58,26 @@ export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
     0x58,
     4,
     meter,
-    2,
-    24,
+    Math.log2(denominator),
+    Number.isInteger(96 / denominator) ? 96 / denominator : 24,
     8,
   ];
+  if (info.converted) {
+    const text = [
+      ...new TextEncoder().encode(
+        METER_TEXT_PREFIX +
+          JSON.stringify({
+            version: 1,
+            numerator: meter,
+            denominator: info.originalDenominator,
+            bpm: info.originalBpm,
+            midiDenominator: denominator,
+            midiTempoUs: tempo,
+          }),
+      ),
+    ];
+    track.push(0, 0xff, 1, ...vlq(text.length), ...text);
+  }
   const events: { tick: number; status: number; note: number; velocity: number; order: number }[] = [];
   let end = 0;
   for (const [at, duration, note, velocity] of piece.notes) {
@@ -101,8 +133,8 @@ export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
     0,
     0,
     1,
-    1,
-    0xe0,
+    (PPQ >>> 8) & 255,
+    PPQ & 255,
     0x4d,
     0x54,
     0x72,

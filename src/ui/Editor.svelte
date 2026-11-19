@@ -3,6 +3,7 @@
   import Transport from './Transport.svelte';
   import { DEFAULT_SETTINGS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
+  import { barQuarters, beatQuarters, meterPosition, notatedQuarters } from '../theory/meter';
   import {
     acceptChords,
     canRedo,
@@ -68,6 +69,10 @@
     return currentSequence();
   });
   const chart = $derived(sequenceChart(document));
+  const unit = $derived(beatQuarters(document.denominator));
+  const barLength = $derived(barQuarters(document.meter, document.denominator));
+  const snap = $derived(notatedQuarters(settings.editor.snapBeats, document.denominator));
+  const positionAt = (quarters: number) => meterPosition(quarters, document.meter, document.denominator);
   const selectedIndex = $derived(document.steps.findIndex((s) => s.id === composition.selectedId));
   const selected = $derived(document.steps[selectedIndex]);
   const voicings = $derived.by(() => {
@@ -92,13 +97,10 @@
   const incoming = $derived(inputTimeline());
   const end = $derived([...document.steps, ...incoming].reduce((last, s) => Math.max(last, s.start + s.beats), 0));
   const length = $derived(
-    Math.max(
-      document.meter * settings.editor.visibleBars,
-      Math.ceil((end + document.meter * 2) / document.meter) * document.meter,
-    ),
+    Math.max(barLength * settings.editor.visibleBars, Math.ceil((end + barLength * 2) / barLength) * barLength),
   );
   const barsPerRow = $derived(Math.max(1, Math.floor(timelineWidth / (document.meter * zoom))));
-  const beatsPerRow = $derived(barsPerRow * document.meter);
+  const beatsPerRow = $derived(barsPerRow * barLength);
   const beatWidth = $derived(timelineWidth / beatsPerRow);
   const rows = $derived(Array.from({ length: Math.ceil(length / beatsPerRow) }, (_, i) => i * beatsPerRow));
   const regions = $derived(sequenceRegions(document));
@@ -115,7 +117,7 @@
   $effect(() => {
     const focus = composition.take ? recordingBeat() : playing ? playBeat : (incoming.at(-1)?.start ?? selected?.start);
     if (focus === undefined || !scroller) return;
-    const rowStart = Math.floor(focus / beatsPerRow) * beatsPerRow;
+    const rowStart = Math.floor((focus + 1e-8) / beatsPerRow) * beatsPerRow;
     const row = scroller.querySelector<HTMLElement>(`[data-start="${rowStart}"]`);
     if (!row) return;
     const top = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
@@ -155,7 +157,7 @@
   }
 
   function seekTo(beat: number) {
-    const at = Math.max(0, Math.round(beat / settings.editor.snapBeats) * settings.editor.snapBeats);
+    const at = Math.max(0, Math.round(beat / snap) * snap);
     selectTimeline(at);
     seekPlayback((at * 60000) / document.bpm);
   }
@@ -181,22 +183,23 @@
   }
 
   async function openAt(at: number, step?: SequenceStep) {
-    const existing = step ?? document.steps.find((s) => s.start <= at && s.start + s.beats > at);
+    const existing = step ?? document.steps.find((s) => s.start <= at + 1e-8 && s.start + s.beats > at + 1e-8);
     if (existing) selectStep(existing.id);
     else selectTimeline(at);
     editingId = existing?.id ?? null;
     position = existing?.start ?? at;
     symbol = existing?.symbol ?? '';
     duration =
-      existing?.beats ??
-      Math.min(document.meter, document.steps.find((s) => s.start > at)?.start - at || document.meter);
+      (existing?.beats ??
+        Math.min(barLength, document.steps.find((s) => s.start > at + 1e-8)?.start - at || barLength)) / unit;
+    if (Math.abs(duration - Math.round(duration)) < 1e-9) duration = Math.round(duration);
     notes = existing?.notes.join(' ') ?? '';
     voicingPreset = null;
     velocity = existing?.velocity ?? settings.editor.velocity;
     popup = true;
     await tick();
     chordPopover?.showPopover();
-    const rowStart = Math.floor(at / beatsPerRow) * beatsPerRow;
+    const rowStart = Math.floor((at + 1e-8) / beatsPerRow) * beatsPerRow;
     const row = scroller?.querySelector<HTMLElement>(`[data-start="${rowStart}"]`);
     const box = row?.getBoundingClientRect();
     const panel = chordPopover?.getBoundingClientRect();
@@ -214,7 +217,7 @@
       !!notes.trim() && (!existing || symbol === existing.symbol || notes.trim() !== existing.notes.join(' '));
     const input = {
       symbol,
-      beats: duration,
+      beats: notatedQuarters(duration, document.denominator),
       notes: keepNotes
         ? notes
             .trim()
@@ -248,7 +251,7 @@
       composition.error = 'Choose MIDI notes from 0 to 127.';
       return;
     }
-    audition([voicing], 'edit-preview', duration, symbol, velocity);
+    audition([voicing], 'edit-preview', notatedQuarters(duration, document.denominator), symbol, velocity);
   }
   function useVoicing(choice: VoicingChoice) {
     if (!choice.notes) return;
@@ -277,7 +280,7 @@
   }
   function moveDrag(e: PointerEvent) {
     if (!drag || e.pointerId !== drag.pointer) return;
-    const delta = Math.round((pointerBeat(e) - drag.grab) / settings.editor.snapBeats) * settings.editor.snapBeats;
+    const delta = Math.round((pointerBeat(e) - drag.grab) / snap) * snap;
     if (drag.mode === 'move') drag.at = Math.max(0, drag.original + delta);
     else
       drag.beats = Math.max(
@@ -402,16 +405,34 @@
         onchange={(e) => editSequence((s) => s.update({ bpm: +e.currentTarget.value }))}
       ></label
     >
-    <select
-      aria-label="Sequence meter"
-      title="Meter"
-      value={document.meter}
-      onchange={(e) => editSequence((s) => s.update({ meter: +e.currentTarget.value }))}
-    >
-      {#each Array.from({ length: MUSIC_LIMITS.maxMeter }, (_, i) => i + 1) as n}
-        <option value={n}>{n}/4</option>
-      {/each}
-    </select>
+    <fieldset class="sequence-meter" title="Time signature. Tempo remains quarter notes per minute.">
+      <legend class="sr-only">Time signature</legend>
+      <input
+        aria-label="Sequence meter numerator"
+        type="number"
+        min={MUSIC_LIMITS.minMeter}
+        max={MUSIC_LIMITS.maxMeter}
+        step="1"
+        value={document.meter}
+        onchange={(e) => editSequence((s) => s.update({ meter: e.currentTarget.valueAsNumber }))}
+      >
+      <span aria-hidden="true">/</span>
+      <input
+        aria-label="Sequence meter denominator"
+        type="number"
+        min="1"
+        max={MUSIC_LIMITS.maxDenominator}
+        step="1"
+        list="meter-denominators"
+        value={document.denominator ?? 4}
+        onchange={(e) => editSequence((s) => s.update({ denominator: e.currentTarget.valueAsNumber }))}
+      >
+      <datalist id="meter-denominators">
+        {#each [1, 2, 3, 4, 6, 8, 12, 16, 32, 64, 128, 256] as denominator}
+          <option value={denominator}></option>
+        {/each}
+      </datalist>
+    </fieldset>
     <span class="region-context small muted">{localKey ? keyLong(localKey) : 'Auto key'}</span>
     <button
       type="button"
@@ -423,7 +444,7 @@
       <Icon name="key" />
     </button>
     <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
-      >Bar {Math.floor(cursorBeat / document.meter) + 1} · beat {+((cursorBeat % document.meter) + 1).toFixed(2)}</span
+      >Bar {positionAt(cursorBeat).bar} · beat {+positionAt(cursorBeat).beat.toFixed(2)}</span
     >
     <span class="right row tight timeline-zoom"
       ><button
@@ -457,17 +478,17 @@
           ? playBeat
           : composition.cursor}
       <div class="chord-timeline timeline-row" data-start={rowStart}>
-        {#each regions.filter((region) => region.start >= rowStart && region.start < rowEnd) as region}
+        {#each regions.filter((region) => region.start >= rowStart - 1e-8 && region.start < rowEnd - 1e-8) as region}
           {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
           <div
             class="key-change-marker"
-            class:current={focusBeat >= region.start && focusBeat < next}
+            class:current={focusBeat >= region.start - 1e-8 && focusBeat < next - 1e-8}
             style:left={`${(region.start - rowStart) * beatWidth}px`}
           >
             <button
               type="button"
               class="key-change-handle"
-              aria-label={`Edit key region at beat ${region.start + 1}`}
+              aria-label={`Edit key region at beat ${+(region.start / unit + 1).toFixed(4)}`}
               title={`${region.label ? region.label + ' · ' : ''}${region.key ? keyLong(region.key) : 'Auto key'} — click to edit`}
               onclick={() => editRegion(region.start, region)}
             >
@@ -475,17 +496,22 @@
             </button>
           </div>
         {/each}
-        {#each Array.from({ length: beatsPerRow }, (_, i) => rowStart + i) as beat}
+        {#each Array.from(
+          { length: barsPerRow * document.meter },
+          (_, i) => rowStart + notatedQuarters(i, document.denominator),
+        ) as beat}
           <button
             type="button"
             class="timeline-ruler"
-            class:insertion={composition.cursor >= beat && composition.cursor < beat + 1}
+            class:insertion={composition.cursor >= beat - 1e-8 && composition.cursor < beat + unit - 1e-8}
             data-beat={beat}
-            class:bar-start={beat % document.meter === 0}
-            class:key-boundary={regions.some((region) => region.start >= beat && region.start < beat + 1)}
+            class:bar-start={positionAt(beat).beat === 1}
+            class:key-boundary={regions.some(
+              (region) => region.start >= beat - 1e-8 && region.start < beat + unit - 1e-8,
+            )}
             style:left={`${(beat - rowStart) * beatWidth}px`}
-            style:width={`${beatWidth}px`}
-            aria-label={`Seek bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
+            style:width={`${beatWidth * unit}px`}
+            aria-label={`Seek bar ${positionAt(beat).bar} beat ${positionAt(beat).beat}`}
             disabled={ui.recording}
             title="Click or drag to seek"
             onpointerdown={beginSeek}
@@ -493,17 +519,19 @@
               if (e.detail === 0 && !ui.recording) seekTo(beat);
             }}
           >
-            {beat % document.meter === 0 ? Math.floor(beat / document.meter) + 1 : '·'}
+            {positionAt(beat).beat === 1 ? positionAt(beat).bar : '·'}
           </button>
           <button
             type="button"
             class="timeline-slot"
-            class:insertion={composition.cursor >= beat && composition.cursor < beat + 1}
-            aria-current={composition.cursor >= beat && composition.cursor < beat + 1 ? 'location' : undefined}
-            class:bar-start={beat % document.meter === 0}
+            class:insertion={composition.cursor >= beat - 1e-8 && composition.cursor < beat + unit - 1e-8}
+            aria-current={composition.cursor >= beat - 1e-8 && composition.cursor < beat + unit - 1e-8
+              ? 'location'
+              : undefined}
+            class:bar-start={positionAt(beat).beat === 1}
             style:left={`${(beat - rowStart) * beatWidth}px`}
-            style:width={`${beatWidth}px`}
-            aria-label={`Add chord at bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
+            style:width={`${beatWidth * unit}px`}
+            aria-label={`Add chord at bar ${positionAt(beat).bar} beat ${positionAt(beat).beat}`}
             title="Click to add a chord"
             onclick={() => openAt(beat)}
           >
@@ -513,7 +541,7 @@
         {#each document.steps as step, i (step.id)}
           {@const at = drag?.id === step.id ? drag.at : step.start}
           {@const beats = drag?.id === step.id ? drag.beats : step.beats}
-          {#if at < rowEnd && at + beats > rowStart}
+          {#if at < rowEnd - 1e-8 && at + beats > rowStart + 1e-8}
             <div
               class="timeline-clip"
               class:selected={step.id === composition.selectedId}
@@ -524,8 +552,8 @@
               <button
                 type="button"
                 class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
-                aria-label={`Edit ${step.symbol} at beat ${step.start + 1}`}
-                title={`${step.symbol} · ${+step.beats.toFixed(2)} beats`}
+                aria-label={`Edit ${step.symbol} at beat ${+(step.start / unit + 1).toFixed(4)}`}
+                title={`${step.symbol} · ${+(step.beats / unit).toFixed(2)} beats`}
                 onclick={() => openAt(step.start, step)}
               >
                 <b>{at < rowStart ? '↳ ' : ''}{step.symbol}</b
@@ -555,8 +583,7 @@
                           ...step,
                           beats: Math.max(
                             MUSIC_LIMITS.minChordBeats,
-                            step.beats +
-                              (e.key === 'ArrowRight' ? settings.editor.snapBeats : -settings.editor.snapBeats),
+                            step.beats + (e.key === 'ArrowRight' ? snap : -snap),
                           ),
                         }),
                       );
@@ -567,7 +594,7 @@
             </div>
           {/if}
         {/each}
-        {#each incoming.filter((s) => s.start < rowEnd && s.start + s.beats > rowStart) as step (step.id)}
+        {#each incoming.filter((s) => s.start < rowEnd - 1e-8 && s.start + s.beats > rowStart + 1e-8) as step (step.id)}
           <div
             class="timeline-input"
             class:recording={!!composition.take}
@@ -686,15 +713,15 @@
           </button>
         </div>
         <div class="duration-choices">
-          <span class="small muted">Beats</span>
+          <span class="small muted" title={`One beat is 1/${document.denominator ?? 4} of a whole note`}>Beats</span>
           {#each [0.5, 1, 2, 4, 8] as n}
             <button type="button" class:on={duration === n} onclick={() => (duration = n)}>{n}</button>
           {/each}
           <input
             aria-label="Chord duration"
             type="number"
-            min={MUSIC_LIMITS.minChordBeats}
-            max={MUSIC_LIMITS.maxChordBeats}
+            min={MUSIC_LIMITS.minChordBeats / unit}
+            max={MUSIC_LIMITS.maxChordBeats / unit}
             step="any"
             bind:value={duration}
           >
@@ -790,7 +817,7 @@
           regionDialog?.close();
       }}
     >
-      <h3>Key region · bar {Math.floor(regionStart / document.meter) + 1}</h3>
+      <h3>Key region · bar {positionAt(regionStart).bar}</h3>
       <label>Section name<input aria-label="Region name" bind:value={regionLabel} placeholder="Verse, bridge…"></label>
       <label
         >Key<select aria-label="Region key" bind:value={regionKey}>

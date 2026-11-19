@@ -67,6 +67,8 @@ it('replay', () => {
   if (rec.settings.style) s.setStyle(rec.settings.style as 'jazz' | 'triads');
   if (rec.settings.split !== undefined) s.seg.splitMode = rec.settings.split as typeof s.seg.splitMode;
   const base = 1_000_000;
+  if ((rec.settings.bars === 'file' || rec.settings.bars === 'metronome') && typeof rec.settings.bpm === 'number')
+    s.setTempo(rec.settings.bpm, Number(rec.settings.meter ?? 4), base, Number(rec.settings.meterDenominator ?? 4));
   const out: { t: number; text: string }[] = [];
   s.trace = (e) => {
     const d = describe(e, verbose);

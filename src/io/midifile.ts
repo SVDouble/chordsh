@@ -1,3 +1,7 @@
+import { MUSIC_LIMITS } from '../config/settings';
+import { validateMeter } from '../theory/meter';
+import { METER_TEXT_PREFIX } from './midiexport';
+
 export interface MidiEvent {
   t: number;
   type: 'on' | 'off' | 'pedal';
@@ -5,8 +9,16 @@ export interface MidiEvent {
   vel: number;
 }
 
-/** Minimal Standard MIDI File reader (format 0/1): notes, sustain pedal and tempo, merged and timed in ms. */
-export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
+interface RawMidiEvent {
+  tick: number;
+  kind: 'on' | 'off' | 'pedal' | 'tempo' | 'signature' | 'text';
+  a: number;
+  b: number;
+  text?: string;
+}
+
+/** Parse events structurally so metadata-like bytes inside text/SysEx cannot masquerade as a meter. */
+function scanMidiFile(buf: ArrayBuffer) {
   const d = new DataView(buf);
   let p = 0;
   const str = (n: number) => String.fromCharCode(...new Uint8Array(buf, p, n));
@@ -32,7 +44,7 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
   p += headerLen;
   if (division & 0x8000) throw new Error('SMPTE-timed MIDI files are not supported');
 
-  const raw: { tick: number; kind: 'on' | 'off' | 'pedal' | 'tempo'; a: number; b: number }[] = [];
+  const raw: RawMidiEvent[] = [];
   for (let tr = 0; tr < tracks && p < buf.byteLength; tr++) {
     const id = str(4);
     p += 4;
@@ -59,9 +71,14 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
             a: (d.getUint8(p) << 16) | (d.getUint8(p + 1) << 8) | d.getUint8(p + 2),
             b: 0,
           });
+        if (type === 0x58 && n >= 4) raw.push({ tick, kind: 'signature', a: d.getUint8(p), b: 2 ** d.getUint8(p + 1) });
+        if (type === 1)
+          raw.push({ tick, kind: 'text', a: 0, b: 0, text: new TextDecoder().decode(new Uint8Array(buf, p, n)) });
         p += n;
-      } else if (s === 0xf0 || s === 0xf7) p += vlq();
-      else {
+      } else if (s === 0xf0 || s === 0xf7) {
+        const length = vlq();
+        p += length;
+      } else {
         status = s;
         const type = s & 0xf0;
         const a = d.getUint8(p++),
@@ -74,6 +91,12 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
     p = end;
   }
   raw.sort((x, y) => x.tick - y.tick);
+  return { raw, division };
+}
+
+/** Minimal SMF reader: notes and sustain, merged across tracks and timed through tempo changes. */
+export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
+  const { raw, division } = scanMidiFile(buf);
   let usPerBeat = 500000,
     lastTick = 0,
     ms = 0;
@@ -82,28 +105,44 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
     ms += ((e.tick - lastTick) * usPerBeat) / division / 1000;
     lastTick = e.tick;
     if (e.kind === 'tempo') usPerBeat = e.a;
-    else out.push({ t: ms, type: e.kind, note: e.a, vel: e.b });
+    else if (e.kind === 'on' || e.kind === 'off' || e.kind === 'pedal')
+      out.push({ t: ms, type: e.kind, note: e.a, vel: e.b });
   }
   return out;
 }
 
-/** First tempo and time signature of a MIDI file (defaults 120 bpm, 4/4). */
-export function midiFileMeta(buf: ArrayBuffer): { bpm: number; beatsPerBar: number } {
-  const b = new Uint8Array(buf);
-  let bpm = 120,
-    beatsPerBar = 4,
-    gotTempo = false,
-    gotSig = false;
-  for (let i = 0; i + 6 < b.length && !(gotTempo && gotSig); i++) {
-    if (b[i] !== 0xff) continue;
-    if (!gotTempo && b[i + 1] === 0x51 && b[i + 2] === 3) {
-      bpm = 60e6 / ((b[i + 3] << 16) | (b[i + 4] << 8) | b[i + 5]);
-      gotTempo = true;
-    }
-    if (!gotSig && b[i + 1] === 0x58 && b[i + 2] === 4) {
-      beatsPerBar = b[i + 3] || 4;
-      gotSig = true;
+/** Initial tempo/time signature; chord.sh's verified text metadata restores non-binary project notation. */
+export function midiFileMeta(buf: ArrayBuffer): { bpm: number; beatsPerBar: number; denominator: number } {
+  const { raw } = scanMidiFile(buf);
+  const tempo = raw.find((event) => event.kind === 'tempo');
+  const signature = raw.find((event) => event.kind === 'signature');
+  let bpm = tempo && tempo.a > 0 ? 60e6 / tempo.a : 120;
+  let beatsPerBar = signature?.a ?? 4;
+  let denominator = signature?.b ?? 4;
+  for (const event of raw) {
+    if (event.tick !== 0 || event.kind !== 'text' || !event.text?.startsWith(METER_TEXT_PREFIX)) continue;
+    try {
+      const saved = JSON.parse(event.text.slice(METER_TEXT_PREFIX.length));
+      validateMeter(saved.numerator, saved.denominator);
+      if (
+        saved.version === 1 &&
+        saved.numerator === beatsPerBar &&
+        saved.midiDenominator === denominator &&
+        saved.midiTempoUs === tempo?.a &&
+        tempo?.tick === 0 &&
+        Number.isFinite(saved.bpm) &&
+        saved.bpm >= MUSIC_LIMITS.minBpm &&
+        saved.bpm <= MUSIC_LIMITS.maxBpm &&
+        Math.round(60e6 / ((saved.bpm * saved.denominator) / saved.midiDenominator)) === saved.midiTempoUs
+      ) {
+        bpm = saved.bpm;
+        beatsPerBar = saved.numerator;
+        denominator = saved.denominator;
+      }
+    } catch {
+      // Other applications may change or remove text metadata; use the actual MIDI meter instead.
     }
   }
-  return { bpm, beatsPerBar };
+  validateMeter(beatsPerBar, denominator);
+  return { bpm, beatsPerBar, denominator };
 }

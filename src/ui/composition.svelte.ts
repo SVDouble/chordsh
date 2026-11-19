@@ -1,3 +1,4 @@
+import { barQuarters, beatQuarters, meterPosition } from '../theory/meter';
 import { MUSIC_LIMITS } from '../config/settings';
 import { settings } from './store.svelte';
 import {
@@ -38,7 +39,7 @@ function restore(): Sequence[] {
     try {
       if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || !Array.isArray(raw.steps)) continue;
       const editor = new SequenceEditor(emptySequence(raw.title, raw.id));
-      editor.update({ bpm: raw.bpm, meter: raw.meter, key: raw.key });
+      editor.update({ bpm: raw.bpm, meter: raw.meter, denominator: raw.denominator ?? 4, key: raw.key });
       let end = 0;
       for (const s of raw.steps) {
         const at = s.start ?? end;
@@ -197,16 +198,16 @@ export function deleteSequence() {
   );
 }
 
-export function timelinePosition(beat: number, meter: number) {
-  const within = +((beat % meter) + 1).toFixed(2);
-  return `bar ${Math.floor(beat / meter) + 1}, beat ${within}`;
+export function timelinePosition(beat: number, meter: number, denominator = 4) {
+  const position = meterPosition(beat, meter, denominator);
+  return `bar ${position.bar}, beat ${+position.beat.toFixed(2)}`;
 }
 
 export function suggestionDestination() {
   void composition.revision;
   const doc = editor.document;
   const live = ui.harmonyContext === 'input';
-  return { title: doc.title, position: timelinePosition(composition.cursor, doc.meter), live };
+  return { title: doc.title, position: timelinePosition(composition.cursor, doc.meter, doc.denominator), live };
 }
 
 export function selectStep(id: string) {
@@ -254,7 +255,7 @@ export function compositionContext() {
   const key = editing ? (sequenceKeyAt(document, contextBeat) ?? sequenceChart(document).key) : session.activeKey;
   const last = editing ? (current ? parseChordSymbol(current.symbol) : null) : session.now.best;
   const voicing = editing ? (current?.notes ?? null) : session.lastVoicing;
-  const regionStart = sequenceRegions(document).findLast((region) => region.start <= contextBeat)?.start ?? 0;
+  const regionStart = sequenceRegions(document).findLast((region) => region.start <= contextBeat + 1e-8)?.start ?? 0;
   const inputChords = session.chords;
   const inputBoundary = inputChords.findLastIndex(
     (entry) => !key || !entry.key || keyIndex(entry.key) !== keyIndex(key),
@@ -262,7 +263,7 @@ export function compositionContext() {
   const recent = editing
     ? document.steps
         .slice(0, upto)
-        .filter((step) => step.start >= regionStart)
+        .filter((step) => step.start >= regionStart - 1e-8)
         .slice(-8)
         .map((s) => parseChordSymbol(s.symbol)!)
     : inputChords
@@ -305,7 +306,10 @@ export function acceptPath(path: Path, destination?: Key) {
 
 export function importChart(text: string) {
   try {
-    const imported = sequenceFromChart(text, editor.document.title);
+    const imported = sequenceFromChart(text, editor.document.title, undefined, {
+      numerator: editor.document.meter,
+      denominator: editor.document.denominator ?? 4,
+    });
     acceptChords(imported.steps);
   } catch (error) {
     composition.error = (error as Error).message;
@@ -344,7 +348,7 @@ export function inputTimeline() {
       id: 'input-preview',
       symbol: chordName(session.now.best, session.activeKey),
       start: composition.cursor,
-      beats: doc.meter,
+      beats: barQuarters(doc.meter, doc.denominator),
       notes: session.now.notes,
       key: session.activeKey ?? undefined,
       velocity: ui.inputVelocity,
@@ -402,14 +406,16 @@ export function focusedChord() {
             ? 'Paused'
             : 'Playing'
           : 'Chord',
-    position: step ? `${timelinePosition(step.start, doc.meter)} · ${+step.beats.toFixed(2)} beats` : '',
+    position: step
+      ? `${timelinePosition(step.start, doc.meter, doc.denominator)} · ${+(step.beats / beatQuarters(doc.denominator)).toFixed(2)} beats`
+      : '',
   };
 }
 
 export function commitInputPreview() {
   const steps = inputTimeline();
   if (!steps.length || composition.take) return;
-  acceptChords(steps.map((s) => ({ ...s, beats: editor.document.meter })));
+  acceptChords(steps.map((s) => ({ ...s, beats: barQuarters(editor.document.meter, editor.document.denominator) })));
 }
 
 export async function resetWorkspace() {

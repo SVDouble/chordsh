@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Transport from './Transport.svelte';
-  import { DEFAULT_SETTINGS, MUSIC_LIMITS } from '../config/settings';
+  import { DEFAULT_SETTINGS, METER_DENOMINATORS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import { barQuarters, beatQuarters, meterPosition, notatedQuarters } from '../theory/meter';
   import {
@@ -417,21 +417,15 @@
         onchange={(e) => editSequence((s) => s.update({ meter: e.currentTarget.valueAsNumber }))}
       >
       <span aria-hidden="true">/</span>
-      <input
+      <select
         aria-label="Sequence meter denominator"
-        type="number"
-        min="1"
-        max={MUSIC_LIMITS.maxDenominator}
-        step="1"
-        list="meter-denominators"
         value={document.denominator ?? 4}
-        onchange={(e) => editSequence((s) => s.update({ denominator: e.currentTarget.valueAsNumber }))}
+        onchange={(e) => editSequence((s) => s.update({ denominator: +e.currentTarget.value }))}
       >
-      <datalist id="meter-denominators">
-        {#each [1, 2, 3, 4, 6, 8, 12, 16, 32, 64, 128, 256] as denominator}
-          <option value={denominator}></option>
+        {#each METER_DENOMINATORS as denominator}
+          <option value={denominator}>{denominator}</option>
         {/each}
-      </datalist>
+      </select>
     </fieldset>
     <span class="region-context small muted">{localKey ? keyLong(localKey) : 'Auto key'}</span>
     <button

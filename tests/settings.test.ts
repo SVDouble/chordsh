@@ -77,6 +77,10 @@ describe('settings validation and recovery', () => {
       default: 10,
     });
     expect(SETTINGS_FIELDS.find((f) => f.path === 'harmony.prior.tonic')).toBeDefined();
+    expect(SETTINGS_FIELDS.find((f) => f.path === 'editor.newDenominator')).toMatchObject({
+      default: 4,
+      enum: [1, 2, 4, 8, 16, 32, 64, 128, 256],
+    });
     expect(() => setSetting(candidate(), '__proto__.invalid', 1)).toThrow();
   });
 });

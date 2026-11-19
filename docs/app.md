@@ -169,17 +169,15 @@ it, so old voices cannot accumulate across code reloads.
 
 ## Time signatures
 
-Edit the two numbers beside the quarter-note tempo independently: 6/8, 7/8, 5/3, 4/6, 13/16 and other
-integer ratios are supported (numerator 1–255; denominator 1–256). Old songs retain their original /4.
+Edit the beat count beside the quarter-note tempo and choose its note value: 6/8, 7/8, 5/4 and 13/16
+are supported. The numerator accepts 1–255; denominator choices are 1, 2, 4, 8, 16, 32, 64, 128 and 256.
+Old songs retain their original /4.
 Each timeline cell and duration beat is the denominator's note value: in 6/8, one beat is an eighth
 note and a full bar is six beats. Snap/resize/seek use those units too. Tempo stays **quarter notes per
 minute** (♩); changing a signature regroups existing notes without moving or stretching them.
 New chords and pasted chart bars use the current full-bar length. Meter changes are undoable and save
 with the song; new-song defaults and metronome signatures are in Settings.
 
-MIDI exports binary denominators such as /8 and /16 directly. For /3, /6 and other non-binary values,
-export uses an equivalent binary meter and adjusted tempo, with a notification explaining the result.
-For example, 5/3 at ♩=120 becomes MIDI 5/4 at ♩=90, retaining note timing and bar duration at MIDI
-resolution. A text marker preserves the original notation for chord.sh reimport while its exported
-meter and tempo remain intact. DAWs may discard that marker; their visible signature remains the
-reported MIDI equivalent. See [MIDI interchange](daw.md).
+MIDI exports the chosen signature and quarter-note tempo directly. Songs saved with experimental /3,
+/6 or other unsupported denominators reopen with /4 grouping; notes, durations, key changes and
+playback timing are preserved. The app reports this once when migrating those songs.

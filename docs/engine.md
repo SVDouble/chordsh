@@ -206,7 +206,7 @@ ranking strength, context/smoothing and visible idea counts.
 is the numerator and optional `denominator` defaults to 4 for legacy documents. One notated beat spans
 `4 / denominator` quarters; a bar spans `numerator × 4 / denominator`. Sequence steps/regions keep
 quarter-note positions/durations, so signature changes affect grouping rather than elapsed timing.
-The UI converts cell positions, displayed durations and snapping at the boundary. Rational-meter
+The UI converts cell positions, displayed durations and snapping at the boundary. Fractional-position
 comparisons tolerate floating-point roundoff to avoid phantom wrap fragments, overlap errors or
 nearly duplicate key boundaries.
 
@@ -214,11 +214,9 @@ Fixed beat tracking and metronome clicks use the denominator's beat period; `Ses
 continues reporting quarter-note BPM. Playback, recordings, library metadata and replay retain both
 signature numbers. New chords and chart imports derive bar durations from the current signature.
 
-SMF time signatures encode a power-of-two denominator, as specified in the
-[MIDI File specification](https://www.music.mcgill.ca/~ich/classes/mumt306/midiformat.pdf). Native binary
-signatures are written directly. For other denominators, `midiExportInfo()` chooses a binary denominator
-and scales file BPM so elapsed note and bar timing are preserved at 960 PPQ. At very slow tempos it
-selects the lower binary denominator to stay within the three-byte tempo range. A `chord.sh meter`
-text meta event records the original signature/BPM and exported signature/tempo. Import restores that
-notation only while the initial MIDI signature and tempo events still match. The reader walks track events instead
-of scanning arbitrary payload bytes for signature-looking data. Export feedback states the conversion.
+The shared settings schema and meter validator restrict denominators to powers of two from 1 to 256.
+The timeline and generated settings form expose these as dropdowns. MIDI export writes the chosen
+signature and quarter-note tempo directly at 960 PPQ; import uses the actual MIDI metadata and ignores
+obsolete custom meter text. The reader walks track events instead of scanning arbitrary payload bytes
+for signature-looking data. Saved experimental non-binary songs reopen with /4 grouping without
+retiming their quarter-note positions, durations or key regions. Old recordings use the same fallback.

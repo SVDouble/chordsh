@@ -63,7 +63,7 @@ MIDI byte widths and musical interval definitions remain model/protocol data rat
 controls. The learned transition table remains the trained artifact; its contribution is adjustable.
 
 `MUSIC_LIMITS` in the same module supplies document/UI/export validation: 4–1,000 quarter-note BPM,
-meter numerator 1–255, denominator 1–256, and 1/64–4,096 quarter notes per chord. These are document guardrails, independent of beat detection
+meter numerator 1–255, power-of-two denominators from 1–256, and 1/64–4,096 quarter notes per chord. These are document guardrails, independent of beat detection
 and timeline snap. MIDI notes remain 0–127 and sounding velocities 1–127. The former 20–300 BPM and
 ¼–64 beat editor restrictions have been widened; existing documents retain their durations.
 
@@ -97,8 +97,9 @@ key width and twice this label size when root labels are shown. Horizontal scrol
 
 ## Meter and beat units
 
-New song defaults have independent numerator and denominator controls, as does the metronome. Positive
-integer denominators include 3 and 6. These manual signatures are separate from automatic meter
+New song defaults have independent numerator and denominator controls, as does the metronome.
+Denominators use a dropdown of standard note values (1, 2, 4, 8, 16, 32, 64, 128 and 256).
+These manual signatures are separate from automatic meter
 inference's configured candidate counts. Song timing is stored in quarter notes, while the timeline,
 chord-duration controls and snap setting count the current signature's notated beats. Changing a meter
 does not retime existing notes. For example, 6/8 at quarter-note tempo 120 has 250 ms cells and 1,500 ms

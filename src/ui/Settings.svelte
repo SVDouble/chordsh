@@ -171,7 +171,11 @@
                     id={`setting-${field.path}`}
                     aria-describedby={`help-${field.path}`}
                     value={String(value)}
-                    onchange={(e) => change(field.path, e.currentTarget.value)}
+                    onchange={(e) =>
+                      change(
+                        field.path,
+                        typeof field.enum?.[0] === 'number' ? +e.currentTarget.value : e.currentTarget.value,
+                      )}
                   >
                     {#each field.enum as option}
                       <option value={option}>{labels[option] ?? option}</option>

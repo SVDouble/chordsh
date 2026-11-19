@@ -2722,7 +2722,8 @@ button.icon {
   border: 0;
   min-width: 0;
 }
-.sequence-meter input {
+.sequence-meter input,
+.sequence-meter select {
   width: 58px;
   min-width: 0;
   text-align: center;

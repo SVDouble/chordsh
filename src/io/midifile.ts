@@ -1,6 +1,4 @@
-import { MUSIC_LIMITS } from '../config/settings';
 import { validateMeter } from '../theory/meter';
-import { METER_TEXT_PREFIX } from './midiexport';
 
 export interface MidiEvent {
   t: number;
@@ -11,10 +9,9 @@ export interface MidiEvent {
 
 interface RawMidiEvent {
   tick: number;
-  kind: 'on' | 'off' | 'pedal' | 'tempo' | 'signature' | 'text';
+  kind: 'on' | 'off' | 'pedal' | 'tempo' | 'signature';
   a: number;
   b: number;
-  text?: string;
 }
 
 /** Parse events structurally so metadata-like bytes inside text/SysEx cannot masquerade as a meter. */
@@ -72,8 +69,6 @@ function scanMidiFile(buf: ArrayBuffer) {
             b: 0,
           });
         if (type === 0x58 && n >= 4) raw.push({ tick, kind: 'signature', a: d.getUint8(p), b: 2 ** d.getUint8(p + 1) });
-        if (type === 1)
-          raw.push({ tick, kind: 'text', a: 0, b: 0, text: new TextDecoder().decode(new Uint8Array(buf, p, n)) });
         p += n;
       } else if (s === 0xf0 || s === 0xf7) {
         const length = vlq();
@@ -111,38 +106,14 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
   return out;
 }
 
-/** Initial tempo/time signature; chord.sh's verified text metadata restores non-binary project notation. */
+/** Read the initial standard MIDI tempo and time signature. */
 export function midiFileMeta(buf: ArrayBuffer): { bpm: number; beatsPerBar: number; denominator: number } {
   const { raw } = scanMidiFile(buf);
   const tempo = raw.find((event) => event.kind === 'tempo');
   const signature = raw.find((event) => event.kind === 'signature');
-  let bpm = tempo && tempo.a > 0 ? 60e6 / tempo.a : 120;
-  let beatsPerBar = signature?.a ?? 4;
-  let denominator = signature?.b ?? 4;
-  for (const event of raw) {
-    if (event.tick !== 0 || event.kind !== 'text' || !event.text?.startsWith(METER_TEXT_PREFIX)) continue;
-    try {
-      const saved = JSON.parse(event.text.slice(METER_TEXT_PREFIX.length));
-      validateMeter(saved.numerator, saved.denominator);
-      if (
-        saved.version === 1 &&
-        saved.numerator === beatsPerBar &&
-        saved.midiDenominator === denominator &&
-        saved.midiTempoUs === tempo?.a &&
-        tempo?.tick === 0 &&
-        Number.isFinite(saved.bpm) &&
-        saved.bpm >= MUSIC_LIMITS.minBpm &&
-        saved.bpm <= MUSIC_LIMITS.maxBpm &&
-        Math.round(60e6 / ((saved.bpm * saved.denominator) / saved.midiDenominator)) === saved.midiTempoUs
-      ) {
-        bpm = saved.bpm;
-        beatsPerBar = saved.numerator;
-        denominator = saved.denominator;
-      }
-    } catch {
-      // Other applications may change or remove text metadata; use the actual MIDI meter instead.
-    }
-  }
+  const bpm = tempo && tempo.a > 0 ? 60e6 / tempo.a : 120;
+  const beatsPerBar = signature?.a ?? 4;
+  const denominator = signature?.b ?? 4;
   validateMeter(beatsPerBar, denominator);
   return { bpm, beatsPerBar, denominator };
 }

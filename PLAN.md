@@ -185,17 +185,26 @@ boundaries, editing/undo, seeking, one timeline scroller and the existing sketch
 The circle concepts are interactive design comparisons; the production list remains available until
 its replacement interaction has been chosen.
 
-## Flexible time signatures
+## Time signatures
 
-- [x] Separate meter numerator/denominator; support /3, /6, /8 and custom values.
+- [x] Separate meter numerator/denominator; support standard note values and flexible beat counts.
 - [x] Keep quarter-note document timing stable while grid, durations, snapping and bar counts follow the signature.
 - [x] Carry signatures through playback, metronome, recordings, saved songs, chart paste and undo.
-- [x] Export/import native MIDI signatures and preserve non-binary timing with explicit conversion feedback.
+- [x] Export/import native MIDI signatures directly with the original tempo.
 - [x] Validate legacy /4 songs, new-song defaults, unusual meters and browser interactions; record inference regression.
 
-Validation: 170 tests, production build, recorded-clock replay, desktop/mobile browser checks for 6/8,
-5/3 and 13/6 editing/seek/resize/pause/recording/chart paste, migration/persistence, and MIDI export/import.
+Original validation: 170 tests, production build, recorded-clock replay and desktop/mobile browser checks
+for editing/seek/resize/pause/recording/chart paste, migration/persistence and MIDI export/import.
 The 684-piece inference regression at `618b846` matches every prior metric exactly.
+
+- [x] Simplify denominator controls to standard power-of-two note values, including Settings.
+- [x] Remove special MIDI meter/tempo conversion and custom notation metadata.
+- [x] Recover saved experimental signatures with /4 grouping, retaining notes, timing and key regions.
+- [x] Verify standard-meter editing, settings, export and saved-song migration in the browser.
+
+Simplification validation: 170 tests, production build and desktop/mobile browser checks for shared
+denominator dropdowns, 6/8 editing/seek/playback/export, undo, saved settings, and one-time migration
+of /3 and /6 songs preserving exact notes, durations, tempo and key-region positions.
 
 ## Mouse chord entry
 

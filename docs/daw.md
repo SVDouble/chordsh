@@ -75,16 +75,8 @@ The remaining native work is the wrapper/bridge, host-state save/restore, transp
 per-platform builds and a tested host matrix. Browser MIDI routing is useful immediately but is not a
 substitute for sample-accurate native hosting.
 
-## Non-binary time signatures
+## Time signatures
 
-The editor accepts /3, /6 and other positive integer denominators. Standard MIDI files encode a
-power-of-two denominator, so those signatures export using an equivalent binary signature and tempo.
-A 5/3 song at quarter-note BPM 120 exports as 5/4 at BPM 90: the beat count, bar duration and elapsed
-note/sustain timing are preserved at MIDI resolution. The app reports the conversion after export;
-it does not change the song or pretend the file contains a native /3 signature. Binary signatures
-such as 7/8 export directly.
-
-An ordinary text meta event retains the original signature for chord.sh reimport. It is used only
-while the exported signature and tempo still match; another application's changed tempo or removed
-metadata takes precedence. A DAW can display the binary equivalent rather than the original notation.
-See the [SMF time-signature definition](https://www.music.mcgill.ca/~ich/classes/mumt306/midiformat.pdf).
+Signatures such as 5/4, 6/8, 7/8 and 13/16 export directly with the song's quarter-note tempo.
+The editor and metronome offer power-of-two note values, so export needs no meter or tempo conversion
+and no custom notation metadata.

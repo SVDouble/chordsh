@@ -1,4 +1,6 @@
-import { MUSIC_LIMITS } from '../config/settings';
+import { METER_DENOMINATORS, MUSIC_LIMITS } from '../config/settings';
+
+export const isMeterDenominator = (value: unknown) => METER_DENOMINATORS.some((n) => n === value);
 
 export interface TimeSignature {
   numerator: number;
@@ -8,8 +10,8 @@ export interface TimeSignature {
 export function validateMeter(numerator: number, denominator: number): TimeSignature {
   if (!Number.isInteger(numerator) || numerator < MUSIC_LIMITS.minMeter || numerator > MUSIC_LIMITS.maxMeter)
     throw new Error(`Meter numerator must be an integer from ${MUSIC_LIMITS.minMeter} to ${MUSIC_LIMITS.maxMeter}.`);
-  if (!Number.isInteger(denominator) || denominator < 1 || denominator > MUSIC_LIMITS.maxDenominator)
-    throw new Error(`Meter denominator must be an integer from 1 to ${MUSIC_LIMITS.maxDenominator}.`);
+  if (!isMeterDenominator(denominator))
+    throw new Error(`Choose a meter denominator from ${METER_DENOMINATORS.join(', ')}.`);
   return { numerator, denominator };
 }
 
@@ -18,7 +20,6 @@ export const notatedQuarters = (beats: number, denominator = 4) => (beats * 4) /
 export const beatQuarters = (denominator = 4) => notatedQuarters(1, denominator);
 export const barQuarters = (numerator: number, denominator = 4) => notatedQuarters(numerator, denominator);
 export const meterLabel = (numerator: number, denominator = 4) => `${numerator}/${denominator}`;
-export const binaryDenominator = (denominator: number) => Number.isInteger(Math.log2(denominator));
 
 export function meterPosition(quarters: number, numerator: number, denominator = 4) {
   const beats = quarters / beatQuarters(denominator);

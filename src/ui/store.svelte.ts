@@ -5,7 +5,7 @@ import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
 import { BUILT_IN, type Piece } from '../library/pieces';
 import { Recorder, saveRecording, type Recording } from '../io/recorder';
-import { writeMidi, midiExportInfo } from '../io/midiexport';
+import { writeMidi } from '../io/midiexport';
 
 const saved = (() => {
   try {
@@ -255,7 +255,7 @@ export function setBars(
   bpm = settings.preferences.tempo,
   beatsPerBar = settings.preferences.meter,
   start = performance.now() + 100,
-  denominator = settings.preferences.meterDenominator,
+  denominator: number = settings.preferences.meterDenominator,
 ) {
   ui.bars = mode;
   if (metronome) clearTimeout(metronome);
@@ -384,11 +384,6 @@ export function downloadMidi(piece: Piece = selectedPiece) {
   a.href = url;
   a.download = `${piece.title.replace(/[^\p{L}\p{N}_ -]/gu, '').trim() || 'sequence'}.mid`;
   a.click();
-  const info = midiExportInfo(piece);
-  if (info.converted)
-    notify(
-      `MIDI uses ${info.numerator}/${info.denominator} at ${+info.bpm.toFixed(3)} BPM; ${info.numerator}/${info.originalDenominator} timing preserved.`,
-    );
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const METER_DENOMINATORS = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
+const meterDenominator = (title: string) =>
+  z.literal(METER_DENOMINATORS).default(4).meta({
+    title,
+    description: 'Beat note value: 1, 2, 4, 8, 16, 32, 64, 128 or 256. Tempo remains quarter notes per minute.',
+  });
+
 /** Defaults, constraints and help text live together; the settings form uses this schema too. */
 const number = (value: number, min: number, max: number, title: string, description: string, unit = '', step = 0.01) =>
   z.number().min(min).max(max).default(value).meta({ title, description, unit, step });
@@ -66,13 +73,7 @@ export const preferencesSchema = z.object({
     'Top number of the metronome time signature; the denominator sets each beat’s note value.',
     'beats',
   ),
-  meterDenominator: integer(
-    4,
-    1,
-    256,
-    'Metronome denominator',
-    'Bottom number of the metronome time signature. Tempo remains quarter notes per minute.',
-  ),
+  meterDenominator: meterDenominator('Metronome denominator'),
   click: flag(true, 'Metronome click', 'Sound the click when the metronome is enabled.'),
 });
 
@@ -436,13 +437,7 @@ export const editorSchema = z.object({
   ),
   newTempo: number(100, 4, 1000, 'New song tempo', 'Initial tempo of a new sequence.', 'BPM', 1),
   newMeter: integer(4, 1, 255, 'New song meter', 'Top number of a new song’s time signature.', 'beats'),
-  newDenominator: integer(
-    4,
-    1,
-    256,
-    'New song denominator',
-    'Bottom number of a new song’s time signature; 3 and 6 are also supported.',
-  ),
+  newDenominator: meterDenominator('New song denominator'),
   snapBeats: number(
     0.25,
     0.015625,
@@ -524,7 +519,7 @@ export interface SettingField {
   minimum?: number;
   maximum?: number;
   default?: unknown;
-  enum?: string[];
+  enum?: (string | number)[];
 }
 /** Use public JSON Schema output so forms do not inspect Zod's implementation internals. */
 export const SETTINGS_FIELDS: SettingField[] = [];

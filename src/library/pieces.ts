@@ -1,5 +1,6 @@
 import type { MidiEvent } from '../io/midifile';
 import type { Recording } from '../io/recorder';
+import { isMeterDenominator } from '../theory/meter';
 
 /** Anything that can be played into the app: built-ins, your recordings, MIDI files, benchmark pieces. */
 export interface Piece {
@@ -117,7 +118,7 @@ export function fromRecording(id: string, rec: Recording): Piece {
     ),
     bpm: s.bars === 'metronome' || s.bars === 'file' ? s.bpm : undefined,
     beatsPerBar: s.meter,
-    denominator: s.meterDenominator ?? 4,
+    denominator: isMeterDenominator(s.meterDenominator) ? s.meterDenominator : 4,
     pedal: rec.input.filter((e) => e.kind === 'pedal').map((e) => [e.t, e.vel >= 64]),
     durationMs: rec.durationMs,
   };

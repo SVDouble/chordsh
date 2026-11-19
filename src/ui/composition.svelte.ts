@@ -1,4 +1,4 @@
-import { barQuarters, beatQuarters, meterPosition } from '../theory/meter';
+import { barQuarters, beatQuarters, isMeterDenominator, meterPosition } from '../theory/meter';
 import { MUSIC_LIMITS } from '../config/settings';
 import { settings } from './store.svelte';
 import {
@@ -33,13 +33,21 @@ import {
   stopRecording,
 } from './store.svelte';
 
+let regroupedSongs = 0;
 function restore(): Sequence[] {
   const documents: Sequence[] = [];
   for (const raw of (Array.isArray(saved.sequences) ? saved.sequences : []) as Sequence[]) {
     try {
       if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || !Array.isArray(raw.steps)) continue;
       const editor = new SequenceEditor(emptySequence(raw.title, raw.id));
-      editor.update({ bpm: raw.bpm, meter: raw.meter, denominator: raw.denominator ?? 4, key: raw.key });
+      let denominator = raw.denominator ?? 4;
+      const regroup =
+        Number.isInteger(denominator) &&
+        denominator > 0 &&
+        denominator <= MUSIC_LIMITS.maxDenominator &&
+        !isMeterDenominator(denominator);
+      if (regroup) denominator = 4;
+      editor.update({ bpm: raw.bpm, meter: raw.meter, denominator, key: raw.key });
       let end = 0;
       for (const s of raw.steps) {
         const at = s.start ?? end;
@@ -57,6 +65,7 @@ function restore(): Sequence[] {
         if (typeof raw.steps[i].id === 'string') s.id = raw.steps[i].id;
       });
       documents.push(document);
+      if (regroup) regroupedSongs++;
     } catch {
       /* Ignore a malformed saved document without losing the others. */
     }
@@ -498,3 +507,9 @@ export function refreshCompositionSettings() {
 
 export const exportSequenceMidi = () => downloadMidi(sequencePiece(editor.document, $state.snapshot(settings.editor)));
 sync(false);
+if (regroupedSongs) {
+  persist({ sequences: $state.snapshot(composition.documents) });
+  notify(
+    'Saved songs with unsupported meter denominators now use /4 grouping. Notes and playback timing are unchanged.',
+  );
+}

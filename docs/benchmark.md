@@ -224,3 +224,5 @@ previous chord/key metrics, error breakdowns and beat/bar F-measures exactly (ob
 Time-signature behavior is checked separately by 170 unit tests and browser checks for 6/8, 5/3 and
 13/6, including recording metadata, playback/seek, unchanged notes after regrouping, persistence and
 native/non-binary MIDI interchange. These are meter/editor improvements, not recognition gains.
+Experimental non-binary notation was subsequently removed in favour of standard denominator choices
+and direct MIDI export; the original benchmark above records the earlier implementation.

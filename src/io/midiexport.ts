@@ -1,30 +1,16 @@
 import { MUSIC_LIMITS } from '../config/settings';
-import { binaryDenominator, validateMeter } from '../theory/meter';
+import { validateMeter } from '../theory/meter';
 import type { Piece } from '../library/pieces';
 
-export const METER_TEXT_PREFIX = 'chord.sh meter ';
 const PPQ = 960;
-
-/** Non-binary meters use equivalent MIDI meter/tempo so every notated beat retains its duration. */
-export function midiExportInfo(piece: Piece) {
-  const originalBpm = piece.bpm ?? 120;
-  const { numerator, denominator: originalDenominator } = validateMeter(piece.beatsPerBar ?? 4, piece.denominator ?? 4);
-  if (!Number.isFinite(originalBpm) || originalBpm < MUSIC_LIMITS.minBpm || originalBpm > MUSIC_LIMITS.maxBpm)
-    throw new Error(`MIDI export needs a tempo from ${MUSIC_LIMITS.minBpm} to ${MUSIC_LIMITS.maxBpm} BPM.`);
-  const converted = !binaryDenominator(originalDenominator);
-  let denominator = converted ? 2 ** Math.round(Math.log2(originalDenominator)) : originalDenominator;
-  // A MIDI tempo occupies three bytes. At very slow tempos, choose the lower binary denominator.
-  if (Math.round(60e6 / ((originalBpm * originalDenominator) / denominator)) > 0xffffff)
-    denominator = 2 ** Math.floor(Math.log2(originalDenominator));
-  const bpm = (originalBpm * originalDenominator) / denominator;
-  const tempoUs = Math.round(60e6 / bpm);
-  return { numerator, denominator, bpm, tempoUs, converted, originalBpm, originalDenominator };
-}
 
 /** Standard MIDI File, format 0, one tempo/meter and one note track. No synth or host dependency. */
 export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
-  const info = midiExportInfo(piece);
-  const { bpm, numerator: meter, denominator, tempoUs: tempo } = info;
+  const bpm = piece.bpm ?? 120;
+  const { numerator: meter, denominator } = validateMeter(piece.beatsPerBar ?? 4, piece.denominator ?? 4);
+  if (!Number.isFinite(bpm) || bpm < MUSIC_LIMITS.minBpm || bpm > MUSIC_LIMITS.maxBpm)
+    throw new Error(`MIDI export needs a tempo from ${MUSIC_LIMITS.minBpm} to ${MUSIC_LIMITS.maxBpm} BPM.`);
+  const tempo = Math.round(60e6 / bpm);
   if (!Number.isInteger(channel) || channel < 0 || channel > 15) throw new Error('MIDI channel must be from 0 to 15.');
   const vlq = (n: number) => {
     if (!Number.isSafeInteger(n) || n < 0 || n > 0x0fffffff)
@@ -62,22 +48,6 @@ export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
     Number.isInteger(96 / denominator) ? 96 / denominator : 24,
     8,
   ];
-  if (info.converted) {
-    const text = [
-      ...new TextEncoder().encode(
-        METER_TEXT_PREFIX +
-          JSON.stringify({
-            version: 1,
-            numerator: meter,
-            denominator: info.originalDenominator,
-            bpm: info.originalBpm,
-            midiDenominator: denominator,
-            midiTempoUs: tempo,
-          }),
-      ),
-    ];
-    track.push(0, 0xff, 1, ...vlq(text.length), ...text);
-  }
   const events: { tick: number; status: number; note: number; velocity: number; order: number }[] = [];
   let end = 0;
   for (const [at, duration, note, velocity] of piece.notes) {

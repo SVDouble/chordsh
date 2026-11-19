@@ -3,7 +3,14 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!!local", "!!dist", "!package-lock.json", "!benchmarks/history.jsonl"]
+    "includes": [
+      "**",
+      "!!local",
+      "!!dist",
+      "!package-lock.json",
+      "!benchmarks/history.jsonl",
+      "!benchmarks/prediction-history.jsonl"
+    ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "javascript": { "formatter": { "quoteStyle": "single", "trailingCommas": "all" } },

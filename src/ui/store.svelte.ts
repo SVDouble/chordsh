@@ -177,6 +177,7 @@ export function applySettings(value: unknown) {
   if (engineChanged || routingChanged || timingChanged) stopPlayback();
   if (engineChanged) session.configure(next);
   Object.assign(settings, next);
+  session.settings.prediction = structuredClone(next.prediction);
   session.setStyle(next.preferences.style);
   session.seg.splitMode =
     next.preferences.splitMode === 'fixed' ? next.preferences.splitNote : next.preferences.splitMode;

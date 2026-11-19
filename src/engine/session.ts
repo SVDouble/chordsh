@@ -520,8 +520,13 @@ export class Session {
   private refresh() {
     const key = this.activeKey;
     const last = this.chords[this.chords.length - 1]?.chord ?? null;
-    this.next = key ? suggestNext(key, last, this.style, this.lastVoicing) : [];
-    const recent = this.chords.slice(-3).map((e) => e.chord);
+    const entries = this.chords;
+    const boundary = entries.findLastIndex((e) => !keyEq(e.key, key));
+    const recent = entries
+      .slice(boundary + 1)
+      .slice(-8)
+      .map((e) => e.chord);
+    this.next = key ? suggestNext(key, last, this.style, this.lastVoicing, recent, this.settings.prediction) : [];
     const t = performance.now();
     this.reach = computeReach(
       key,

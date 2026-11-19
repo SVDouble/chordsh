@@ -86,6 +86,8 @@ cannot satisfy the browser's gesture requirement. See [Chrome's autoplay policy]
 on the circle switches the same list to routes into that key; × returns to next chords. A line states
 the insertion position. There are no Next chord / Change key tabs.
 
+- Ideas consider the recent sequence and chord quality as well as harmonic function. Settings → Chord
+  suggestions controls learned ranking, sequence context and visible idea counts.
 - Click any idea to hear it; **＋** inserts the chord or whole route at the cursor.
 - Each route names its destination key and shows its chords. **Why this route** reveals the explanation
   and optional practice action, keeping the normal sketching view compact.

@@ -28,6 +28,7 @@ and now comes from the shared schema.
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                |
 | Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                      |
+| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                        |
 | Editor                   | new-song tempo/meter, timeline snap/length, piano key width, undo depth, chord velocity and note gate                                    |
 | Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights |
 | Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                |
@@ -75,3 +76,13 @@ other stored content are preserved.
 Recordings include the full configuration at the start of recording. `npm run replay` restores it;
 older recordings fall back to current defaults and their existing style/split metadata. The benchmark
 uses the shared shipped defaults and explicit `P_` overrides, independently of browser preferences.
+
+## Next-chord ranking
+
+**Chord suggestions** controls the Ideas list independently of note recognition. The learned model
+considers root and quality of the last two distinct chords in the local key. **Learned suggestion
+ranking** blends it with the functional rules (default 0.85); zero restores the rule-based order.
+**Use recent sequence** turns two-chord context on/off. **Single-chord smoothing** and **Sequence
+smoothing** control backoff for rare contexts (both default 20). Higher values prefer broader evidence.
+**Main chord ideas** and **Colour ideas** set visible counts (defaults 4 and 5); zero colour ideas hides
+those extra alternatives. These settings apply without restarting analysis or clearing recorded input.

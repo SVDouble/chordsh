@@ -32,6 +32,8 @@ import {
   relativeKey,
 } from '../theory/scales';
 import { vlCost, voiceChord } from '../theory/voicing';
+import { DEFAULT_SETTINGS, type PredictionSettings } from '../config/settings';
+import { chordToken, predictedChord, predictionHistory, predictTokens, type PredictionModel } from './prediction';
 
 /**
  * The coach: everything here is written in scale degrees (semitones above the
@@ -187,7 +189,15 @@ function grammarWhy(from: number, to: number, mode: Mode): string {
   return 'step to a neighbouring function';
 }
 
-export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoicing: number[] | null): NextMove[] {
+export function suggestNext(
+  key: Key,
+  last: Chord | null,
+  style: Style,
+  lastVoicing: number[] | null,
+  recent: Chord[] = [],
+  prediction: PredictionSettings = DEFAULT_SETTINGS.prediction,
+  model?: PredictionModel,
+): NextMove[] {
   type Opt = { chord: Chord; p: number; why: string; tag?: string; name?: string; roman?: string };
   const opts: Opt[] = [];
   const add = (chord: Chord, p: number, why: string, tag?: string, name?: string, roman?: string) =>
@@ -271,6 +281,20 @@ export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoic
       add(chordOf(key.tonic + 10, '7'), 0.05, 'backdoor ♭VII7 → I', 'backdoor');
   }
 
+  const learned =
+    last && prediction.learnedWeight > 0
+      ? predictTokens(key.mode, predictionHistory([...recent, last], key), prediction, model)
+      : null;
+  if (learned) {
+    const candidates = [...learned.keys()]
+      .sort((a, b) => learned[b] - learned[a])
+      .slice(0, prediction.primaryCount * 2);
+    for (const token of candidates) {
+      if (token === chordToken(last!, key) || opts.some((o) => chordToken(o.chord, key) === token)) continue;
+      const chord = predictedChord(token, key, style);
+      add(chord, 0, analyzeRoman(chord, key).explain);
+    }
+  }
   const merged = new Map<string, Opt>();
   for (const o of opts) {
     const n = o.name ?? chordName(o.chord, key);
@@ -278,9 +302,20 @@ export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoic
     if (m) m.p += o.p;
     else merged.set(n, { ...o });
   }
+  if (learned) {
+    const grammarTotal = [...merged.values()].reduce((sum, o) => sum + o.p, 0) || 1;
+    const learnedTotal = [...merged.values()].reduce((sum, o) => sum + learned[chordToken(o.chord, key)], 0) || 1;
+    for (const o of merged.values())
+      o.p =
+        ((1 - prediction.learnedWeight) * o.p) / grammarTotal +
+        (prediction.learnedWeight * learned[chordToken(o.chord, key)]) / learnedTotal;
+  }
   // Always show the main functional moves *and* the colour moves (°7s, subs, borrowing) — the latter are the lesson.
   const sorted = [...merged.values()].sort((a, b) => b.p - a.p);
-  const list = [...sorted.filter((o) => !o.tag).slice(0, 4), ...sorted.filter((o) => o.tag).slice(0, 5)];
+  const list = [
+    ...sorted.filter((o) => !o.tag).slice(0, prediction.primaryCount),
+    ...sorted.filter((o) => o.tag).slice(0, prediction.colourCount),
+  ];
   const total = list.reduce((s, o) => s + o.p, 0) || 1;
   return list.map((o) => ({
     chord: o.chord,

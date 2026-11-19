@@ -159,3 +159,36 @@ What it says:
 2. **37–66 % of chord misses are boundary errors** → timing of changes (segmentation) is the biggest lever.
 3. **Classical key misses are mostly "a fifth away"** (Mozart 62 %, Beethoven 51 %) → tonicization vs modulation judgement; **pop key misses are mostly relative** (label limitation).
 4. The live reading trails hindsight by ~9–11 points → hindsight revisions matter, as intended.
+
+## Next-chord prediction
+
+`npm run benchmark:prediction` evaluates continuation ranking separately from note recognition. Given
+annotated preceding chords and the local key, it predicts the root/family of the next distinct chord.
+Only contiguous changes within the same key count; repetition, gaps and modulation reset context.
+This does not measure end-to-end prediction from MIDI, voicings, extensions or the artistic quality of
+an alternative. The same caveats about annotation errors and the synthetic jazz corpus apply.
+
+The model uses five families and transposition-invariant degrees. Training uses the 687 tune pieces
+(43,219 changes), with equal total count weight for each corpus. Hyperparameters were selected using
+an internal split: the first 80% of sorted tune IDs per corpus train a temporary model; the remaining
+20% validate it. Neither training nor parameter selection uses the test split. The prior and sequence
+smoothing strengths were selected by corpus-macro negative log likelihood from
+`[0.1, 0.5, 1, 2, 5, 10, 20, 50]`. Both selected 20. The rule/model blend was selected from
+`[0, 0.25, 0.5, 0.7, 0.85, 1]` by the average of macro Ideas @1 and @3; it selected 0.85.
+The final model is retrained on the full tune split.
+
+```sh
+VALIDATE=1 npm run train:prediction
+VALIDATE=1 npm run benchmark:prediction
+npm run train:prediction
+SPLIT=test WRITE=1 npm run benchmark:prediction
+```
+
+[Prediction results](../benchmarks/PREDICTION.md) report root/family top-k accuracy, negative log
+likelihood (lower is better), and whether the real next chord appears in the visible Ideas list.
+Root-only transitions provide a reference distribution with degree-specific quality priors; a
+quality-aware single-chord model is an ablation of the two-chord model. The rule-based Ideas baseline
+uses the same candidates/limits as before learned ranking, on exactly the same examples. Metrics are
+averaged equally across corpora; within a corpus every change counts once. Display scores are ranking
+weights, not calibrated probabilities of what a musician should play. Runs are retained in
+`benchmarks/prediction-history.jsonl` with settings and data hash.

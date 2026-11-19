@@ -17,7 +17,9 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "train": "EVAL=scripts/train.test.ts vitest run --silent=false && biome format --write src/engine/transitions.ts"
+    "train": "EVAL=scripts/train.test.ts vitest run --silent=false && biome format --write src/engine/transitions.ts",
+    "train:prediction": "EVAL=scripts/trainPrediction.test.ts vitest run --silent=false && biome format --write src/engine/predictionModel.ts",
+    "benchmark:prediction": "EVAL=scripts/prediction.test.ts vitest run --silent=false"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",

@@ -17,7 +17,9 @@
     void ui.tick;
     const context = compositionContext();
     const key = context.key;
-    const moves = key ? suggestNext(key, context.last, session.style, context.voicing) : [];
+    const moves = key
+      ? suggestNext(key, context.last, session.style, context.voicing, context.recent, settings.prediction)
+      : [];
     const ideas: Idea[] =
       key && session.target && !keyEq(key, session.target)
         ? suggestPaths(key, session.target, context.last, context.voicing, session.style).map((path) => ({

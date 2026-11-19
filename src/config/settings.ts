@@ -284,6 +284,40 @@ export type HarmonizerParams = z.output<typeof harmonySchema>;
 /** Tuned against the benchmark tune split and checked against the test split. */
 export const DEFAULT_PARAMS: HarmonizerParams = harmonySchema.parse({});
 
+export const predictionSchema = z.object({
+  primaryCount: integer(4, 1, 12, 'Main chord ideas', 'Number of primary continuations shown in Ideas.'),
+  colourCount: integer(
+    5,
+    0,
+    12,
+    'Colour ideas',
+    'Additional diminished, substitution and borrowing alternatives; zero hides them.',
+  ),
+  learnedWeight: number(
+    0.85,
+    0,
+    1,
+    'Learned suggestion ranking',
+    'Blend learned continuations with functional chord suggestions; zero uses the original rules.',
+  ),
+  useSequence: flag(true, 'Use recent sequence', 'Consider the last two distinct chords when ranking continuations.'),
+  priorStrength: number(
+    20,
+    0.01,
+    100,
+    'Single-chord smoothing',
+    'How much mode-wide evidence supports rare chord contexts.',
+  ),
+  contextStrength: number(
+    20,
+    0.01,
+    100,
+    'Sequence smoothing',
+    'How much single-chord evidence supports rare two-chord contexts.',
+  ),
+});
+export type PredictionSettings = z.output<typeof predictionSchema>;
+
 export const analysisSchema = z.object({
   refreshMs: integer(120, 16, 2000, 'Analysis refresh', 'Interval between live harmonic re-evaluations.', 'ms'),
   strikeMs: integer(
@@ -381,6 +415,7 @@ export const settingsSchema = z
     segmentation: segmentationSchema.prefault({}),
     harmony: harmonySchema.prefault({ prior: {} }),
     analysis: analysisSchema.prefault({}),
+    prediction: predictionSchema.prefault({}),
     editor: editorSchema.prefault({}),
   })
   .superRefine((s, ctx) => {
@@ -413,6 +448,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'preferences', title: 'Playback & input', advanced: false },
   { id: 'panels', title: 'Workspace', advanced: false },
   { id: 'editor', title: 'Editor', advanced: false },
+  { id: 'prediction', title: 'Chord suggestions', advanced: false },
   { id: 'beats', title: 'Beat & bar detection', advanced: true },
   { id: 'accents', title: 'Downbeat evidence', advanced: true },
   { id: 'segmentation', title: 'Chord & melody detection', advanced: true },
@@ -479,6 +515,7 @@ export function restoreSettings(raw: unknown): { settings: Settings; warnings: s
       segmentation: segmentationSchema,
       harmony: harmonySchema,
       analysis: analysisSchema,
+      prediction: predictionSchema,
       editor: editorSchema,
       panels: settingsSchema.shape.panels,
     };

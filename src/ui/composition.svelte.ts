@@ -7,6 +7,7 @@ import {
   sequenceFromChart,
   sequencePiece,
   sequenceKeyAt,
+  sequenceRegions,
   type ChordInput,
   type Sequence,
 } from '../engine/sequence';
@@ -244,20 +245,30 @@ export function compositionContext() {
         : document.steps.findLastIndex((s) => s.start + s.beats <= composition.cursor + 1e-8);
   const upto = index + 1;
   const current = document.steps[upto - 1];
-  const key = editing
-    ? (sequenceKeyAt(
-        document,
-        playbackIndex >= 0 ? (ui.playbackPosition * document.bpm) / 60000 : (current?.start ?? composition.cursor),
-      ) ?? sequenceChart(document).key)
-    : session.activeKey;
+  const contextBeat =
+    playbackIndex >= 0
+      ? (ui.playbackPosition * document.bpm) / 60000
+      : composition.selectedId
+        ? (current?.start ?? composition.cursor)
+        : composition.cursor;
+  const key = editing ? (sequenceKeyAt(document, contextBeat) ?? sequenceChart(document).key) : session.activeKey;
   const last = editing ? (current ? parseChordSymbol(current.symbol) : null) : session.now.best;
   const voicing = editing ? (current?.notes ?? null) : session.lastVoicing;
+  const regionStart = sequenceRegions(document).findLast((region) => region.start <= contextBeat)?.start ?? 0;
+  const inputChords = session.chords;
+  const inputBoundary = inputChords.findLastIndex(
+    (entry) => !key || !entry.key || keyIndex(entry.key) !== keyIndex(key),
+  );
   const recent = editing
     ? document.steps
         .slice(0, upto)
+        .filter((step) => step.start >= regionStart)
         .slice(-8)
         .map((s) => parseChordSymbol(s.symbol)!)
-    : session.chords.slice(-8).map((s) => s.chord);
+    : inputChords
+        .slice(inputBoundary + 1)
+        .slice(-8)
+        .map((s) => s.chord);
   const probabilities = editing ? new Float64Array(24) : session.keyProbs;
   if (editing && key) probabilities[keyIndex(key)] = 1;
   return { key, last, voicing, recent, reach: computeReach(key, probabilities, recent, [], session.style) };

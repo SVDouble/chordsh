@@ -131,9 +131,9 @@ recorded chords, no recording retrigger and equal-velocity preview/playback timb
 ## Remaining-work pass
 
 - [x] Exclude local datasets/recordings from development watching and avoid exhausted Linux inotify quotas.
-- [ ] Train a chord-quality-aware next-chord model using recent sequence context and tune-split data only.
-- [ ] Use learned ranking in Ideas while retaining harmonic explanations and colour alternatives.
-- [ ] Expose prediction controls in shared Settings and reset sequence context at local key changes.
+- [x] Train a chord-quality-aware next-chord model using recent sequence context and tune-split data only.
+- [x] Use learned ranking in Ideas while retaining harmonic explanations and colour alternatives.
+- [x] Expose prediction controls in shared Settings and reset sequence context at local key changes.
 - [ ] Measure next-chord prediction separately from recognition and record test-split results.
 - [ ] Verify inference regression, browser interactions and documentation.
 

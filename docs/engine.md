@@ -170,3 +170,24 @@ voice. The UI passes focused/input velocities instead of mixing a normalized pre
 velocities. Recorded sketches anchor their first attack at the insertion cursor, retain attack
 velocities and include already sounding notes when armed. Hot-module disposal cancels playback and
 closes the old AudioContext. These changes do not alter harmonic inference.
+
+## Sequence-aware chord suggestions
+
+`engine/prediction.ts` ranks continuations using a smoothed second-order model over scale-degree root
+and five quality families (major, minor, diminished, augmented, suspended). Consecutive repeats and
+extension/inversion changes count as prolongations, not new harmonic events. The model backs off from
+two chords to one chord, then to a mode-wide prior when evidence is sparse. Suggestions blend this
+ranking with the existing functional rules; diminished, substitution and borrowing alternatives retain
+their explanations and separate colour slots. No network or inference service is needed.
+
+`npm run train:prediction` reads tune annotations only and writes `predictionModel.ts`, recording the
+pinned manifest hash, training-data hash and per-corpus counts. Every corpus contributes equal total
+count weight. Counts retain seven significant digits to keep the browser artifact small. This model
+is separate from the HMM's root-only recognition transitions; it does not change note-to-chord decoding.
+The prediction benchmark measures root/family continuations, not extension choice, voicing, melody
+classification or recognition accuracy. See [the protocol](benchmark.md#next-chord-prediction).
+
+The timeline supplies earlier chords only, up to the focused chord/insertion cursor. A key-region
+boundary clears sequence context, and a cursor in a gap uses that region's key. Changing prediction
+settings updates coaching without resetting the harmonizer or song. The shared settings schema owns
+ranking strength, context/smoothing and visible idea counts.

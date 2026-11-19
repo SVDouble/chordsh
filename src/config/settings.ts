@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PLAYBACK_STYLES } from '../engine/accompaniment';
 
 export const METER_DENOMINATORS = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
 const meterDenominator = (title: string) =>
@@ -438,6 +439,42 @@ export const editorSchema = z.object({
   newTempo: number(100, 4, 1000, 'New song tempo', 'Initial tempo of a new sequence.', 'BPM', 1),
   newMeter: integer(4, 1, 255, 'New song meter', 'Top number of a new song’s time signature.', 'beats'),
   newDenominator: meterDenominator('New song denominator'),
+  newPlaybackStyle: choice(
+    PLAYBACK_STYLES.map((style) => style.id),
+    'once',
+    'New song playback style',
+    'Default accompaniment for new songs. Each bar can override the song style.',
+  ),
+  accompanimentBassLevel: number(
+    0.85,
+    0,
+    2,
+    'Accompaniment bass level',
+    'Bass velocity relative to the written chord velocity; zero mutes added bass.',
+    '×',
+    0.05,
+  ),
+  accompanimentBassOctave: integer(
+    2,
+    0,
+    5,
+    'Accompaniment bass octave',
+    'Octave for generated bass notes; C2 is MIDI note 36.',
+  ),
+  accompanimentStrumMs: integer(
+    18,
+    0,
+    100,
+    'Accompaniment strum spacing',
+    'Delay between notes in a strum. Zero plays them together.',
+    'ms',
+  ),
+  accompanimentSwing: choice(
+    ['preset', '0.5', '0.6', '0.6666666666666666', '0.75'],
+    'preset',
+    'Accompaniment swing',
+    'Use each style’s swing, or override its long/short eighth-note ratio.',
+  ),
   snapBeats: number(
     0.25,
     0.015625,

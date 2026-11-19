@@ -202,6 +202,18 @@ ranking strength, context/smoothing and visible idea counts.
 
 ## Meter units and interchange
 
+`engine/accompaniment.ts` defines the playback style catalogue and renders deterministic timed notes.
+`Sequence.style` is the song default (legacy absence means Once); `barStyles` stores sparse overrides
+by zero-based bar index. These affect performance only, leaving harmonic analysis and written chord
+steps intact. `SequenceEditor.setStyle()` and `setBarStyle()` validate changes and include them in
+undo/redo snapshots. Browser restore retains styles and ignores unknown presets without dropping songs.
+
+`sequencePiece()` uses the same renderer for preview, transport and export. Pattern cycles fit a bar,
+apply swing/velocity/gate/strum controls, clip at chord/bar boundaries, preserve silent gaps and resolve
+same-pitch retriggers before scheduling. Consecutive Once bars preserve sustained written voicings.
+The UI's per-bar picker previews an isolated bar without feeding generated notes into live input or
+recording. See [playback styles](accompaniment.md) for the catalogue and interaction model.
+
 `theory/meter.ts` converts between notated beats and canonical quarter-note positions. `Sequence.meter`
 is the numerator and optional `denominator` defaults to 4 for legacy documents. One notated beat spans
 `4 / denominator` quarters; a bar spans `numerator × 4 / denominator`. Sequence steps/regions keep

@@ -97,6 +97,11 @@ key width and twice this label size when root labels are shown. Horizontal scrol
 
 ## Meter and beat units
 
+The Editor section also contains the **new-song playback style**, accompaniment bass level/octave,
+strum spacing and swing override. These settings control the rhythmic arrangements chosen per song
+or bar. New-song style defaults leave existing songs unchanged; the other performance controls refresh
+the arrangement. See [playback styles](accompaniment.md).
+
 New song defaults have independent numerator and denominator controls, as does the metronome.
 Denominators use a dropdown of standard note values (1, 2, 4, 8, 16, 32, 64, 128 and 256).
 These manual signatures are separate from automatic meter

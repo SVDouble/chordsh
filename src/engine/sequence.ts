@@ -8,6 +8,7 @@ import { parseChordSymbol } from '../theory/symbols';
 import { voiceChord } from '../theory/voicing';
 import { analyzeRoman } from '../theory/roman';
 import type { Piece } from '../library/pieces';
+import { accompanimentNotes, validPlaybackStyle, type BarStyle } from './accompaniment';
 
 export interface SequenceStep {
   id: string;
@@ -38,6 +39,9 @@ export interface Sequence {
   key: Key | null;
   steps: SequenceStep[];
   regions?: KeyRegion[];
+  /** Accompaniment is musical presentation, separate from analysis/coaching vocabulary. */
+  style?: string;
+  barStyles?: BarStyle[];
 }
 
 export interface ChordInput {
@@ -62,6 +66,7 @@ export function emptySequence(
     denominator: settings.newDenominator,
     key: { tonic: 0, mode: 'major' },
     steps: [],
+    style: settings.newPlaybackStyle,
   };
 }
 
@@ -135,6 +140,13 @@ export class SequenceEditor {
     this.value = structuredClone(sequence);
     this.value.denominator ??= 4;
     this.value.regions = structuredClone(sequenceRegions(sequence));
+    if (!validPlaybackStyle(sequence.style ?? 'once')) throw new Error('Choose a known playback style.');
+    if (
+      sequence.barStyles?.some(
+        (entry) => !Number.isSafeInteger(entry.bar) || entry.bar < 0 || !validPlaybackStyle(entry.style),
+      )
+    )
+      throw new Error('Invalid bar accompaniment style.');
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
       const start = s.start ?? end;
@@ -276,6 +288,21 @@ export class SequenceEditor {
     });
   }
 
+  setStyle(style: string) {
+    if (!validPlaybackStyle(style)) throw new Error('Choose a known playback style.');
+    if ((this.value.style ?? 'once') === style) return;
+    this.commit({ ...this.value, style });
+  }
+
+  setBarStyle(bar: number, style: string | null) {
+    if (!Number.isSafeInteger(bar) || bar < 0) throw new Error('Choose a valid bar.');
+    if (style !== null && !validPlaybackStyle(style)) throw new Error('Choose a known playback style.');
+    if ((this.value.barStyles?.find((entry) => entry.bar === bar)?.style ?? null) === style) return;
+    const barStyles = (this.value.barStyles ?? []).filter((entry) => entry.bar !== bar);
+    if (style !== null) barStyles.push({ bar, style });
+    this.commit({ ...this.value, barStyles: barStyles.sort((a, b) => a.bar - b.bar) });
+  }
+
   removeRegion(id: string) {
     const region = this.value.regions?.find((r) => r.id === id);
     if (!region || region.start === 0)
@@ -284,8 +311,13 @@ export class SequenceEditor {
   }
 
   clear() {
-    if (this.value.steps.length || (this.value.regions?.length ?? 0) > 1)
-      this.commit({ ...this.value, steps: [], regions: this.value.regions?.filter((r) => r.start === 0) });
+    if (this.value.steps.length || (this.value.regions?.length ?? 0) > 1 || this.value.barStyles?.length)
+      this.commit({
+        ...this.value,
+        steps: [],
+        regions: this.value.regions?.filter((r) => r.start === 0),
+        ...(this.value.barStyles?.length ? { barStyles: [] } : {}),
+      });
   }
 
   remove(id: string) {
@@ -435,10 +467,7 @@ export function sequenceChart(sequence: Sequence): Chart {
 
 export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor): Piece {
   const ms = 60000 / sequence.bpm;
-  const notes: Piece['notes'] = [];
-  for (const s of sequence.steps) {
-    for (const n of s.notes) notes.push([s.start * ms, s.beats * ms * settings.gate, n, s.velocity]);
-  }
+  const notes = accompanimentNotes(sequence, settings);
   return {
     id: sequence.id,
     title: sequence.title,

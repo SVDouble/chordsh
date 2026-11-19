@@ -248,6 +248,43 @@ export function audition(
   timers.push(setTimeout(stopAudition, 60 + at * 1000));
 }
 
+/** Audition an already rendered arrangement without replacing the song or recording it as live input. */
+export function previewArrangement(piece: Piece, label: string) {
+  if (!piece.notes.length || !outputReady()) return;
+  ui.playbackRequest++;
+  ui.loading = false;
+  stopPiece();
+  stopAudition();
+  ui.preview = label;
+  const held = new Map<number, number>();
+  const lead = 60;
+  const start = performance.now() + lead;
+  for (const [at, duration, note, velocity] of piece.notes) {
+    if (settings.preferences.sound === 'synth' || settings.preferences.sound === 'both')
+      synth.play([note], (lead + at) / 1000, duration / 1000, velocity);
+    if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
+      midi.send([note], start + at, duration, velocity);
+    timers.push(
+      setTimeout(() => {
+        held.set(note, (held.get(note) ?? 0) + 1);
+        ui.playing = [...held.keys()];
+      }, lead + at),
+    );
+    timers.push(
+      setTimeout(
+        () => {
+          const count = (held.get(note) ?? 1) - 1;
+          if (count) held.set(note, count);
+          else held.delete(note);
+          ui.playing = [...held.keys()];
+        },
+        lead + at + duration,
+      ),
+    );
+  }
+  timers.push(setTimeout(stopAudition, lead + (piece.durationMs ?? 0)));
+}
+
 let metronome: ReturnType<typeof setTimeout> | null = null;
 /** Bars from the metronome (exact), a MIDI file, or estimated from playing. */
 export function setBars(
@@ -470,7 +507,7 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
           pieceNotes.delete(note);
           live.noteOff(note, performance.now(), false);
         },
-        lead + t + Math.max(20, d) - playbackOffset,
+        lead + t + d - playbackOffset,
       ),
     );
   }

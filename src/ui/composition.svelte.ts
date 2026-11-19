@@ -1,5 +1,6 @@
 import { barQuarters, beatQuarters, isMeterDenominator, meterPosition } from '../theory/meter';
 import { MUSIC_LIMITS } from '../config/settings';
+import { validPlaybackStyle } from '../engine/accompaniment';
 import { settings } from './store.svelte';
 import {
   emptySequence,
@@ -40,6 +41,8 @@ function restore(): Sequence[] {
     try {
       if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || !Array.isArray(raw.steps)) continue;
       const editor = new SequenceEditor(emptySequence(raw.title, raw.id));
+      // Legacy songs retain held chords even when the new-song default has changed.
+      editor.setStyle(validPlaybackStyle(raw.style) ? raw.style : 'once');
       let denominator = raw.denominator ?? 4;
       const regroup =
         Number.isInteger(denominator) &&
@@ -54,6 +57,10 @@ function restore(): Sequence[] {
         editor.place([s], at);
         end = at + s.beats;
       }
+      if (Array.isArray(raw.barStyles))
+        for (const entry of raw.barStyles)
+          if (Number.isSafeInteger(entry.bar) && entry.bar >= 0 && validPlaybackStyle(entry.style))
+            editor.setBarStyle(entry.bar, entry.style);
       if (Array.isArray(raw.regions))
         for (const region of raw.regions) editor.setRegion(region.start, region.key, region.label);
       const document = editor.document;

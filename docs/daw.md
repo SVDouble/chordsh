@@ -77,6 +77,11 @@ substitute for sample-accurate native hosting.
 
 ## Time signatures
 
+Song and bar playback styles are rendered into note events before export or MIDI routing. The DAW
+receives the same chord/bass rhythm, arpeggio, accent and strum timing as the browser preview. Set the
+receiving instrument in the DAW to change the sound. Exporting a library performance retains its
+original notes; style choices apply to the editable song. See [playback styles](accompaniment.md).
+
 Signatures such as 5/4, 6/8, 7/8 and 13/16 export directly with the song's quarter-note tempo.
 The editor and metronome offer power-of-two note values, so export needs no meter or tempo conversion
 and no custom notation metadata.

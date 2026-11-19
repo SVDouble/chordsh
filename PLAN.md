@@ -206,6 +206,21 @@ Simplification validation: 170 tests, production build and desktop/mobile browse
 denominator dropdowns, 6/8 editing/seek/playback/export, undo, saved settings, and one-time migration
 of /3 and /6 songs preserving exact notes, durations, tempo and key-region positions.
 
+## Accompaniment styles per bar
+
+- [x] Inspect OneMotion's available styles and accompaniment controls.
+- [x] Add the 57 named style choices with original chord/bass rhythm generators.
+- [x] Save a song style and independent bar overrides with undo/redo and browser persistence.
+- [x] Add compact bar controls, audible previews and shared default/accompaniment settings.
+- [x] Render the same arrangement for browser/DAW playback and MIDI export.
+- [x] Verify chord changes, rests, odd meters, seeking, migration and desktop/mobile interaction.
+
+Validation: 180 tests, typecheck/lint, changed-file formatting and production build. Browser checks
+cover noncommitting previews, explicit/inherited bar styles, saved defaults, undo/reload, matching
+exported notes, pause/resume/stop, MIDI schedules after live style changes and legacy recovery.
+Existing sketch/recording/device/key-region workflows and mouse/touch chord entry also pass.
+Repository-wide formatting still flags the pre-existing edits in docs/README.md and docs/harmony-model.md.
+
 ## Mouse chord entry
 
 - [x] Select piano notes with Shift-click and play the simultaneous chord on releasing Shift.

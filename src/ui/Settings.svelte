@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { PLAYBACK_STYLES } from '../engine/accompaniment';
   import {
     SETTINGS_FIELDS,
     SETTINGS_SECTIONS,
@@ -22,6 +23,12 @@
     return { input: midi.inputs, output: midi.outputs };
   });
   const labels: Record<string, string> = {
+    ...Object.fromEntries(PLAYBACK_STYLES.map((style) => [style.id, style.name])),
+    preset: 'Style default',
+    '0.5': 'Straight (1:1)',
+    '0.6': 'Light swing (3:2)',
+    '0.6666666666666666': 'Shuffle (2:1)',
+    '0.75': 'Hard swing (3:1)',
     synth: 'Browser synth',
     midi: 'DAW / MIDI out',
     both: 'Both',
@@ -54,9 +61,19 @@
       dialog?.querySelector('.settings-content')?.scrollTo({ top: 0 });
       return;
     }
-    const gateChanged = settings.editor.gate !== result.data.editor.gate;
+    const playbackChanged = [
+      'gate',
+      'accompanimentBassLevel',
+      'accompanimentBassOctave',
+      'accompanimentStrumMs',
+      'accompanimentSwing',
+    ].some(
+      (field) =>
+        settings.editor[field as keyof typeof settings.editor] !==
+        result.data.editor[field as keyof typeof settings.editor],
+    );
     applySettings(result.data);
-    if (gateChanged) refreshCompositionSettings();
+    if (playbackChanged) refreshCompositionSettings();
     dialog?.close();
   }
   function matching(section: string) {

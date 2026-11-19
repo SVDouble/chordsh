@@ -160,6 +160,13 @@ tradeoffs and persistence. Browser preferences do not alter reproducible benchma
 
 ## Consistent preview sound
 
+For rhythmic playback, use the **style button beside the song's tempo/key** to choose a default, or
+click the **style handle under a bar** to change just that bar. The picker has 57 choices, including
+pop, swing, bossa nova, strumming, funk and melodic arpeggios. The ear previews the choice; ✓ applies
+it. Choose **Song style** to remove an override. Changes support Undo/Redo and save with the song.
+The same chord/bass arrangement plays through the browser or MIDI output and is included in MIDI
+export. **Once** keeps the existing held-chord playback. See [the style catalogue](accompaniment.md).
+
 Chord previews, live notes and timeline playback use the same synth voice and MIDI-velocity curve.
 Previews use the focused chord's velocity; manually entered chords use the editor's default unless
 changed. Kept input preserves its played velocity, and captured chord blocks average their recorded

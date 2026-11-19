@@ -1,6 +1,8 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import Transport from './Transport.svelte';
+  import StylePicker from './StylePicker.svelte';
+  import { barPlaybackStyle, playbackStyle } from '../engine/accompaniment';
   import { DEFAULT_SETTINGS, METER_DENOMINATORS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import { barQuarters, beatQuarters, meterPosition, notatedQuarters } from '../theory/meter';
@@ -53,6 +55,7 @@
   let voicingPreset = $state<VoicingPreset | null>(null);
   let velocity = $state(DEFAULT_SETTINGS.editor.velocity);
   let pasted = $state('');
+  let styleTarget = $state<{ bar: number | null; previewBar: number } | null>(null);
   let drag = $state<{
     id: string;
     mode: 'move' | 'resize';
@@ -95,7 +98,12 @@
     return canRedo();
   });
   const incoming = $derived(inputTimeline());
-  const end = $derived([...document.steps, ...incoming].reduce((last, s) => Math.max(last, s.start + s.beats), 0));
+  const end = $derived(
+    [...document.steps, ...incoming].reduce(
+      (last, s) => Math.max(last, s.start + s.beats),
+      Math.max(0, ...(document.barStyles ?? []).map((entry) => (entry.bar + 1) * barLength)),
+    ),
+  );
   const length = $derived(
     Math.max(barLength * settings.editor.visibleBars, Math.ceil((end + barLength * 2) / barLength) * barLength),
   );
@@ -437,6 +445,20 @@
     >
       <Icon name="key" />
     </button>
+    <button
+      type="button"
+      class="song-style"
+      aria-label={`Song style: ${playbackStyle(document.style).name}`}
+      title="Default playback style; individual bars can override it"
+      disabled={ui.recording}
+      onclick={() =>
+        (styleTarget = {
+          bar: null,
+          previewBar: Math.floor((selected?.start ?? document.steps[0]?.start ?? 0) / barLength),
+        })}
+    >
+      <Icon name="chord" size={14} /><span>{playbackStyle(document.style).name}</span><Icon name="down" size={12} />
+    </button>
     <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
       >Bar {positionAt(cursorBeat).bar} · beat {+positionAt(cursorBeat).beat.toFixed(2)}</span
     >
@@ -472,6 +494,22 @@
           ? playBeat
           : composition.cursor}
       <div class="chord-timeline timeline-row" data-start={rowStart}>
+        {#each Array.from({ length: barsPerRow }, (_, i) => Math.round(rowStart / barLength) + i) as bar}
+          {@const style = barPlaybackStyle(document, bar)}
+          <button
+            type="button"
+            class="timeline-bar-style"
+            class:overridden={document.barStyles?.some((entry) => entry.bar === bar)}
+            style:left={`${(bar * barLength - rowStart) * beatWidth}px`}
+            style:width={`${barLength * beatWidth}px`}
+            aria-label={`Style for bar ${bar + 1}: ${style.name}`}
+            title={`Bar ${bar + 1} · ${style.name} — click to change accompaniment`}
+            disabled={ui.recording}
+            onclick={() => (styleTarget = { bar, previewBar: bar })}
+          >
+            <Icon name="chord" size={12} /><span>{style.name}</span><Icon name="down" size={11} />
+          </button>
+        {/each}
         {#each regions.filter((region) => region.start >= rowStart - 1e-8 && region.start < rowEnd - 1e-8) as region}
           {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
           <div
@@ -622,6 +660,19 @@
     {/each}
   </div>
   <div class="timeline-caption muted small">Click a beat to add · drag chords to arrange · drag the ruler to seek</div>
+
+  {#if styleTarget}
+    <StylePicker
+      sequence={document}
+      bar={styleTarget.bar}
+      previewBar={styleTarget.previewBar}
+      onclose={() => (styleTarget = null)}
+      onapply={(style) =>
+        editSequence((editor) =>
+          styleTarget?.bar === null ? editor.setStyle(style ?? 'once') : editor.setBarStyle(styleTarget!.bar!, style),
+        )}
+    />
+  {/if}
 
   {#if popup}
     <section

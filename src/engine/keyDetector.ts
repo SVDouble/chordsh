@@ -1,6 +1,6 @@
 import { mod12 } from '../theory/pitch';
-import { Chord, corePcs, isDominantLike } from '../theory/chords';
-import { Key, SCALES, ScaleName, keyFromIndex, keyIndex, keyPcSet } from '../theory/scales';
+import { type Chord, corePcs, isDominantLike } from '../theory/chords';
+import { type Key, SCALES, type ScaleName, keyFromIndex, keyIndex, keyPcSet } from '../theory/scales';
 
 // Krumhansl–Kessler key profiles (index 0 = tonic).
 const MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
@@ -57,7 +57,7 @@ export class KeyDetector {
   /** Time decay, plus an extra factor per event so recent chords dominate at any tempo. */
   private decay(t: number, extra = 1) {
     const dt = t - this.last;
-    const f = (dt > 0 && this.last ? Math.pow(0.5, dt / this.halfLifeMs) : 1) * extra;
+    const f = (dt > 0 && this.last ? 0.5 ** (dt / this.halfLifeMs) : 1) * extra;
     for (let i = 0; i < 12; i++) this.hist[i] *= f;
     for (let i = 0; i < 24; i++) {
       this.fit[i] *= f;

@@ -8,6 +8,7 @@ readings with hindsight, and it is measured against expert-annotated music.
 npm install
 npm run dev          # open the printed URL in Chrome or Edge (Web MIDI)
 npm test             # unit tests (theory, engine, songs, MIDI)
+npm run check        # typecheck, lint, formatting and tests
 npm run build
 ```
 
@@ -25,12 +26,18 @@ annotated piece.
 
 ## Developer commands
 
-| command              | does                                                                                           |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| `npm run fetch-data` | download + convert the benchmark corpora into `local/data` (pinned in `scripts/datasets.json`) |
-| `npm run benchmark`  | score the engine on all corpora (`WRITE=1` records results in `benchmarks/`)                   |
-| `npm run tune`       | search engine parameters on the tune split                                                     |
-| `npm run replay`     | replay the newest session recording (`local/recordings/`) through the engine                   |
+| command                | does                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm run fetch-data`   | download + convert the benchmark corpora into `local/data` (pinned in `scripts/datasets.json`) |
+| `npm run benchmark`    | score the engine on all corpora (`WRITE=1` records results in `benchmarks/`)                   |
+| `npm run tune`         | search engine parameters on the tune split                                                     |
+| `npm run replay`       | replay the newest session recording (`local/recordings/`) through the engine                   |
+| `npm run lint`         | Biome linting plus Markdown structure checks with markdownlint                                 |
+| `npm run format`       | format TypeScript, Svelte, CSS, JSON and Markdown with Biome                                   |
+| `npm run format:check` | check formatting without changing files                                                        |
+
+Biome's full Svelte support is experimental and enabled in `biome.json`; the production build validates
+the formatted components. Dependencies, generated builds, local data and benchmark history are excluded.
 
 Everything local and uncommitted (datasets, recordings, caches) lives under `local/`.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).

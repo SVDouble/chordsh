@@ -1,5 +1,5 @@
-import { INTERVAL_NAME, Spelling, mod12, spellFrom, spellingToString } from './pitch';
-import { Key, keyPcSet, spellInKey, tonicSpelling } from './scales';
+import { INTERVAL_NAME, type Spelling, mod12, spellFrom, spellingToString } from './pitch';
+import { type Key, keyPcSet, spellInKey, tonicSpelling } from './scales';
 
 export type Quality = 'maj' | 'min' | 'dim' | 'aug' | 'sus4' | 'sus2' | 'power';
 export type Seventh = 'none' | 'b7' | 'maj7' | 'dim7';

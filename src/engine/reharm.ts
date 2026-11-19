@@ -1,7 +1,7 @@
 import { mod12, spellFrom, spellingToString } from '../theory/pitch';
-import { Chord, chordName, chordOf, isDominant, rootSpelling } from '../theory/chords';
+import { type Chord, chordName, chordOf, isDominant, rootSpelling } from '../theory/chords';
 import { DIATONIC_TRIADS } from '../theory/roman';
-import { Chart } from './chart';
+import type { Chart } from './chart';
 import { degreeChord } from './coach';
 
 export interface Hint {

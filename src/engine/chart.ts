@@ -1,8 +1,8 @@
-import { Chord, chordName, isDominant } from '../theory/chords';
+import { type Chord, chordName, isDominant } from '../theory/chords';
 import { mod12 } from '../theory/pitch';
-import { Roman, analyzeRoman, baseNumeral } from '../theory/roman';
+import { type Roman, analyzeRoman, baseNumeral } from '../theory/roman';
 import { patternsAtEnd } from '../theory/patterns';
-import { Key, keyFromIndex } from '../theory/scales';
+import { type Key, keyFromIndex } from '../theory/scales';
 import { parseChordSymbol } from '../theory/symbols';
 import { KeyDetector } from './keyDetector';
 

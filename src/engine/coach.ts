@@ -1,7 +1,7 @@
 import { mod12, spellFrom, spellingToString } from '../theory/pitch';
 import {
-  Chord,
-  KindName,
+  type Chord,
+  type KindName,
   chordName,
   chordOf,
   corePcs,
@@ -11,7 +11,7 @@ import {
 } from '../theory/chords';
 import {
   DIATONIC_TRIADS,
-  Func,
+  type Func,
   analyzeRoman,
   baseNumeral,
   degreeNumeral,
@@ -20,8 +20,8 @@ import {
 } from '../theory/roman';
 import {
   ALL_KEYS,
-  Key,
-  Mode,
+  type Key,
+  type Mode,
   commonTones,
   keyEq,
   keyIndex,
@@ -226,7 +226,6 @@ export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoic
     }
     // Passing °7: chromatic bass between two chords a whole step apart (I–♯i°7–ii, IV–♯iv°7–V, iii–♭iii°7–ii).
     // iterate a snapshot: the loop appends passing °7s to opts
-    // oxlint-disable-next-line unicorn/no-useless-spread
     for (const o of [...opts]) {
       const step = mod12(o.chord.root - last.root);
       if (r.kind === 'diatonic' && (step === 2 || step === 10)) {

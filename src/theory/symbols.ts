@@ -1,5 +1,5 @@
 import { mod12 } from './pitch';
-import { Chord, chordFromIntervals } from './chords';
+import { type Chord, chordFromIntervals } from './chords';
 
 const LETTER_PC: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 const DEGREE: Record<string, number> = { '2': 2, '4': 5, '5': 7, '9': 2, '11': 5, '13': 9 };

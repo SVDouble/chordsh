@@ -1,6 +1,6 @@
 import { mod12 } from './pitch';
-import { Chord, Quality, corePcs, isDominant } from './chords';
-import { Key, Mode, SCALE_LABEL, ScaleName, keyPcSet, nameInKey, scalePcSet, tonicName } from './scales';
+import { type Chord, type Quality, corePcs, isDominant } from './chords';
+import { type Key, type Mode, SCALE_LABEL, type ScaleName, keyPcSet, nameInKey, scalePcSet, tonicName } from './scales';
 
 export type Func = 'T' | 'PD' | 'D' | '?';
 export type RomanKind =

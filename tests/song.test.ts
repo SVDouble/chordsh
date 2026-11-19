@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chordName, chordOf, identify, KINDS, KindName } from '../src/theory/chords';
+import { chordName, chordOf, identify, KINDS, type KindName } from '../src/theory/chords';
 import { parseChordSymbol } from '../src/theory/symbols';
 import { EXAMPLES, parseChart } from '../src/engine/chart';
 import { SongFollower, compareChord } from '../src/engine/song';

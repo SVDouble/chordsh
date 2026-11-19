@@ -70,7 +70,7 @@ export class BeatTracker {
       total = 0;
     for (let p = MIN_P; p <= MAX_P; p += 2 * BIN) {
       const lag = p / BIN;
-      const prior = Math.exp(-0.5 * Math.pow(Math.log2(p / 600) / 0.6, 2));
+      const prior = Math.exp(-0.5 * (Math.log2(p / 600) / 0.6) ** 2);
       const s = (ac(lag) + 0.5 * ac(2 * lag)) * prior;
       total += s;
       if (s > bestS) {

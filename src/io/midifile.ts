@@ -17,7 +17,7 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
   };
   const vlq = () => {
     let v = 0,
-      b;
+      b: number;
     do {
       b = d.getUint8(p++);
       v = (v << 7) | (b & 0x7f);

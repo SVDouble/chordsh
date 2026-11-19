@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { chordName, chordOf, identify } from '../src/theory/chords';
 import { analyzeRoman } from '../src/theory/roman';
 import { patternsAtEnd } from '../src/theory/patterns';
-import { Key } from '../src/theory/scales';
+import type { Key } from '../src/theory/scales';
 
 const C: Key = { tonic: 0, mode: 'major' };
 const Am: Key = { tonic: 9, mode: 'minor' };

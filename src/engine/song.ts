@@ -1,8 +1,8 @@
 import { mod12 } from '../theory/pitch';
-import { Chord, chordName, chordPcs, corePcs, isDominant, toneNames } from '../theory/chords';
+import { type Chord, chordName, chordPcs, corePcs, isDominant, toneNames } from '../theory/chords';
 import { analyzeRoman } from '../theory/roman';
-import { Key } from '../theory/scales';
-import { Chart } from './chart';
+import type { Key } from '../theory/scales';
+import type { Chart } from './chart';
 
 export type Verdict = 'exact' | 'match' | 'substitute' | 'wrong' | 'skipped';
 export interface Comparison {

@@ -1,4 +1,4 @@
-import { DEFAULT_STEP, Spelling, mod12, spellFrom, spellingToString } from './pitch';
+import { DEFAULT_STEP, type Spelling, mod12, spellFrom, spellingToString } from './pitch';
 
 export type Mode = 'major' | 'minor';
 export interface Key {

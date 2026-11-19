@@ -1,6 +1,6 @@
 import { mod12 } from './pitch';
-import { Chord, isDominant, isDominantLike } from './chords';
-import { Key, keyShort } from './scales';
+import { type Chord, isDominant, isDominantLike } from './chords';
+import { type Key, keyShort } from './scales';
 
 export type PatternKind = 'ii-V-I' | 'ii-V' | 'V-I' | 'subV-I' | 'plagal' | 'deceptive' | 'backdoor' | 'cycle' | 'loop';
 export interface PatternMatch {

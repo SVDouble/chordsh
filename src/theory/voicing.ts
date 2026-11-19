@@ -1,5 +1,5 @@
 import { mod12 } from './pitch';
-import { Chord } from './chords';
+import type { Chord } from './chords';
 
 // Voicing priority: guide tones (3rd, 7th) first, then colour, then 5th and root.
 const PRIORITY: Record<string, number> = {

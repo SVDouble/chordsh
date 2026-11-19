@@ -233,6 +233,14 @@ export class SegmentBuilder {
     private emit: (s: Segment) => void,
   ) {}
 
+  reset() {
+    this.sounding.clear();
+    this.sustained.clear();
+    this.pedal = false;
+    this.lastRelease = -Infinity;
+    this.open = null;
+  }
+
   noteOn(note: number, vel: number, t: number) {
     if (this.open && t - this.open.t0 > 40) this.close(t); // a new onset group starts a new segment
     this.open ??= { t0: t, onsets: new Map(), present: new Map(this.sounding), released: new Map() };

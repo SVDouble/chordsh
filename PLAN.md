@@ -29,7 +29,13 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
    metronome, or a piece's own tempo.
 5. **Library** — the demo, recordings, MIDI files and benchmark pieces all play through the same pipeline.
 6. **Tooling** — session recording + replay, reproducible benchmark over 5 corpora (classical, romantic,
-   pop, jazz), parameter tuning on a tune split.
+   pop, jazz), parameter tuning on a tune split, Biome formatting/linting and Markdown structure checks.
+7. **Workspace** — progression in the default main panel; next chords and key-change routes together
+   under Where next; browser audio state detected before the first note; clearing discards open segments
+   and queued notes so previous music cannot reappear.
+8. **Five-corpus tuning** — defaults selected on the tune split and checked on all 684 test pieces:
+   better key accuracy and combined score, with a chord-accuracy tradeoff documented in
+   [the benchmark comparison](docs/benchmark.md#2026-11-19--five-corpus-tuning-test-split).
 
 ## Next
 

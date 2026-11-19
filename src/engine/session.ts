@@ -271,6 +271,12 @@ export class Session {
     return e ? voiceChord(e.chord, this.lastVoicing) : [];
   }
   clear() {
+    if (this.rebuildTimer !== null) clearTimeout(this.rebuildTimer);
+    if (this.strikeTimer !== null) clearTimeout(this.strikeTimer);
+    this.rebuildTimer = null;
+    this.strikeTimer = null;
+    this.pending = null;
+    this.group = null;
     Object.assign(this, {
       now: EMPTY,
       nowRoman: null,
@@ -281,9 +287,11 @@ export class Session {
       viewTheory: null,
     });
     this.harmonizer.reset();
+    this.segments.reset();
     this.detector.reset();
     this.seg.reset();
     this.labels.clear();
+    this.revisedAt.clear();
     this.invalidate(true);
   }
 

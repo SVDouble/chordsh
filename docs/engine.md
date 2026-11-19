@@ -54,6 +54,11 @@ the history (`↻`).
   up immediately; once released it counts until the sound has died away.
 - **Parameters** live in `DEFAULT_PARAMS`, tuned with `npm run tune` on the benchmark's tune split.
 
+**Session clearing.** `Session.clear()` resets the open segment and held/sustained analysis notes as
+well as the committed harmonizer path. It also cancels queued onset groups, delayed chord strikes and
+analysis refreshes, so cleared music cannot reappear or advance a song later. Chord style, manual hand
+split, key lock and loaded chart remain available for the next notes.
+
 ## Bars (BeatTracker)
 
 Tempo by autocorrelation of an onset envelope (8 s window, prior around 100 bpm), phase by beat-position

@@ -75,6 +75,13 @@ export class Segmenter {
   }
 
   reset() {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+    this.pending = [];
+    this.onsets = [];
+    this.autoSplit = null;
+    this.pedal = false;
+    this.lastStrike = { t: -Infinity, high: false };
     this.held.clear();
     this.sustained.clear();
     this.harmony.clear();

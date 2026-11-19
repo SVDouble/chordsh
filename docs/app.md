@@ -49,6 +49,9 @@ explains earlier chords better ("that E♭ was the V of A♭"), they are re-labe
 **theories** chips next to the title are competing explanations (e.g. "C major" vs "A minor (1 key
 change)") with probabilities; click one to see the progression the way that theory reads it.
 
+**Clear** starts a fresh progression, discarding pending analysis and notes from the previous one.
+Your chart, chord style and key-lock settings stay selected.
+
 ### Bars and tempo
 
 Bars are relative to a pulse. When you play freely, the progression stays a sequence. With a steady pulse

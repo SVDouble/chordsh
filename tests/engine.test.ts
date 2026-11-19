@@ -41,6 +41,41 @@ const Gm7 = [43, 58, 62, 65],
   Fmaj7 = [41, 57, 60, 64];
 
 describe('session', () => {
+  it('clears the open analysis segment and starts the next chord without old held notes', () => {
+    Cmaj7.forEach((n) => s.noteOn(n, 80, t));
+    vi.advanceTimersByTime(400);
+    t += 400;
+    expect(s.chords).not.toHaveLength(0);
+    s.clear();
+    expect(s.history).toEqual([]);
+    expect(s.key).toBeNull();
+    vi.advanceTimersByTime(2000);
+    t += 2000;
+    expect(s.history).toEqual([]);
+    play(Dm7);
+    expect(s.chords.map((c) => c.name)).toEqual(['Dm7']);
+    expect([...s.seg.held.keys()]).toEqual([]);
+  });
+
+  it('cancels an onset group cleared before it has been recognised', () => {
+    Cmaj7.forEach((n) => s.noteOn(n, 80, t));
+    s.clear();
+    vi.advanceTimersByTime(1000);
+    expect(s.now.kind).toBe('none');
+    expect(s.lastVoicing).toBeNull();
+    expect(s.history).toEqual([]);
+  });
+
+  it('cancels a recognised chord waiting to advance the song or update voice leading', () => {
+    Cmaj7.forEach((n) => s.noteOn(n, 80, t));
+    vi.advanceTimersByTime(80);
+    expect(s.now.best).not.toBeNull();
+    s.clear();
+    vi.advanceTimersByTime(1000);
+    expect(s.lastVoicing).toBeNull();
+    expect(s.now.kind).toBe('none');
+  });
+
   it('names chords, separates melody and finds the key', () => {
     play(Dm7, 76);
     play(G7, 74);

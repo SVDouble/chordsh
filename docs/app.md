@@ -50,6 +50,15 @@ Incoming MIDI, computer keys or the on-screen piano show an **input preview at t
 The chord inspector, piano and suggestions follow that chord. ✓ on the preview keeps it as an editable
 block. Selecting a timeline chord brings the same tools back to that selection.
 
+To build a chord with the mouse, **hold Shift and click several piano keys**, then release Shift to
+play them together. Click a selected key again to remove it. The stacked-notes button beside the
+piano toggles **Chord entry** for mouse-only selection; use the ear button or **Enter** to play.
+Selected keys have an accent outline and stay selected for adjusting or replaying the voicing.
+**×** clears the selection; Escape, Stop and Reset also cancel it. Ordinary clicks still play a key
+while held, and touch supports multiple fingers. Entered chords use the same recognition, timeline
+preview, recording and MIDI output as live playing. Settings → Editor controls the saved entry mode
+and chord duration in the current song's notated beats; velocity and note gate also apply.
+
 ● records a take directly on the same timeline. Chord blocks and a red playhead grow as you play;
 stop/save commits the phrase to the song as **one undoable edit**, retaining its inferred rhythm. The
 first played attack is placed at the insertion cursor, so waiting before playing does not create an

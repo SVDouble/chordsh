@@ -24,17 +24,17 @@ it has no Svelte or browser dependency. Standalone trackers and editors use the 
 harmonizer's existing `DEFAULT_PARAMS` export remains compatible with benchmark and tuning scripts,
 and now comes from the shared schema.
 
-| Section                  | Controls                                                                                                                                                             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter numerator/denominator/click                                      |
-| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                                                  |
-| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                                                    |
-| Editor                   | new-song tempo/meter numerator/denominator, timeline snap/length, piano width/label size and root/name/interval visibility, undo depth, chord velocity and note gate |
-| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights                             |
-| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                                            |
-| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                                                 |
-| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                                              |
-| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                                                     |
+| Section                  | Controls                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter numerator/denominator/click          |
+| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                      |
+| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                        |
+| Editor                   | new-song tempo/meter, timeline snap/length, piano labels/width, chord-entry mode/duration, undo depth, chord velocity and note gate      |
+| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights |
+| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                |
+| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                     |
+| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                  |
+| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                         |
 
 ## Beat and bar detection
 

@@ -28,6 +28,7 @@
     GripVertical,
     KeyRound,
     KeyboardMusic,
+    Layers3,
   } from '@lucide/svelte';
   const icons = {
     play: Play,
@@ -58,6 +59,7 @@
     grip: GripVertical,
     key: KeyRound,
     keyboard: KeyboardMusic,
+    chord: Layers3,
   };
   let { name, size = 17 }: { name: keyof typeof icons; size?: number } = $props();
   const Glyph = $derived(icons[name]);

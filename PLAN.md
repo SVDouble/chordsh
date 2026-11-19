@@ -196,3 +196,16 @@ its replacement interaction has been chosen.
 Validation: 170 tests, production build, recorded-clock replay, desktop/mobile browser checks for 6/8,
 5/3 and 13/6 editing/seek/resize/pause/recording/chart paste, migration/persistence, and MIDI export/import.
 The 684-piece inference regression at `618b846` matches every prior metric exactly.
+
+## Mouse chord entry
+
+- [x] Select piano notes with Shift-click and play the simultaneous chord on releasing Shift.
+- [x] Add a saved mouse-only entry mode, replay/clear icons and Enter/Escape shortcuts.
+- [x] Feed entered chords through live recognition, timeline preview, recording and MIDI routing.
+- [x] Configure chord duration in shared Settings; keep selected notes visible without moving the keys.
+- [x] Preserve ordinary mouse playing and held device notes; release gestures on blur and cancellation.
+- [x] Verify selection, recording/insertion, cancellation, ownership, persistence and desktop/mobile layout.
+
+Validation: 170 tests, production build and browser checks for Shift-release and mouse-only entry,
+replay/deselection, exact-voicing insertion, simultaneous recorded attacks/releases, held/retriggered
+device notes, Stop/blur/unmount cancellation, form/dialog shortcuts, touch polyphony and resize.

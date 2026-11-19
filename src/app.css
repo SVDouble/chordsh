@@ -1340,6 +1340,28 @@ textarea {
 }
 
 /* piano */
+.piano-shell {
+  display: flex;
+  gap: 5px;
+  min-width: 0;
+}
+.piano-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0 5px 0 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+}
+.piano-shell > .piano {
+  flex: 1;
+  min-width: 0;
+}
+.piano canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 footer {
   background: var(--card);
   border-top: 1px solid var(--line);

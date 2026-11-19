@@ -54,6 +54,8 @@ describe('settings validation and recovery', () => {
     expect(settings.editor.pianoRootLabels).toBe(true);
     expect(settings.editor.pianoChordRoles).toBe(false);
     expect(settings.editor.pianoLabelSize).toBe(18);
+    expect(settings.editor.pianoChordEntry).toBe(false);
+    expect(settings.editor.pianoChordBeats).toBe(2);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);
   });

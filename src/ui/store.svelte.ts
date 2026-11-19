@@ -38,6 +38,7 @@ export const session = new Session($state.snapshot(settings));
 export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
+const inputAttacks = new Map<number, number>();
 export const live = {
   noteOn: (
     n: number,
@@ -48,6 +49,7 @@ export const live = {
     playback = false,
   ) => {
     ui.inputSerial++;
+    inputAttacks.set(n, ui.inputSerial);
     if (!playback) {
       ui.harmonyContext = 'input';
       ui.inputVelocity = v;
@@ -60,6 +62,7 @@ export const live = {
       midi.message([0x90, n, v]);
   },
   noteOff: (n: number, t = performance.now(), forward = true) => {
+    inputAttacks.delete(n);
     recorder.input('off', n, 0, t);
     session.noteOff(n, t);
     synth.noteOff(n);
@@ -112,6 +115,7 @@ export const ui = $state({
   recording: false,
   recordingElapsed: 0,
   inputSerial: 0,
+  inputCancelSerial: 0,
   inputVelocity: 80,
   inputPedal: false,
   /** Where bars come from: estimated from playing, a metronome, or a MIDI file's tempo. */
@@ -269,6 +273,7 @@ export function setBars(
 }
 
 export function stopAudition() {
+  stopInputChord();
   timers.forEach(clearTimeout);
   timers = [];
   synth.stop();
@@ -282,6 +287,41 @@ export function stopAudition() {
 let pieceTimers: ReturnType<typeof setTimeout>[] = [];
 const pieceNotes = new Set<number>();
 let selectedPiece = BUILT_IN[0];
+
+/** Release only attacks owned by this gesture, preserving held or subsequently retriggered notes. */
+export function holdInputNotes(notes: number[], velocity = settings.editor.velocity) {
+  const owned = new Map<number, number>();
+  const at = performance.now();
+  for (const n of new Set(notes)) {
+    if (session.seg.held.has(n)) continue;
+    live.noteOn(n, velocity, at);
+    owned.set(n, inputAttacks.get(n)!);
+  }
+  return () => {
+    const at = performance.now();
+    for (const [n, attack] of owned) if (inputAttacks.get(n) === attack) live.noteOff(n, at);
+    owned.clear();
+  };
+}
+
+let inputChordTimer: ReturnType<typeof setTimeout> | undefined;
+let releaseInputChord: (() => void) | undefined;
+export function stopInputChord() {
+  clearTimeout(inputChordTimer);
+  inputChordTimer = undefined;
+  releaseInputChord?.();
+  releaseInputChord = undefined;
+}
+
+/** Enter a simultaneous live chord so analysis, timeline preview and recording all hear it. */
+export function playInputChord(notes: number[]) {
+  if (!notes.length || !outputReady()) return;
+  stopInputChord();
+  if (ui.preview) stopAudition();
+  releaseInputChord = holdInputNotes(notes);
+  const beat = (60000 / (selectedPiece.bpm ?? settings.preferences.tempo)) * (4 / (selectedPiece.denominator ?? 4));
+  inputChordTimer = setTimeout(stopInputChord, beat * settings.editor.pianoChordBeats * settings.editor.gate);
+}
 const performanceLoaders = new Map<string, () => Promise<Piece>>(BUILT_IN.map((p) => [p.id, async () => p]));
 let playbackStarted = 0;
 let playbackOffset = 0;
@@ -456,6 +496,7 @@ export function stopPiece() {
 
 /** One global stop action for library playback, previews, metronome and lingering notes. */
 export function stopPlayback() {
+  ui.inputCancelSerial++;
   ui.playbackPaused = false;
   ui.playbackRequest++;
   ui.loading = false;

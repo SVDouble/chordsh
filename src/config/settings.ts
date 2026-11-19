@@ -389,6 +389,20 @@ export const analysisSchema = z.object({
 });
 
 export const editorSchema = z.object({
+  pianoChordEntry: flag(
+    false,
+    'Piano chord entry',
+    'Click keys to select a chord, then press Enter or the ear button to play it. Shift-click works without this mode.',
+  ),
+  pianoChordBeats: number(
+    2,
+    0.125,
+    64,
+    'Piano chord duration',
+    'Length of a chord entered on the piano, in the current song’s notated beats.',
+    'beats',
+    0.125,
+  ),
   pianoRootLabels: flag(
     true,
     'Piano chord roots',

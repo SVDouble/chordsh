@@ -183,6 +183,10 @@ export class Harmonizer {
   private priors: Float64Array;
   private keySets = ALL_KEYS.map((k) => keyPcSet(k));
 
+  /** Keep every forward column (needed for top-k / max-marginals; offline analysis). */
+  keepColumns = false;
+  private cols: Float32Array[] = [];
+
   constructor(readonly params: HarmonizerParams = DEFAULT_PARAMS) {
     this.priors = buildPriors(params);
   }
@@ -209,27 +213,77 @@ export class Harmonizer {
   push(seg: Segment) {
     const col = this.column(seg);
     this.V = col.V;
+    if (this.keepColumns) this.cols.push(Float32Array.from(col.V));
     this.back.push(col.back);
     this.backKey.push(col.backKey);
     this.segments.push(seg);
   }
 
-  /** The Viterbi column a segment would produce (without committing it). */
-  private column(seg: Segment): { V: Float64Array; back: Int16Array; backKey: Int8Array } {
+  /** Local evidence for every (key, chord) state in a segment: emission + chord-in-key prior + key fit. */
+  private local(seg: Segment): Float64Array {
     const p = this.params, w = this.weight(seg);
     const E = new Float64Array(NC);
     for (let c = 0; c < NC; c++) E[c] = w * this.emission(seg, c);
-    const KF = new Float64Array(24);
+    const L = new Float64Array(NS);
     for (let k = 0; k < 24; k++) {
       let inScale = 0;
       for (const pc of this.keySets[k]) inScale += seg.sal[pc];
-      KF[k] = w * p.keyFit * (2 * inScale - 1);
+      const kf = w * p.keyFit * (2 * inScale - 1);
+      for (let c = 0; c < NC; c++) L[stateOf(k, c)] = E[c] + w * this.priors[k * NC + c] + kf;
     }
+    return L;
+  }
+
+  /**
+   * Offline top-k: for every segment, chords and keys ranked by the score of the best complete
+   * explanation passing through them (max-marginals = forward Viterbi + backward Viterbi).
+   * Requires keepColumns. Scores are relative to the best path (0 = on the best path).
+   */
+  ranked(kChords = 5, kKeys = 3): { chords: { root: number; kind: KindName; delta: number }[]; keys: { key: Key; delta: number }[] }[] {
+    const n = this.segments.length, p = this.params;
+    if (!n || this.cols.length !== n) return [];
+    const out: ReturnType<Harmonizer['ranked']> = new Array(n);
+    let B = new Float64Array(NS); // backward scores for the last segment: 0
+    for (let t = n - 1; t >= 0; t--) {
+      const F = this.cols[t];
+      const M = new Float64Array(NS);
+      let top = -Infinity;
+      for (let s = 0; s < NS; s++) { M[s] = F[s] + B[s]; if (M[s] > top) top = M[s]; }
+      const byChord = new Float64Array(NC).fill(-Infinity), byKey = new Float64Array(24).fill(-Infinity);
+      for (let k = 0; k < 24; k++) for (let c = 0; c < NC; c++) { const v = M[stateOf(k, c)]; if (v > byChord[c]) byChord[c] = v; if (v > byKey[k]) byKey[k] = v; }
+      const cs = [...byChord.keys()].sort((a, b) => byChord[b] - byChord[a]).slice(0, kChords);
+      const ks = [...byKey.keys()].sort((a, b) => byKey[b] - byKey[a]).slice(0, kKeys);
+      out[t] = {
+        chords: cs.map((c) => ({ root: TEMPLATES[c].root, kind: kindOfState(c), delta: byChord[c] - top })),
+        keys: ks.map((k) => ({ key: ALL_KEYS[k], delta: byKey[k] - top })),
+      };
+      if (t === 0) break;
+      // backward step: best continuation from each state at t-1 into segment t
+      const L = this.local(this.segments[t]);
+      const W = new Float64Array(NS);
+      for (let s = 0; s < NS; s++) W[s] = L[s] + B[s];
+      const Mk = new Float64Array(24).fill(-Infinity), Mc = new Float64Array(NC).fill(-Infinity);
+      let G = -Infinity;
+      for (let k = 0; k < 24; k++) for (let c = 0; c < NC; c++) { const v = W[stateOf(k, c)]; if (v > Mk[k]) Mk[k] = v; if (v > Mc[c]) Mc[c] = v; if (v > G) G = v; }
+      const nb = new Float64Array(NS);
+      for (let k = 0; k < 24; k++) for (let c = 0; c < NC; c++) {
+        const s = stateOf(k, c);
+        nb[s] = Math.max(W[s], Mk[k] - p.chordChange, Mc[c] - p.keyChange, G - p.keyChange - p.chordChange);
+      }
+      B = nb;
+    }
+    return out;
+  }
+
+  /** The Viterbi column a segment would produce (without committing it). */
+  private column(seg: Segment): { V: Float64Array; back: Int16Array; backKey: Int8Array } {
+    const p = this.params;
+    const L = this.local(seg);
     const next = new Float64Array(NS);
     const back = new Int16Array(NS); // previous chord state
     const backKey = new Int8Array(NS); // previous key
     if (!this.segments.length) {
-      for (let k = 0; k < 24; k++) for (let c = 0; c < NC; c++) { next[stateOf(k, c)] = E[c] + w * this.priors[k * NC + c] + KF[k]; back[stateOf(k, c)] = -1; backKey[stateOf(k, c)] = -1; }
+      for (let s = 0; s < NS; s++) { next[s] = L[s]; back[s] = -1; backKey[s] = -1; }
     } else {
       const V = this.V;
       // maxima of the previous column, for the four ways to arrive in (k, c)
@@ -250,7 +304,7 @@ export class Harmonizer {
           if (Mk[k] - p.chordChange > best) { best = Mk[k] - p.chordChange; bc = MkArg[k]; bk = k; } // new chord, same key
           if (Mc[c] - p.keyChange > best) { best = Mc[c] - p.keyChange; bc = c; bk = McArg[c]; } // pivot: same chord, new key
           if (G - p.keyChange - p.chordChange > best) { best = G - p.keyChange - p.chordChange; bc = Gc; bk = Gk; }
-          next[s] = best + E[c] + w * this.priors[k * NC + c] + KF[k];
+          next[s] = best + L[s];
           back[s] = bc;
           backKey[s] = bk;
         }
@@ -278,6 +332,16 @@ export class Harmonizer {
     if (!v.segments.length) return null;
     const s = this.argmax(v.V);
     return this.describe(Math.floor(s / NC), s % NC, v.segments[v.segments.length - 1]);
+  }
+
+  /** Live top-k chords: ranked by the forward (filtered) scores, i.e. what is known right now. */
+  liveChords(k = 3, tentative?: Segment | null): { root: number; kind: KindName; delta: number }[] {
+    const V = this.view(tentative).V;
+    const byChord = new Float64Array(NC).fill(-Infinity);
+    for (let s = 0; s < NS; s++) { const c = s % NC; if (V[s] > byChord[c]) byChord[c] = V[s]; }
+    const top = Math.max(...byChord);
+    return [...byChord.keys()].sort((a, b2) => byChord[b2] - byChord[a]).slice(0, k)
+      .map((c) => ({ root: TEMPLATES[c].root, kind: kindOfState(c), delta: byChord[c] - top }));
   }
 
   /** Probability of each key being the current one (softmax over the best path per key). */
@@ -329,6 +393,7 @@ export class Harmonizer {
     this.segments.length = 0;
     this.back = [];
     this.backKey = [];
+    this.cols = [];
     this.V = new Float64Array(NS);
   }
 

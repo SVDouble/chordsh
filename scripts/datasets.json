@@ -1,0 +1,51 @@
+{
+  "about": "Evaluation corpora, pinned to exact commits so results are reproducible. Fetched into ./local/data by scripts/fetch_datasets.py (never committed \u2014 check each license before redistributing).",
+  "format": "local/data/<corpus>/<id>.json = { corpus, id, title, genre, synthetic, notes: [[onset_ms, dur_ms, midi, vel]], chords: [[t0_ms, t1_ms, root_pc, family, label, key_tonic_pc|null, key_mode|null]], beats: [ms], bars: [ms], beats_per_bar }",
+  "corpora": [
+    {
+      "name": "bps-fh",
+      "genre": "classical (Beethoven piano sonatas, 1st movements)",
+      "repo": "Tsung-Ping/functional-harmony",
+      "commit": "8351e9e947c09e86bbf365266a555bf1e582c46c",
+      "license": "annotations GPL-3.0; music public domain",
+      "kind": "notes+functional-harmony",
+      "bpm": 100
+    },
+    {
+      "name": "mozart",
+      "genre": "classical (Mozart piano sonatas, all movements)",
+      "repo": "DCMLab/mozart_piano_sonatas",
+      "commit": "5337257a5318711e6302cfe85c3f1a6ade3c6271",
+      "license": "CC BY-NC-SA 4.0",
+      "kind": "dcml",
+      "bpm": 100
+    },
+    {
+      "name": "chopin",
+      "genre": "romantic (Chopin mazurkas)",
+      "repo": "DCMLab/chopin_mazurkas",
+      "commit": "5931135e614985023b96de2a291c74b7ef90b287",
+      "license": "CC BY-NC-SA 4.0",
+      "kind": "dcml",
+      "bpm": 110
+    },
+    {
+      "name": "pop909",
+      "genre": "pop (piano arrangements of Chinese pop songs)",
+      "repo": "music-x-lab/POP909-Dataset",
+      "commit": "d83e6edba6872a704f5d3b8b32f5cb540088dae6",
+      "license": "MIT (dataset); underlying songs are copyrighted \u2014 local research use",
+      "kind": "pop909",
+      "limit": 60
+    },
+    {
+      "name": "jazz",
+      "genre": "jazz standards (Jazz Harmony Treebank changes, synthetic comping performance)",
+      "repo": "DCMLab/JazzHarmonyTreebank",
+      "commit": "26ec6170939054f08ba1b63db44712636d0d1db3",
+      "license": "CC BY 4.0 (changes from the open iRealPro collection)",
+      "kind": "treebank",
+      "bpm": 140
+    }
+  ]
+}

@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "replay": "REPLAY=1 vitest run --silent=false",
-    "eval": "EVAL=1 vitest run --silent=false",
-    "fetch-data": "python3 scripts/fetch_datasets.py"
+    "fetch-data": "python3 -I scripts/fetch_datasets.py",
+    "benchmark": "EVAL=scripts/benchmark.test.ts vitest run --silent=false",
+    "tune": "EVAL=scripts/tune.test.ts vitest run --silent=false"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

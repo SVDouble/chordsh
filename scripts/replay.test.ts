@@ -1,7 +1,7 @@
 /**
  * Replay a session recording through the engine and print a timeline.
- *   npm run replay                      → newest file in recordings/
- *   REC=recordings/x.json npm run replay
+ *   npm run replay                      → newest file in local/recordings/
+ *   REC=local/recordings/x.json npm run replay
  *   VERBOSE=1 …                         → also every harmony re-reading and key update
  */
 import { it, vi } from 'vitest';
@@ -15,10 +15,10 @@ import { keyShort } from '../src/theory/scales';
 function load(): { file: string; rec: Recording } {
   let file = process.env.REC;
   if (!file) {
-    const dir = path.resolve('recordings');
+    const dir = path.resolve('local', 'recordings');
     const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort() : [];
     if (!all.length) throw new Error('No recordings yet — press ● Rec in the app first.');
-    file = path.join('recordings', all[all.length - 1]);
+    file = path.join('local', 'recordings', all[all.length - 1]);
   }
   return { file, rec: JSON.parse(fs.readFileSync(file, 'utf8')) };
 }

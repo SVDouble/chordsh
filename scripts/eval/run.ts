@@ -1,184 +1,133 @@
-/** Play a piece into the engine as if live, sample what it shows, and score it against the truth. */
-import { vi } from 'vitest';
-import { Session, type ChordEntry } from '../../src/engine/session';
+/** Play a piece into the analyser as if live, and score live + hindsight readings against the truth. */
 import { DEFAULT_PARAMS, Harmonizer, type HarmonizerParams, SegmentBuilder } from '../../src/engine/harmonizer';
 import { AccentDetector, BeatTracker } from '../../src/engine/beats';
-import { type Chord, chordName } from '../../src/theory/chords';
+import { type KindName, chordName } from '../../src/theory/chords';
 import { numeralOf } from '../../src/theory/roman';
-import { type Key, keyEq, keyShort, relativeKey } from '../../src/theory/scales';
-import type { Family, Piece, TruthChord } from './truth';
+import { ALL_KEYS, type Key, keyEq, keyShort, relativeKey } from '../../src/theory/scales';
+import type { Family, Piece } from './truth';
 
 const SAMPLE_MS = 250;
-const LAG_MS = 200; // the engine needs a moment (onset grouping + commit) — don't penalise that
+const LAG_MS = 200; // the live reading may trail a change by this much without penalty
+const BOUNDARY_MS = 300;
 
-export interface Score {
-  id: string;
-  samples: number;
-  rootLive: number;
-  chordLive: number;
-  chordFinal: number;
-  keyLive: number;
-  keyFinal: number;
-  keyCloseFinal: number;
-  /** Engine chord changes per true chord change (1 = perfect, >1 = over-thinking). */
-  overSeg: number;
-  keyChanges: number;
-  truthKeyChanges: number;
-  timeline: string[];
+export const KIND_FAMILY: Record<KindName, Family> = {
+  maj: 'maj', '7': 'maj', maj7: 'maj', '6': 'maj', '9': 'maj', '13': 'maj', '7b9': 'maj', maj9: 'maj',
+  min: 'min', m7: 'min', m6: 'min', m9: 'min', mMaj7: 'min',
+  dim: 'dim', m7b5: 'dim', dim7: 'dim', aug: 'aug', sus4: 'sus', sus2: 'sus', '7sus4': 'sus',
+};
+
+/** Accuracy counters (per sample of 250 ms), summed over pieces. */
+export interface Counts {
+  n: number;
+  chordLive1: number; chordLive3: number;
+  chord1: number; chord3: number; chord5: number; root1: number;
+  keyLive1: number; key1: number; key3: number; keyClose: number;
+  /** Why the hindsight top-1 chord was wrong. */
+  errBoundary: number; errQuality: number; errFifth: number; errOther: number;
+  /** Why the hindsight key was wrong. */
+  keyRelative: number; keyParallel: number; keyFifth: number; keyOther: number;
+  chordChanges: number; truthChanges: number; keyChanges: number; truthKeyChanges: number;
+}
+export const zero = (): Counts => ({
+  n: 0, chordLive1: 0, chordLive3: 0, chord1: 0, chord3: 0, chord5: 0, root1: 0, keyLive1: 0, key1: 0, key3: 0, keyClose: 0,
+  errBoundary: 0, errQuality: 0, errFifth: 0, errOther: 0, keyRelative: 0, keyParallel: 0, keyFifth: 0, keyOther: 0,
+  chordChanges: 0, truthChanges: 0, keyChanges: 0, truthKeyChanges: 0,
+});
+export function add(a: Counts, b: Counts): Counts {
+  const out = { ...a };
+  for (const k of Object.keys(b) as (keyof Counts)[]) out[k] += b[k];
+  return out;
 }
 
-const family = (c: Chord): Family =>
-  c.quality === 'sus4' || c.quality === 'sus2' ? 'sus' : c.quality === 'power' ? 'maj' : (c.quality as Family);
-const close = (a: Key | null, b: Key | null) => !!a && !!b && (keyEq(a, b) || keyEq(relativeKey(a), b) || a.tonic === b.tonic);
-
-export function evaluate(piece: Piece, opts: { timelineBars?: number } = {}): Score {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] });
-  const s = new Session();
-  s.historyLimit = Infinity;
-  const base = performance.now();
-  const live: { t: number; chord: Chord | null; key: Key | null }[] = [];
-
-  // interleave note events with sampling points
-  let ei = 0;
-  for (let t = 0; t <= piece.durationMs + 1000; t += SAMPLE_MS) {
-    while (ei < piece.events.length && piece.events[ei].t <= t) {
-      const e = piece.events[ei++];
-      vi.advanceTimersByTime(Math.max(0, base + e.t - performance.now()));
-      if (e.kind === 'on') s.noteOn(e.note, e.vel, performance.now());
-      else s.noteOff(e.note, performance.now());
-    }
-    vi.advanceTimersByTime(Math.max(0, base + t - performance.now()));
-    live.push({ t, chord: s.now.best, key: s.activeKey });
-  }
-  vi.advanceTimersByTime(2000);
-  vi.useRealTimers();
-
-  // final (hindsight) view: the history after the whole piece, with any retrospective relabelling
-  const entries = s.chords.map((e) => ({ ...e, t0: e.t0 - base }));
-  const finalAt = (t: number): ChordEntry | null => {
-    let lo = 0, hi = entries.length - 1, ans = -1;
-    while (lo <= hi) { const m = (lo + hi) >> 1; if (entries[m].t0 <= t) { ans = m; lo = m + 1; } else hi = m - 1; }
-    return ans >= 0 ? entries[ans] : null;
-  };
-  let ti = 0;
-  const truthAt = (t: number): TruthChord | null => {
-    while (ti < piece.chords.length && piece.chords[ti].t1 <= t) ti++;
-    const c = piece.chords[ti];
-    return c && c.t0 <= t ? c : null;
-  };
-
-  let n = 0, rootLive = 0, chordLive = 0, chordFinal = 0, keyLive = 0, keyFinal = 0, keyClose = 0;
-  for (const smp of live) {
-    const tr = truthAt(smp.t - LAG_MS);
-    if (!tr) continue;
-    n++;
-    if (smp.chord?.root === tr.root) rootLive++;
-    if (smp.chord?.root === tr.root && family(smp.chord) === tr.family) chordLive++;
-    const fin = finalAt(smp.t);
-    if (fin && fin.chord.root === tr.root && family(fin.chord) === tr.family) chordFinal++;
-    if (keyEq(smp.key, tr.key)) keyLive++;
-    if (keyEq(fin?.key, tr.key)) keyFinal++;
-    if (close(fin?.key ?? null, tr.key)) keyClose++;
-  }
-
-  let truthChanges = 0, truthKeyChanges = 0;
-  piece.chords.forEach((c, i) => {
-    const p = piece.chords[i - 1];
-    if (!p || p.root !== c.root || p.family !== c.family) truthChanges++;
-    if (p && !keyEq(p.key, c.key)) truthKeyChanges++;
-  });
-
-  // bar-by-bar story: what the score says vs what the engine concluded
-  const timeline: string[] = [];
-  const bars = piece.bars.length ? piece.bars : [0];
-  for (let b = 0; b < Math.min(opts.timelineBars ?? 0, bars.length); b++) {
-    const a = bars[b], z = bars[b + 1] ?? piece.durationMs;
-    const truth = [...new Set(piece.chords.filter((c) => c.t1 > a && c.t0 < z).map((c) => c.label))].join(' ');
-    const eng = entries.filter((e) => e.t0 >= a && e.t0 < z);
-    const key = finalAt(z - 1)?.key;
-    const liveKey = live.find((x) => x.t >= z - SAMPLE_MS)?.key;
-    timeline.push(
-      `bar ${String(b + 1).padStart(3)} | ${truth.padEnd(28)} | ${eng.map((e) => `${e.name}${e.roman ? ` ${e.roman.numeral}` : ''}`).join(', ').padEnd(40)} | key ${key ? keyShort(key) : '—'}${liveKey && !keyEq(liveKey, key) ? ` (live ${keyShort(liveKey)})` : ''}`,
-    );
-  }
-
-  const pct = (x: number) => (n ? x / n : 0);
-  return {
-    id: piece.id, samples: n,
-    rootLive: pct(rootLive), chordLive: pct(chordLive), chordFinal: pct(chordFinal),
-    keyLive: pct(keyLive), keyFinal: pct(keyFinal), keyCloseFinal: pct(keyClose),
-    overSeg: truthChanges ? entries.length / truthChanges : 0,
-    keyChanges: s.history.filter((h) => h.type === 'key').length - 1,
-    truthKeyChanges,
-    timeline,
-  };
+type ChordId = [root: number, family: Family];
+const same = ([root, fam]: ChordId, t: { root: number; family: Family }) => root === t.root && fam === t.family;
+function dedupe(xs: ChordId[]): ChordId[] {
+  const seen = new Set<string>();
+  return xs.filter(([r, f]) => { const k = `${r}${f}`; if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
-/** Score the probabilistic harmonizer directly (no UI session). */
-export function evaluateHarmonizer(piece: Piece, params: HarmonizerParams = DEFAULT_PARAMS, opts: { timelineBars?: number } = {}): Score {
+export interface Result { counts: Counts; timeline: string[] }
+
+export function evaluate(piece: Piece, params: HarmonizerParams = DEFAULT_PARAMS, opts: { timelineBars?: number } = {}): Result {
   const h = new Harmonizer(params);
-  const online: { t: number; root: number; family: Family; key: Key }[] = [];
+  h.keepColumns = true;
+  const live: { t: number; chords: ChordId[]; key: Key }[] = [];
   const sb = new SegmentBuilder(params, (seg) => {
     h.push(seg);
-    const cur = h.current()!;
-    online.push({ t: seg.t0, root: cur.chord.root, family: family(cur.chord), key: cur.key });
+    const dist = h.keyDistribution();
+    let bk = 0;
+    for (let k = 1; k < 24; k++) if (dist[k] > dist[bk]) bk = k;
+    live.push({ t: seg.t0, chords: dedupe(h.liveChords(6).map((x) => [x.root, KIND_FAMILY[x.kind]])), key: ALL_KEYS[bk] });
   });
   for (const e of piece.events) e.kind === 'on' ? sb.noteOn(e.note, e.vel, e.t) : sb.noteOff(e.note, e.t);
-  sb.close(piece.durationMs + 500);
+  sb.close(piece.durationMs + 800);
   const path = h.path();
+  const ranked = h.ranked(8, 3);
+  const segs = h.segments;
+  const truth = piece.chords;
 
-  // the online reading at time t is the one decided at the last segment start (+ lag)
-  let oi = 0, fi = 0, ti = 0, n = 0, root = 0, chordL = 0, chordF = 0, keyL = 0, keyF = 0, keyC = 0;
+  const c = zero();
+  let li = 0, si = 0, ti = 0;
   for (let t = 0; t <= piece.durationMs; t += SAMPLE_MS) {
-    while (ti < piece.chords.length && piece.chords[ti].t1 <= t) ti++;
-    const tr = piece.chords[ti];
+    while (ti < truth.length && truth[ti].t1 <= t) ti++;
+    const tr = truth[ti];
     if (!tr || tr.t0 > t) continue;
-    while (oi + 1 < online.length && online[oi + 1].t <= t + LAG_MS) oi++;
-    while (fi + 1 < path.length && path[fi + 1].t0 <= t) fi++;
-    const on = online[oi], fin = path[fi];
-    if (!on || on.t > t + LAG_MS) continue;
-    n++;
-    if (on.root === tr.root) root++;
-    if (on.root === tr.root && on.family === tr.family) chordL++;
-    if (fin && fin.chord.root === tr.root && family(fin.chord) === tr.family) chordF++;
-    if (keyEq(on.key, tr.key)) keyL++;
-    if (keyEq(fin?.key, tr.key)) keyF++;
-    if (close(fin?.key ?? null, tr.key)) keyC++;
+    while (li + 1 < live.length && live[li + 1].t <= t + LAG_MS) li++;
+    while (si + 1 < segs.length && segs[si + 1].t0 <= t) si++;
+    const on = live[li], rk = ranked[si];
+    if (!on || on.t > t + LAG_MS || !rk) continue;
+    c.n++;
+    if (same(on.chords[0], tr)) c.chordLive1++;
+    if (on.chords.slice(0, 3).some((x) => same(x, tr))) c.chordLive3++;
+    if (keyEq(on.key, tr.key)) c.keyLive1++;
+
+    const fams = dedupe(rk.chords.map((x) => [x.root, KIND_FAMILY[x.kind]]));
+    const hit = (k: number) => fams.slice(0, k).some((x) => same(x, tr));
+    if (hit(1)) c.chord1++;
+    if (hit(3)) c.chord3++;
+    if (hit(5)) c.chord5++;
+    const pr = fams[0][0];
+    if (pr === tr.root) c.root1++;
+    if (!hit(1)) {
+      const d = (pr - tr.root + 12) % 12;
+      if (truth.some((x) => Math.abs(x.t0 - t) < BOUNDARY_MS)) c.errBoundary++;
+      else if (pr === tr.root) c.errQuality++;
+      else if (d === 5 || d === 7) c.errFifth++;
+      else c.errOther++;
+    }
+    const k1 = rk.keys[0].key;
+    if (keyEq(k1, tr.key)) c.key1++;
+    else if (tr.key) {
+      if (keyEq(relativeKey(k1), tr.key)) c.keyRelative++;
+      else if (k1.tonic === tr.key.tonic) c.keyParallel++;
+      else if (k1.mode === tr.key.mode && [5, 7].includes((k1.tonic - tr.key.tonic + 12) % 12)) c.keyFifth++;
+      else c.keyOther++;
+    }
+    if (rk.keys.some((k) => keyEq(k.key, tr.key))) c.key3++;
+    if (tr.key && (keyEq(k1, tr.key) || keyEq(relativeKey(k1), tr.key) || k1.tonic === tr.key.tonic)) c.keyClose++;
   }
-  let truthChanges = 0, truthKeyChanges = 0;
-  piece.chords.forEach((c, i) => {
-    const pr = piece.chords[i - 1];
-    if (!pr || pr.root !== c.root || pr.family !== c.family) truthChanges++;
-    if (pr && !keyEq(pr.key, c.key)) truthKeyChanges++;
+  truth.forEach((x, i) => {
+    const p = truth[i - 1];
+    if (!p || p.root !== x.root || p.family !== x.family) c.truthChanges++;
+    if (p && !keyEq(p.key, x.key)) c.truthKeyChanges++;
   });
-  const chordChanges = path.filter((x, i) => i === 0 || x.chord.root !== path[i - 1].chord.root || family(x.chord) !== family(path[i - 1].chord)).length;
+  c.chordChanges = path.filter((x, i) => i === 0 || x.chord.root !== path[i - 1].chord.root || x.chord.quality !== path[i - 1].chord.quality).length;
+  c.keyChanges = path.filter((x, i) => i > 0 && !keyEq(x.key, path[i - 1].key)).length;
+
   const timeline: string[] = [];
-  const bars = piece.bars.length ? piece.bars : [0];
-  for (let b = 0; b < Math.min(opts.timelineBars ?? 0, bars.length); b++) {
-    const a = bars[b], z = bars[b + 1] ?? piece.durationMs;
-    const truth = [...new Set(piece.chords.filter((c) => c.t1 > a && c.t0 < z).map((c) => c.label))].join(' ');
+  for (let b = 0; b < Math.min(opts.timelineBars ?? 0, piece.bars.length); b++) {
+    const a = piece.bars[b], z = piece.bars[b + 1] ?? piece.durationMs;
+    const tr = [...new Set(truth.filter((x) => x.t1 > a && x.t0 < z).map((x) => x.label))].join(' ');
     const items = path.filter((x) => x.t1 > a && x.t0 < z);
-    const eng = [...new Set(items.map((x) => chordLabel(x.chord, x.key)))].join(' ');
-    const keys = [...new Set(items.map((x) => keyShort(x.key)))].join('/');
-    timeline.push(`bar ${String(b + 1).padStart(3)} | ${truth.padEnd(28)} | ${eng.padEnd(40)} | key ${keys}`);
+    const eng = [...new Set(items.map((x) => `${chordName(x.chord, x.key)}(${numeralOf(x.chord, x.key)})`))].join(' ');
+    timeline.push(`bar ${String(b + 1).padStart(3)} | ${tr.padEnd(30)} | ${eng.padEnd(42)} | ${[...new Set(items.map((x) => keyShort(x.key)))].join('/')}`);
   }
-  const pct = (x: number) => (n ? x / n : 0);
-  return {
-    id: piece.id, samples: n, rootLive: pct(root), chordLive: pct(chordL), chordFinal: pct(chordF),
-    keyLive: pct(keyL), keyFinal: pct(keyF), keyCloseFinal: pct(keyC),
-    overSeg: truthChanges ? chordChanges / truthChanges : 0,
-    keyChanges: path.filter((x, i) => i > 0 && !keyEq(x.key, path[i - 1].key)).length, truthKeyChanges, timeline,
-  };
+  return { counts: c, timeline };
 }
 
-function chordLabel(c: Chord, key: Key): string {
-  return `${chordName(c, key)}(${numeralOf(c, key)})`;
-}
-
-/** Bar tracking: F-measure of estimated bar lines vs true downbeats (±100 ms), plus tempo found. */
-export function evaluateBars(piece: Piece, beatsPerBar = 4): { f: number; beatF: number; meter: number; bpm: number | null; confidence: number } {
+/** Bar tracking: F-measure of estimated bars / beats vs truth (±100 ms). */
+export function evaluateBars(piece: Piece): { barF: number; beatF: number; bpm: number | null } {
   const bt = new BeatTracker();
-  bt.beatsPerBar = beatsPerBar;
   const acc = new AccentDetector();
   let groupT = -Infinity, group: number[] = [];
   const flush = () => { if (group.length) bt.onset(groupT, Math.sqrt(group.length), acc.accent(groupT, group)); group = []; };
@@ -190,11 +139,10 @@ export function evaluateBars(piece: Piece, beatsPerBar = 4): { f: number; beatF:
   flush();
   bt.update(piece.durationMs);
   const fm = (est: number[], truth: number[]) => {
-    const hit = (xs: number[], ys: number[]) => { let j = 0, h = 0; for (const x of xs) { while (j < ys.length && ys[j] < x - 100) j++; if (j < ys.length && Math.abs(ys[j] - x) < 100) h++; } return h; };
+    const hit = (xs: number[], ys: number[]) => { let j = 0, k = 0; for (const x of xs) { while (j < ys.length && ys[j] < x - 100) j++; if (j < ys.length && Math.abs(ys[j] - x) < 100) k++; } return k; };
     const p = est.length ? hit(est, truth) / est.length : 0, r = truth.length ? hit(truth, est) / truth.length : 0;
     return p + r ? (2 * p * r) / (p + r) : 0;
   };
-  const end = (xs: number[]) => xs.filter((b) => b >= 0 && b <= piece.durationMs);
-  const meter = piece.bars.length > 2 ? Math.round((piece.bars[2] - piece.bars[1]) / ((piece.beats[1] - piece.beats[0]) || 1)) : 4;
-  return { f: fm(end(bt.bars()), piece.bars), beatF: fm(end(bt.beats), piece.beats), meter, bpm: bt.bpm, confidence: bt.confidence };
+  const inside = (xs: number[]) => xs.filter((b) => b >= 0 && b <= piece.durationMs);
+  return { barF: fm(inside(bt.bars()), piece.bars), beatF: fm(inside(bt.beats), piece.beats), bpm: bt.bpm };
 }

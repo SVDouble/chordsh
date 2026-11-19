@@ -12,6 +12,7 @@ export class Synth {
   private waiting = new Map<number, number>();
   private sustained = new Set<number>();
   private pedal = false;
+  private muted = false;
   /** Called when the browser's autoplay block lifts or engages. */
   onState: () => void = () => {};
 
@@ -49,7 +50,7 @@ export class Synth {
     if (!this.ctx) {
       this.ctx = new AudioContext({ latencyHint: 'interactive' });
       this.out = this.ctx.createGain();
-      this.out.gain.value = 0.5;
+      this.out.gain.value = this.muted ? 0 : 0.5;
       const comp = this.ctx.createDynamicsCompressor();
       this.out.connect(comp).connect(this.ctx.destination);
       this.ctx.onstatechange = () => this.stateChanged();
@@ -158,6 +159,11 @@ export class Synth {
     if (!this.ctx) return;
     for (const v of this.scheduled) this.release(v, this.ctx.currentTime);
     this.scheduled.clear();
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    if (this.ctx) this.out.gain.setTargetAtTime(muted ? 0 : 0.5, this.ctx.currentTime, 0.02);
   }
 
   /** Stop every sound, including held, sustained and not-yet-started notes. */

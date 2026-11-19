@@ -3,6 +3,26 @@ import { BUILT_IN, fromMidi, fromRecording } from '../src/library/pieces';
 import type { Recording } from '../src/io/recorder';
 
 describe('library pieces', () => {
+  it('retains sustain and notes still held when a recording was saved', () => {
+    const rec: Recording = {
+      version: 1,
+      started: '2026-11-19T10:00:00Z',
+      durationMs: 1000,
+      note: 'Held',
+      settings: {},
+      input: [
+        { t: 0, kind: 'on', note: 60, vel: 80 },
+        { t: 50, kind: 'pedal', note: 0, vel: 127 },
+      ],
+      midi: [],
+      engine: [],
+    };
+    const p = fromRecording('held', rec);
+    expect(p.notes).toEqual([[0, 1000, 60, 80]]);
+    expect(p.pedal).toEqual([[50, true]]);
+    expect(p.durationMs).toBe(1000);
+  });
+
   it('the demo is a piece with its own tempo', () => {
     const demo = BUILT_IN.find((p) => p.id === 'demo')!;
     expect(demo.bpm).toBe(96);

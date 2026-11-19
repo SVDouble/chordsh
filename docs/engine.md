@@ -1,6 +1,6 @@
 # Engine
 
-How Musify turns a stream of MIDI notes into chords, keys, bars and advice. All of it is plain TypeScript
+How chord.sh turns a stream of MIDI notes into chords, keys, bars and advice. All of it is plain TypeScript
 (`src/theory`, `src/engine`) with no UI dependencies, unit-tested in `tests/` and measured in the
 [benchmark](benchmark.md).
 
@@ -18,6 +18,24 @@ MIDI / keyboard / library piece
         ▼                                                                    │
  history (a view of the harmonizer's best path) · theories · bars ───────────┘
 ```
+
+## Composition core
+
+`engine/sequence.ts` owns songs independently of the UI. A sequence has a tempo, quarter-note meter,
+home key and chord blocks with explicit beat starts/durations, note voicings, velocities and optional
+key regions. `SequenceEditor` applies atomic edits with up to 100 undo snapshots. Placement preserves
+rests and shifts later blocks only where overlap requires it. Moving, resizing, replacing, duplication,
+transposition and chart import use the same document.
+
+`sequencePiece()` compiles the document into the shared playback format. The editor, suggestion +
+buttons and reharmonisation ✓ buttons all edit this same object; previews leave it unchanged. The
+Svelte bridge persists documents and refreshes a running arrangement at its current beat after an edit.
+`sequenceChart()` retains per-block key context for numerals and further suggestions.
+
+`io/midiexport.ts` writes Standard MIDI File format 0 with 480 ticks per quarter, a tempo/meter, note
+velocities and sustain. MIDI imports and recordings retain pedal changes; notes held when recording
+ends are clipped to the recording length. Playback and previews share synth/MIDI output selection.
+See [DAW integration](daw.md) for current routing and the proposed native host boundary.
 
 ## Two layers
 

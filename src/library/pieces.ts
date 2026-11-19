@@ -5,12 +5,16 @@ import type { Recording } from '../io/recorder';
 export interface Piece {
   id: string;
   title: string;
-  source: 'built-in' | 'recording' | 'midi file' | 'benchmark';
+  source: 'built-in' | 'recording' | 'midi file' | 'benchmark' | 'sequence';
   /** [onset ms, duration ms, midi note, velocity] */
   notes: [number, number, number, number][];
   /** Known tempo → exact bars; absent → bars are estimated from the playing. */
   bpm?: number;
   beatsPerBar?: number;
+  /** Optional full clip length, including the final rest/release gap. */
+  durationMs?: number;
+  /** Sustain changes retained from MIDI files and recordings. */
+  pedal?: [t: number, on: boolean][];
   note?: string;
 }
 
@@ -92,6 +96,7 @@ export function fromMidi(
     ),
     bpm: meta?.bpm,
     beatsPerBar: meta?.beatsPerBar,
+    pedal: events.filter((e) => e.type === 'pedal').map((e) => [e.t, e.vel >= 64]),
   };
 }
 
@@ -106,9 +111,12 @@ export function fromRecording(id: string, rec: Recording): Piece {
       rec.input
         .filter((e) => e.kind !== 'pedal')
         .map((e) => ({ t: e.t, on: e.kind === 'on', note: e.note, vel: e.vel })),
+      rec.durationMs,
     ),
     bpm: s.bars === 'metronome' ? s.bpm : undefined,
     beatsPerBar: s.meter,
+    pedal: rec.input.filter((e) => e.kind === 'pedal').map((e) => [e.t, e.vel >= 64]),
+    durationMs: rec.durationMs,
   };
 }
 
@@ -128,7 +136,7 @@ export function fromBenchmark(
   };
 }
 
-function pair(ev: { t: number; on: boolean; note: number; vel: number }[]): Piece['notes'] {
+function pair(ev: { t: number; on: boolean; note: number; vel: number }[], end?: number): Piece['notes'] {
   const open = new Map<number, { t: number; vel: number }>(),
     out: Piece['notes'] = [];
   for (const e of ev) {
@@ -141,5 +149,6 @@ function pair(ev: { t: number; on: boolean; note: number; vel: number }[]): Piec
       }
     }
   }
+  if (end !== undefined) for (const [note, held] of open) out.push([held.t, Math.max(1, end - held.t), note, held.vel]);
   return out.sort((a, b) => a[0] - b[0]);
 }

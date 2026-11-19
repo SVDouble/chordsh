@@ -26,6 +26,8 @@ export const ui = $state({
   charts: (saved.charts ?? []) as { title: string; text: string }[],
   filePlaying: false,
   demo: false,
+  /** Right-hand panel: song chart or key-change routes. */
+  tab: 'song' as 'song' | 'route',
 });
 
 let queued = false;

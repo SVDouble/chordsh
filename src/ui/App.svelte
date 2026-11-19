@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { stopAudition, midi, persist, savedSettings, session, ui } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
-  import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
+  import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
   import { midiName } from '../theory/pitch';
   import { toggleDemo } from './demo';
   import NowPlaying from './NowPlaying.svelte';
@@ -34,6 +34,7 @@
     return {
       inputs: midi.inputs, outputs: midi.outputs, inputId: midi.inputId, outputId: midi.outputId,
       devices: midi.devices, last: midi.last, errors,
+      target: session.target, song: session.song?.chart.title ?? '',
       label:
         midi.status === 'unsupported' ? 'Web MIDI unavailable — use Chrome or Edge'
         : midi.status === 'denied' ? 'MIDI access denied'
@@ -42,79 +43,86 @@
         : 'No MIDI device',
     };
   });
-
 </script>
 
-<header class="topbar">
-  <div class="brand">Musify</div>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">Musify</div>
+    <span class="midi-chip" class:ok={m.devices.length && !m.errors.length} class:bad={m.errors.length}
+      title={[...m.inputs.map((p) => `${p.name}${p.error ? ' — ' + p.error : ''}`), m.last ? `last message: ${m.last.text} from ${m.last.port}` : 'no messages received yet'].join('\n')}>
+      {#key m.last?.t}<i class="led" class:flash={m.last}></i>{/key}
+      {m.label}
+      {#if m.last}<code class="muted">{m.last.text}</code>{:else if m.devices.length}<span class="muted">· press a key</span>{/if}
+    </span>
+    {#if m.errors.length}<span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>{/if}
+    <span class="spacer"></span>
+    <label>Key
+      <select bind:value={lock} onchange={() => session.setKeyLock(lock === 'auto' ? null : keyFromIndex(+lock))}>
+        <option value="auto">Auto-detect</option>
+        {#each ALL_KEYS as k}<option value={String(keyIndex(k))}>{keyLong(k)}</option>{/each}
+      </select>
+    </label>
+    <label>Chords
+      <select value={session.style} onchange={(e) => { session.setStyle(e.currentTarget.value as 'jazz' | 'triads'); persist(); }}>
+        <option value="jazz">Jazz (7ths)</option><option value="triads">Triads</option>
+      </select>
+    </label>
+    <button class:active={ui.demo} onclick={toggleDemo}>{ui.demo ? '■ Stop' : '▶ Demo'}</button>
+    <details class="settings">
+      <summary title="Settings">⚙</summary>
+      <div class="settings-panel">
+        <label>MIDI in
+          <select value={m.inputId} onchange={(e) => { midi.inputId = e.currentTarget.value; midi.refresh(); persist(); }}>
+            <option value="all">All devices</option>
+            {#each m.inputs as p}<option value={p.id}>{p.name}</option>{/each}
+          </select>
+        </label>
+        <label>MIDI out
+          <span class="row tight">
+            <select value={m.outputId} onchange={(e) => { midi.outputId = e.currentTarget.value; persist(); ui.tick++; }}>
+              <option value="">None</option>
+              {#each m.outputs as p}<option value={p.id}>{p.name}</option>{/each}
+            </select>
+            <button disabled={!m.outputId} onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}>Test</button>
+          </span>
+        </label>
+        <label>Sound
+          <select bind:value={ui.sound} onchange={() => persist()}>
+            <option value="synth">Browser synth</option><option value="midi">MIDI out</option>
+            <option value="both">Both</option><option value="off">Off</option>
+          </select>
+        </label>
+        <label>Hand split
+          <select bind:value={split} onchange={() => (session.seg.splitMode = split === 'auto' || split === 'off' ? split : +split)}>
+            <option value="auto">Auto</option><option value="off">Off (one hand)</option>
+            {#each [48, 53, 55, 57, 60, 62, 64] as n}<option value={String(n)}>at {midiName(n)}</option>{/each}
+          </select>
+        </label>
+        <label>Tempo <span class="row tight"><input type="range" min="50" max="160" bind:value={ui.tempo} onchange={() => persist()} /> {ui.tempo}</span></label>
+        <p class="small muted">Piano colours: <b style="color:var(--harmony)">harmony</b> · <b style="color:var(--melody)">melody</b> · <b style="color:var(--audition)">suggestion</b> · <b style="color:var(--guide)">practice target</b></p>
+      </div>
+    </details>
+  </header>
 
-  <span class="midi-chip" class:ok={m.devices.length && !m.errors.length} class:bad={m.errors.length}
-    title={[...m.inputs.map((p) => `${p.name}${p.error ? ' — ' + p.error : ''}`), m.last ? `last message: ${m.last.text} from ${m.last.port}` : 'no messages received yet'].join('\n')}>
-    {#key m.last?.t}<i class="led" class:flash={m.last}></i>{/key}
-    {m.label}
-    {#if m.last}<code class="small muted">{m.last.text}</code>{:else if m.devices.length}<span class="small muted">— press a key</span>{/if}
-  </span>
-  {#if m.errors.length}<span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>{/if}
+  <main class="stage">
+    <section class="pane left">
+      <NowPlaying />
+      <NextMoves />
+    </section>
+    <section class="pane centre"><KeyWheel /></section>
+    <section class="pane right">
+      <nav class="tabs">
+        <button class:on={ui.tab === 'song'} onclick={() => (ui.tab = 'song')}>Song{m.song ? `: ${m.song}` : ''}</button>
+        <button class:on={ui.tab === 'route'} onclick={() => (ui.tab = 'route')}>Change key{m.target ? ` → ${keyShort(m.target)}` : ''}</button>
+      </nav>
+      <div class="tab-body">
+        {#if ui.tab === 'song'}<Song />{:else}<Route />{/if}
+      </div>
+    </section>
+    <section class="pane bottom"><History /></section>
+  </main>
 
-  <label>Key
-    <select bind:value={lock} onchange={() => session.setKeyLock(lock === 'auto' ? null : keyFromIndex(+lock))}>
-      <option value="auto">Auto-detect</option>
-      {#each ALL_KEYS as k}<option value={String(keyIndex(k))}>{keyLong(k)}</option>{/each}
-    </select>
-  </label>
-  <label>Chords
-    <select value={session.style} onchange={(e) => { session.setStyle(e.currentTarget.value as 'jazz' | 'triads'); persist(); }}>
-      <option value="jazz">Jazz (7ths)</option><option value="triads">Triads</option>
-    </select>
-  </label>
-  <button class:active={ui.demo} onclick={toggleDemo}>{ui.demo ? '■ Stop demo' : '▶ Demo'}</button>
-
-  <details class="settings">
-    <summary>⚙ Settings</summary>
-    <div class="settings-panel">
-      <label>MIDI in
-        <select value={m.inputId} onchange={(e) => { midi.inputId = e.currentTarget.value; midi.refresh(); persist(); }}>
-          <option value="all">All devices</option>
-          {#each m.inputs as p}<option value={p.id}>{p.name}</option>{/each}
-        </select>
-      </label>
-      <label>MIDI out
-        <select value={m.outputId} onchange={(e) => { midi.outputId = e.currentTarget.value; persist(); ui.tick++; }}>
-          <option value="">None</option>
-          {#each m.outputs as p}<option value={p.id}>{p.name}</option>{/each}
-        </select>
-        <button disabled={!m.outputId} onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}>Test</button>
-      </label>
-      <label>Sound
-        <select bind:value={ui.sound} onchange={() => persist()}>
-          <option value="synth">Browser synth</option><option value="midi">MIDI out</option>
-          <option value="both">Both</option><option value="off">Off</option>
-        </select>
-      </label>
-      <label>Hand split
-        <select bind:value={split} onchange={() => (session.seg.splitMode = split === 'auto' || split === 'off' ? split : +split)}>
-          <option value="auto">Auto</option><option value="off">Off (one hand)</option>
-          {#each [48, 53, 55, 57, 60, 62, 64] as n}<option value={String(n)}>at {midiName(n)}</option>{/each}
-        </select>
-      </label>
-      <label>Tempo <input type="range" min="50" max="160" bind:value={ui.tempo} onchange={() => persist()} /> {ui.tempo}</label>
-    </div>
-  </details>
-</header>
-
-<main class="layout">
-  <div class="col">
-    <NowPlaying />
-    <NextMoves />
-  </div>
-  <div class="col">
-    <KeyWheel />
-    <Route />
-  </div>
-  <div class="wide"><History /></div>
-  <div class="wide"><Song /></div>
-</main>
-
-<footer><Piano /></footer>
+  <footer><Piano /></footer>
+</div>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && stopAudition()} />

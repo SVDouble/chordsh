@@ -23,7 +23,7 @@
       current: k,
       target: session.target,
       label: k ? keyLong(k) : 'listening…',
-      sub: k ? `${Math.round(session.keyProbs[keyIndex(k)] * 100)}% sure${session.keyLock ? ' · locked' : ''}` : '',
+      sub: k ? `${Math.round(session.keyProbs[keyIndex(k)] * 100)}% sure${session.keyLock ? ' · locked' : ''}` : 'play a few chords',
       flavour: session.flavour ? SCALE_LABEL[session.flavour] : '',
     };
   });
@@ -31,12 +31,16 @@
     const a = pos(v.current), b = pos(v.target);
     return a && b && a !== b ? `M${a.x},${a.y} Q0,0 ${b.x},${b.y}` : '';
   });
-  const pick = (k: Key) => session.setTarget(keyEq(k, session.target) || keyEq(k, session.activeKey) ? null : k);
+  function pick(k: Key) {
+    const off = keyEq(k, session.target) || keyEq(k, session.activeKey);
+    session.setTarget(off ? null : k);
+    if (!off) ui.tab = 'route';
+  }
 </script>
 
-<section class="card wheel">
-  <h2>Tonal map <span class="muted small">glow = where you're heading · click a key to plan a route</span></h2>
-  <svg viewBox="-196 -196 392 392">
+<div class="card wheel">
+  <div class="label" title="Glow = how likely you're heading there. Solid ring = close key, dashed = reachable via a shared chord, dotted = remote. Click a key to plan a route.">Tonal map</div>
+  <svg viewBox="-196 -196 392 392" preserveAspectRatio="xMidYMid meet">
     {#if route}<path d={route} class="route-line" />{/if}
     {#each nodes as n (keyIndex(n.key))}
       {@const r = v.reach.get(keyIndex(n.key))}
@@ -61,14 +65,10 @@
     <text class="centre small" y="14">{v.sub}</text>
     {#if v.flavour}<text class="centre small" y="34">{v.flavour} colour</text>{/if}
   </svg>
-  <div class="wheel-info">
-    {#if hover && hover.relation !== 'home'}
-      <b>{keyLong(hover.key)}</b> — {Math.round(hover.likelihood * 100)}% likely · {hover.commonTones} common tones
-      <ul>{#each hover.reasons as why}<li>{why}</li>{/each}</ul>
-    {:else}
-      <span class="legend"><i class="lg close"></i>close (1 accidental away)</span>
-      <span class="legend"><i class="lg pivot"></i>reachable via a pivot chord</span>
-      <span class="legend"><i class="lg remote"></i>remote — needs a dominant, °7 or sub</span>
-    {/if}
-  </div>
-</section>
+  {#if hover && hover.relation !== 'home'}
+    <div class="wheel-info">
+      <b>{keyLong(hover.key)}</b> · {Math.round(hover.likelihood * 100)}% likely · {hover.commonTones} common tones
+      <div class="muted">{hover.reasons.join(' · ')}</div>
+    </div>
+  {/if}
+</div>

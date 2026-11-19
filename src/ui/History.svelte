@@ -8,18 +8,20 @@
     ui.tick;
     const items = session.history.slice(-40);
     const col = new Map(items.map((h, i) => [h.id, i + 1]));
-    // Patterns become brackets under the chips; stack overlapping ones on separate rows.
+    // Patterns become brackets under the chips; overlapping ones stack on separate rows.
     const rowEnd: number[] = [];
     const pats = session.patterns
       .filter((p) => col.has(p.endId))
       .map((p) => ({ ...p, a: col.get(p.startId) ?? 1, b: col.get(p.endId)! }))
-      .sort((x, y) => x.a - y.a)
+      // cadences claim the first bracket row; loops and cycles fill in where there is room
+      .sort((x, y) => Number(x.kind === 'cycle' || x.kind === 'loop') - Number(y.kind === 'cycle' || y.kind === 'loop') || x.a - y.a)
       .map((p) => {
         let row = rowEnd.findIndex((end) => end < p.a);
         if (row < 0) row = rowEnd.push(0) - 1;
         rowEnd[row] = p.b;
         return { ...p, row: row + 2 };
-      });
+      })
+      .filter((p) => p.row <= 3);
     return {
       items: items.map((h) =>
         h.type === 'chord'
@@ -27,7 +29,7 @@
           : { ...h, label: (h.from ? '→ ' : '') + keyLong(h.key) },
       ),
       pats,
-      melody: session.melody.slice(-32).map((m) => ({ ...m })),
+      melody: session.melody.slice(-24).map((m) => ({ ...m })),
     };
   });
 
@@ -37,14 +39,22 @@
   });
 </script>
 
-<section class="card history">
-  <h2>
-    Progression
-    <span class="muted small">— click a chord to hear it again</span>
-    <button class="ghost right" onclick={() => session.clear()}>Clear</button>
-  </h2>
+<div class="card history">
+  <div class="h-head">
+    <div class="label">Progression
+      {#if v.items.length}<button class="link" onclick={() => session.clear()}>clear</button>{/if}
+    </div>
+    {#if v.melody.length}
+      <div class="melody" title="Melody notes and their role over the chord (blue = chord tone, amber = tension, red = outside)">
+        {#each v.melody as m (m.id)}
+          <span class="mel r-{m.role?.kind}" title={m.over ? `${m.role?.label} over ${m.over}` : ''}><b>{m.name}</b><i>{m.role?.label ?? m.degree ?? ''}</i></span>
+        {/each}
+        <span class="label inline">melody</span>
+      </div>
+    {/if}
+  </div>
   <div class="h-scroll" bind:this={scroller}>
-    {#if !v.items.length}<p class="muted">Your chords will appear here, with their function in the key.</p>{/if}
+    {#if !v.items.length}<p class="muted small">Your chords appear here with their function in the key — click one to hear it again.</p>{/if}
     <div class="h-grid">
       {#each v.items as h, i (h.id)}
         {#if h.type === 'chord'}
@@ -58,16 +68,8 @@
         {/if}
       {/each}
       {#each v.pats as p (p.startId + p.kind)}
-        <div class="bracket b-{p.kind}" style="grid-column:{p.a} / {p.b + 1}; grid-row:{p.row}">{p.label}</div>
+        <div class="bracket b-{p.kind}" style="grid-column:{p.a} / {p.b + 1}; grid-row:{p.row}" title={p.label}>{p.label}</div>
       {/each}
     </div>
   </div>
-  <div class="melody">
-    <span class="muted small">Melody</span>
-    {#each v.melody as m (m.id)}
-      <span class="mel r-{m.role?.kind}" title={m.over ? `${m.role?.label} over ${m.over}` : ''}>
-        <b>{m.name}</b><i>{m.role?.label ?? m.degree ?? ''}</i>
-      </span>
-    {/each}
-  </div>
-</section>
+</div>

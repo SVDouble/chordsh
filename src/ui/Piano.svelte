@@ -8,8 +8,7 @@
   let width = $state(800);
   let winH = $state(900);
   /** Scale the on-screen piano with the window so it never crowds out the panels. */
-  const height = $derived(Math.round(Math.max(90, Math.min(150, winH * 0.15))));
-  $effect(() => document.documentElement.style.setProperty('--piano-h', `${height}px`));
+  const height = $derived(Math.round(Math.max(70, Math.min(130, winH * 0.13))));
 
   const keys = $derived.by(() => {
     const whites = [];
@@ -89,11 +88,4 @@
 <svelte:window bind:innerHeight={winH} />
 <div class="piano" bind:clientWidth={width}>
   <canvas bind:this={canvas} style="width:{width}px;height:{height}px" onpointerdown={down} onpointerup={up} onpointerleave={up}></canvas>
-  <div class="piano-legend small muted">
-    <span><i style="background:var(--harmony)"></i>harmony</span>
-    <span><i style="background:var(--melody)"></i>melody</span>
-    <span><i style="background:var(--audition)"></i>suggestion</span>
-    <span><i style="background:var(--guide)"></i>practice target</span>
-    {#if session.seg.split !== null}<span>┆ hand split</span>{/if}
-  </div>
 </div>

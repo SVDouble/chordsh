@@ -16,7 +16,8 @@
     "lint": "biome lint . --error-on-warnings && markdownlint-cli2 \"**/*.md\"",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "train": "EVAL=scripts/train.test.ts vitest run --silent=false && biome format --write src/engine/transitions.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",

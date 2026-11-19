@@ -43,9 +43,10 @@ the history (`↻`).
   - _chord-in-key prior_ — diatonic > secondary dominant / leading-tone > borrowed > other; tonic and
     dominant bonuses; written in scale degrees, so it holds in every key;
   - _key fit_ — share of the segment inside the key's scale;
-  - _transitions_ — changing chord costs `chordChange`, changing key costs `keyChange` (pivot: key change
-    on the same chord is allowed).
-- **Decoding.** Viterbi in O(states) per segment (four ways into a state: stay, new chord, pivot, both).
+  - _transitions_ — chord changes use a learned, transposition-invariant root-transition model;
+    changing key costs `keyChange` (pivot: key change on the same chord is allowed).
+- **Decoding.** Viterbi in O(states + 24 × 12²) per segment. Maxima grouped by root keep learned
+  transitions inexpensive; the four ways into a state remain stay, new chord, pivot, or both.
   - _live_ = best state of the newest column (`current()`, `liveChords(k)`);
   - _hindsight_ = backtracked best path (`path()`), recomputed as music arrives → earlier labels can change;
   - _theories_ = best path per final key, softmax over their scores (`theories()`, `keyDistribution()`);
@@ -53,6 +54,22 @@ the history (`↻`).
 - **Open segment.** The chord you are still playing is evaluated _tentatively_ (not committed) so it shows
   up immediately; once released it counts until the sound has died away.
 - **Parameters** live in `DEFAULT_PARAMS`, tuned with `npm run tune` on the benchmark's tune split.
+
+### Learned harmonic transitions
+
+`npm run train` reads only the tune split's expert chord/key labels and regenerates
+`src/engine/transitions.ts`. It learns root-to-root probabilities relative to the current tonic,
+separately for major and minor. Corpus totals have equal weight; additive smoothing gives unseen moves
+nonzero probability. The artifact records training counts and a hash of the pinned dataset manifest.
+Changing chord from degree `a` to `b` costs:
+
+```text
+chordChange × exp(-transitionWeight × log(12 × P(b | a, mode)))
+```
+
+The selected weight is 0.125. Setting `P_transitionWeight=0` in the benchmark reproduces the fixed-cost
+model. The same costs are used for live Viterbi, hindsight backtracking and backward top-k rankings.
+The model is trained offline and runs in the browser without a network request or training dependency.
 
 **Session clearing.** `Session.clear()` resets the open segment and held/sustained analysis notes as
 well as the committed harmonizer path. It also cancels queued onset groups, delayed chord strikes and

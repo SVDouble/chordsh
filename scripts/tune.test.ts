@@ -36,6 +36,7 @@ function objective(p: HarmonizerParams) {
 type Path = [keyof HarmonizerParams] | ['prior', keyof HarmonizerParams['prior']];
 const PATHS: Path[] = [
   ['chordChange'],
+  ['transitionWeight'],
   ['keyChange'],
   ['extraNote'],
   ['missingTone'],

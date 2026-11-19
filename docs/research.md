@@ -19,6 +19,11 @@ Keep this file updated when we try something new — including what _didn't_ wor
 written in scale degrees, and explicit change penalties. Max-marginals (forward + backward Viterbi) give the
 top-k rankings used in the benchmark.
 
+The current model also learns root-transition probabilities from tune-split annotations, following the
+supervised transition-estimation idea in [Lee & Slaney](https://www.ee.columbia.edu/~dpwe/papers/LeeS06-chords.pdf).
+Our implementation conditions transitions on scale degree and mode and keeps emissions handcrafted;
+it is not a reproduction of their audio system. Root-grouped maxima keep decoding inexpensive.
+
 **Next candidates:**
 
 - **Semi-Markov / segmental models.** A semi-CRF jointly segments the score into chord spans and labels them,
@@ -98,3 +103,6 @@ shown when the pulse is confident (or fixed by a metronome / MIDI file).
 | 2026-11-19 | benchmark: 5 corpora, top-k, error breakdown, pinned + reproducible        | baseline recorded                                                                                                                                                                                                                                                                                                      |
 | 2026-11-19 | duration-weighted salience inside a segment (`durationWeight` 0 / 0.6 / 1) | **no effect** (±0.5 pt): passing notes usually start their own segment, and short segments are already down-weighted by `durExp`. NCT handling needs cross-segment context (step in/out, metric position) — kept off                                                                                                   |
 | 2026-11-19 | coordinate tuning across five corpora                                      | Test objective 1.7098 → 1.7318; better key accuracy across all five corpora, but lower chord accuracy on several. Restoring the old chord-change penalty in the tuned set reduced hindsight chord accuracy further on four corpora. See [the full comparison](benchmark.md#2026-11-19--five-corpus-tuning-test-split). |
+| 2026-11-19 | session reset lifecycle                                                    | Three failing regressions confirmed cleared open segments and delayed callbacks could resurrect old chords. Reset now discards them; the 684-piece standalone benchmark was unchanged.                                                                                                                                 |
+| 2026-11-19 | observation novelty as a boundary prior (rejected)                         | On the first ten tune pieces per corpus, multiplying change cost by `exp(w × (2 × salience-overlap - 1))` reduced the objective from 1.8021 at w=0 to 1.7541 / 1.7167 / 1.6531 at w=0.5 / 1 / 2. Not shipped.                                                                                                          |
+| 2026-11-19 | learned scale-degree root transitions                                      | Corpus-balanced training on 687 tune pieces; weight 0.125 selected on tune. Test objective 1.7318 → 1.7407; classical hindsight chords improve about 1 point, pop chords fall 0.5 point. Stronger transition weights over-segmented. [Comparison](benchmark.md#2026-11-19--learned-harmonic-transitions).              |

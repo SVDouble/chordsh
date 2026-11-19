@@ -1,6 +1,7 @@
 import { mod12 } from '../theory/pitch';
 import { type Chord, type KindName, chordOf } from '../theory/chords';
 import { ALL_KEYS, type Key, keyPcSet } from '../theory/scales';
+import { TRANSITIONS } from './transitions';
 
 /**
  * Probabilistic harmonic analysis (an HMM over (key, chord) solved with Viterbi).
@@ -14,6 +15,8 @@ import { ALL_KEYS, type Key, keyPcSet } from '../theory/scales';
 
 export interface HarmonizerParams {
   chordChange: number;
+  /** Strength of learned root transitions in the current key; 0 = fixed change cost. */
+  transitionWeight: number;
   keyChange: number;
   extraNote: number;
   missingTone: number;
@@ -33,6 +36,7 @@ export interface HarmonizerParams {
 /** Tuned with `npm run tune` on the benchmark's tune split (5 corpora); checked on the test split. */
 export const DEFAULT_PARAMS: HarmonizerParams = {
   chordChange: 0.61,
+  transitionWeight: 0.125,
   keyChange: 3.6,
   extraNote: 0.6,
   missingTone: 0.2,
@@ -322,6 +326,7 @@ export class Harmonizer {
   private back: Int16Array[] = [];
   private backKey: Int8Array[] = [];
   private priors: Float64Array;
+  private changeCosts: Float64Array;
   private keySets = ALL_KEYS.map((k) => keyPcSet(k));
 
   /** Keep every forward column (needed for top-k / max-marginals; offline analysis). */
@@ -330,6 +335,16 @@ export class Harmonizer {
 
   constructor(readonly params: HarmonizerParams = DEFAULT_PARAMS) {
     this.priors = buildPriors(params);
+    this.changeCosts = new Float64Array(24 * 12 * 12);
+    ALL_KEYS.forEach((key, k) => {
+      const probabilities = TRANSITIONS.probabilities[key.mode === 'major' ? 0 : 1];
+      for (let from = 0; from < 12; from++)
+        for (let to = 0; to < 12; to++) {
+          const probability = probabilities[mod12(from - key.tonic)][mod12(to - key.tonic)];
+          this.changeCosts[(k * 12 + from) * 12 + to] =
+            params.chordChange * Math.exp(-params.transitionWeight * Math.log(12 * probability));
+        }
+    });
   }
 
   /** Emission: how well chord c explains a segment (per second of music). */
@@ -420,21 +435,34 @@ export class Harmonizer {
       const L = this.local(this.segments[t]);
       const W = new Float64Array(NS);
       for (let s = 0; s < NS; s++) W[s] = L[s] + B[s];
-      const Mk = new Float64Array(24).fill(-Infinity),
+      const Mk = new Float64Array(24 * 12).fill(-Infinity),
         Mc = new Float64Array(NC).fill(-Infinity);
       let G = -Infinity;
       for (let k = 0; k < 24; k++)
         for (let c = 0; c < NC; c++) {
           const v = W[stateOf(k, c)];
-          if (v > Mk[k]) Mk[k] = v;
+          const root = k * 12 + TEMPLATES[c].root;
+          if (v > Mk[root]) Mk[root] = v;
           if (v > Mc[c]) Mc[c] = v;
           if (v > G) G = v;
         }
       const nb = new Float64Array(NS);
+      const continuation = new Float64Array(24 * 12).fill(-Infinity);
+      for (let k = 0; k < 24; k++)
+        for (let from = 0; from < 12; from++)
+          for (let to = 0; to < 12; to++) {
+            const index = k * 12 + from;
+            continuation[index] = Math.max(continuation[index], Mk[k * 12 + to] - this.changeCosts[index * 12 + to]);
+          }
       for (let k = 0; k < 24; k++)
         for (let c = 0; c < NC; c++) {
           const s = stateOf(k, c);
-          nb[s] = Math.max(W[s], Mk[k] - p.chordChange, Mc[c] - p.keyChange, G - p.keyChange - p.chordChange);
+          nb[s] = Math.max(
+            W[s],
+            continuation[k * 12 + TEMPLATES[c].root],
+            Mc[c] - p.keyChange,
+            G - p.keyChange - p.chordChange,
+          );
         }
       B = nb;
     }
@@ -457,8 +485,8 @@ export class Harmonizer {
     } else {
       const V = this.V;
       // maxima of the previous column, for the four ways to arrive in (k, c)
-      const Mk = new Float64Array(24).fill(-Infinity),
-        MkArg = new Int16Array(24);
+      const Mk = new Float64Array(24 * 12).fill(-Infinity),
+        MkArg = new Int16Array(24 * 12);
       const Mc = new Float64Array(NC).fill(-Infinity),
         McArg = new Int8Array(NC);
       let G = -Infinity,
@@ -467,9 +495,10 @@ export class Harmonizer {
       for (let k = 0; k < 24; k++)
         for (let c = 0; c < NC; c++) {
           const v = V[stateOf(k, c)];
-          if (v > Mk[k]) {
-            Mk[k] = v;
-            MkArg[k] = c;
+          const root = k * 12 + TEMPLATES[c].root;
+          if (v > Mk[root]) {
+            Mk[root] = v;
+            MkArg[root] = c;
           }
           if (v > Mc[c]) {
             Mc[c] = v;
@@ -481,15 +510,28 @@ export class Harmonizer {
             Gc = c;
           }
         }
+      const arrival = new Float64Array(24 * 12).fill(-Infinity);
+      const arrivalArg = new Int16Array(24 * 12);
+      for (let k = 0; k < 24; k++)
+        for (let to = 0; to < 12; to++)
+          for (let from = 0; from < 12; from++) {
+            const index = k * 12 + to;
+            const score = Mk[k * 12 + from] - this.changeCosts[(k * 12 + from) * 12 + to];
+            if (score > arrival[index]) {
+              arrival[index] = score;
+              arrivalArg[index] = MkArg[k * 12 + from];
+            }
+          }
       for (let k = 0; k < 24; k++)
         for (let c = 0; c < NC; c++) {
           const s = stateOf(k, c);
           let best = V[s],
             bc = c,
             bk = k; // stay
-          if (Mk[k] - p.chordChange > best) {
-            best = Mk[k] - p.chordChange;
-            bc = MkArg[k];
+          const root = k * 12 + TEMPLATES[c].root;
+          if (arrival[root] > best) {
+            best = arrival[root];
+            bc = arrivalArg[root];
             bk = k;
           } // new chord, same key
           if (Mc[c] - p.keyChange > best) {

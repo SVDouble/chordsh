@@ -21,6 +21,9 @@ Options (environment variables):
 `npm run tune` searches the harmonizer parameters on the **tune** split only; report the **test** split
 when claiming an improvement.
 
+`npm run train` regenerates the learned transition artifact using tune annotations only. To compare the
+new model against the fixed-cost HMM, use `P_transitionWeight=0 SPLIT=test npm run benchmark`.
+
 Use `P_<name>=value` (or `P_prior_<name>=value`) to compare parameters without editing the engine, for
 example `P_chordChange=0.81 SPLIT=test npm run benchmark`. Recorded runs include the parameter values;
 new reports also mark changes to benchmark source files and show the command for the recorded split.
@@ -74,6 +77,34 @@ The **error breakdown** classifies every hindsight top-1 miss, so we know what t
 ## Results history
 
 Latest: [benchmarks/LATEST.md](../benchmarks/LATEST.md) · all runs: `benchmarks/history.jsonl`.
+
+### 2026-11-19 — learned harmonic transitions
+
+Training used **687 tune pieces and 43,219 labelled changes**, with equal total weight per corpus.
+The artifact contains major/minor root-transition probabilities in scale degrees. A small strength
+(0.125) was selected on the tune split; stronger settings produced too many changes. The full tune
+objective increased approximately **1.7625 → 1.7659**. The test split's objective increased
+**1.7318 → 1.7407**, with the same emission parameters as the fixed-cost baseline.
+
+| corpus | live chord @1, fixed → learned | hindsight chord @1, fixed → learned | hindsight key @1, fixed → learned |
+| ------ | ------------------------------ | ----------------------------------- | --------------------------------- |
+| bps-fh | 60.7 → 61.5                    | 70.6 → 71.7                         | 79.0 → 80.0                       |
+| chopin | 60.4 → 60.3                    | 69.9 → 71.0                         | 76.9 → 76.4                       |
+| jazz * | 80.3 → 80.2                    | 91.6 → 91.9                         | 46.2 → 48.3                       |
+| mozart | 54.1 → 54.6                    | 65.5 → 66.8                         | 83.7 → 86.0                       |
+| pop909 | 73.7 → 73.1                    | 81.0 → 80.5                         | 72.3 → 75.3                       |
+
+This is a modest improvement, especially in classical hindsight chords, with a pop-chord regression
+and slightly more chord changes. The known test-split reuse caveat below still applies. This experiment
+does not solve segmentation or establish performance on unseen corpora.
+
+Reproduce the model and comparison after fetching the pinned datasets:
+
+```sh
+npm run train
+P_transitionWeight=0 SPLIT=test npm run benchmark
+SPLIT=test WRITE=1 npm run benchmark
+```
 
 ### 2026-11-19 — five-corpus tuning, test split
 

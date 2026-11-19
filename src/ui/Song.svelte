@@ -6,6 +6,7 @@
   import { type Chord, toneNames } from '../theory/chords';
   import { keyLong } from '../theory/scales';
   import { voiceChord } from '../theory/voicing';
+  import { roleClass } from './colours';
 
   let editing = $state(false);
   let title = $state('');
@@ -60,10 +61,10 @@
     const f = session.song;
     if (!f) return null;
     const ch = f.chart;
-    const bars = new Map<number, { section?: string; cells: { i: number; symbol: string; roman: string; kind: string; result: ReturnType<typeof f.results.get>; current: boolean }[] }>();
+    const bars = new Map<number, { section?: string; cells: { i: number; symbol: string; roman: string; kind: string; func: string; result: ReturnType<typeof f.results.get>; current: boolean }[] }>();
     for (const c of ch.chords) {
       const b = bars.get(c.bar) ?? { section: c.section, cells: [] };
-      b.cells.push({ i: c.i, symbol: c.symbol, roman: c.roman?.numeral ?? '', kind: c.roman?.kind ?? '', result: f.results.get(c.i), current: f.pos === c.i });
+      b.cells.push({ i: c.i, symbol: c.symbol, roman: c.roman?.numeral ?? '', kind: c.roman?.kind ?? '', func: c.roman?.func ?? '', result: f.results.get(c.i), current: f.pos === c.i });
       bars.set(c.bar, b);
     }
     const sel = selected !== null ? ch.chords[selected] : null;
@@ -136,7 +137,7 @@
         <div class="bar">
           {#if bar.section}<span class="section">{bar.section}</span>{/if}
           {#each bar.cells as c (c.i)}
-            <button class="cell v-{c.result?.verdict ?? 'none'} k-{c.kind}" class:current={c.current} class:sel={selected === c.i}
+            <button class="cell f-{c.func} v-{c.result?.verdict ?? 'none'} k-{c.kind}" class:current={c.current} class:sel={selected === c.i}
               title={c.result ? `${VERDICT[c.result.verdict]}${c.result.played ? ` — you played ${c.result.played}` : ''}\n${c.result.notes.join('\n')}` : 'Click: start here and see reharm ideas'}
               onclick={() => { selected = c.i; session.song?.jump(c.i); session.onChange(); }}>
               <span class="c-name">{c.symbol}</span><span class="c-roman">{c.roman}</span>
@@ -149,7 +150,7 @@
     {#if v.live}
       <p class="live v-{v.live.verdict}"><b>{v.live.played}</b>: {VERDICT[v.live.verdict]}{v.live.notes.length ? ' — ' + v.live.notes.join('; ') : ''}</p>
     {:else if v.expected}
-      <p>Next <b>{v.expected.symbol}</b> <span class="muted">{v.expected.roman}</span> {#each v.expected.tones as t}<span class="tone mini"><b>{t.name}</b><i>{t.role}</i></span>{/each}</p>
+      <p>Next <b>{v.expected.symbol}</b> <span class="muted">{v.expected.roman}</span> {#each v.expected.tones as t}<span class="tone mini {roleClass(t.role)}"><b>{t.name}</b><i>{t.role}</i></span>{/each}</p>
     {/if}
 
     {#if v.sel}

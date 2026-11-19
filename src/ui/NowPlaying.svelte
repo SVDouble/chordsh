@@ -3,6 +3,7 @@
   import { toggleDemo } from './demo';
   import { chordName, inversionLabel, toneNames } from '../theory/chords';
   import { SCALE_LABEL, keyLong } from '../theory/scales';
+  import { roleClass } from './colours';
 
   const FUNC = { T: 'Tonic', PD: 'Predominant', D: 'Dominant', '?': 'Colour' };
 
@@ -34,7 +35,7 @@
   {:else}
     <div class="now-top">
       <span class="big">{v.name}</span>
-      {#if v.roman}<span class="numeral">{v.roman.numeral}</span>{/if}
+      {#if v.roman}<span class="numeral f-{v.roman.func}">{v.roman.numeral}</span>{/if}
     </div>
     <div class="badges">
       {#if v.roman}
@@ -47,7 +48,7 @@
     </div>
     {#if v.roman}<p class="explain">{v.roman.explain}</p>{/if}
     <div class="tones" title={v.alts.length ? `Also readable as ${v.alts.join(' · ')}` : ''}>
-      {#each v.tones as t}<span class="tone" class:implied={t.implied}><b>{t.name}</b><i>{t.role}</i></span>{/each}
+      {#each v.tones as t}<span class="tone {roleClass(t.role)}" class:implied={t.implied}><b>{t.name}</b><i>{t.role}</i></span>{/each}
     </div>
   {/if}
 </div>

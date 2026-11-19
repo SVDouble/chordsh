@@ -34,7 +34,7 @@
     <div class="row"><b>Practise {p.path.technique} → {keyShort(v.to)}</b><button class="link right" onclick={() => session.stopPractice()}>stop</button></div>
     <div class="row steps">
       {#each p.steps as s, i}
-        <span class="step" class:done={i < p.index} class:current={i === p.index && !p.done}><b>{s.name}</b><i>{s.romanTo}</i></span>
+        <span class="step f-{s.func}" class:done={i < p.index} class:current={i === p.index && !p.done}><b>{s.name}</b><i>{s.romanTo}</i></span>
       {/each}
     </div>
     {#if p.done}
@@ -69,7 +69,7 @@
         </div>
         <div class="row steps">
           {#each path.steps as s, i}
-            <span class="step" class:current={ui.playingId === path.id && ui.playingStep === i}><b>{s.name}</b><i>{s.romanFrom} → {s.romanTo}</i></span>
+            <span class="step f-{s.func}" class:current={ui.playingId === path.id && ui.playingStep === i}><b>{s.name}</b><i>{s.romanFrom} → {s.romanTo}</i></span>
           {/each}
         </div>
         <div class="small muted">{path.explain}</div>

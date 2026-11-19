@@ -39,6 +39,8 @@ export interface NextMove {
   why: string;
   /** Technique tag shown as a badge, e.g. "passing °7". */
   tag?: string;
+  /** Function in the key (T / PD / D / ?) — drives colour coding. */
+  func: Func;
   voicing: number[];
 }
 
@@ -151,6 +153,7 @@ export function suggestNext(key: Key, last: Chord | null, style: Style, lastVoic
     chord: o.chord,
     name: o.name ?? chordName(o.chord, key),
     roman: o.roman ?? analyzeRoman(o.chord, key).numeral,
+    func: o.tag === 'passing °7' || o.tag === 'common-tone °7' ? '?' : analyzeRoman(o.chord, key).func,
     prob: o.p / total,
     why: o.why,
     tag: o.tag,
@@ -272,6 +275,8 @@ export interface PathStep {
   name: string;
   romanTo: string;
   romanFrom: string;
+  /** Function in the target key. */
+  func: Func;
   voicing: number[];
 }
 export interface Path {
@@ -360,7 +365,7 @@ export function suggestPaths(from: Key, to: Key, last: Chord | null, lastVoicing
       const v = voiceChord(c, prev);
       if (prev) cost += vlCost(prev, v);
       prev = v;
-      return { chord: c, name: nm(c), romanTo: numeralOf(c, to), romanFrom: analyzeRoman(c, from, r.chords[i + 1]).numeral, voicing: v };
+      return { chord: c, name: nm(c), romanTo: numeralOf(c, to), romanFrom: analyzeRoman(c, from, r.chords[i + 1]).numeral, func: analyzeRoman(c, to, r.chords[i + 1]).func, voicing: v };
     });
     out.push({ id: `${r.technique}:${sig}`, technique: r.technique, explain: r.explain, steps, score: r.bias - (0.012 * cost) / steps.length - 0.06 * steps.length });
   }

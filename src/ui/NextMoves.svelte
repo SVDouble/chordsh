@@ -12,7 +12,7 @@
   <div class="scroll">
     {#if !moves.length}<p class="muted small">Suggestions appear once a key is established.</p>{/if}
     {#each moves as m (m.id)}
-      <button class="move" class:playing={ui.playingId === m.id} onclick={() => audition([m.voicing], m.id)} title={m.why}>
+      <button class="move f-{m.func}" class:playing={ui.playingId === m.id} onclick={() => audition([m.voicing], m.id)} title={m.why}>
         <span class="m-name">{m.name}</span>
         <span class="m-roman">{m.roman}</span>
         <span class="m-why">{#if m.tag}<em class="tag">{m.tag}</em>{/if}{m.why}</span>

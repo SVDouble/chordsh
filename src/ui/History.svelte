@@ -44,6 +44,9 @@
     <div class="label">Progression
       {#if v.items.length}<button class="link" onclick={() => session.clear()}>clear</button>{/if}
     </div>
+    <div class="func-legend small" title="Chord function in the key">
+      <span class="fl f-T">tonic</span><span class="fl f-PD">predominant</span><span class="fl f-D">dominant</span><span class="fl f-?">chromatic</span>
+    </div>
     {#if v.melody.length}
       <div class="melody" title="Melody notes and their role over the chord (blue = chord tone, amber = tension, red = outside)">
         {#each v.melody as m (m.id)}

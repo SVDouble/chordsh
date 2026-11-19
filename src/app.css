@@ -2641,3 +2641,27 @@ button.icon {
   box-shadow: inset 0 -2px var(--accent);
   font-weight: 700;
 }
+
+.voicing-presets {
+  position: relative;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 6px;
+}
+.voicing-presets button {
+  min-height: 30px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.voicing-presets button.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+.voicing-description {
+  font-size: 12px;
+}

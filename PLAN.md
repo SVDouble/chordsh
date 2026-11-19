@@ -79,7 +79,7 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
   preparation/prolongation trees.
 - **Live assistance without a fixed tempo** — phrase segmentation (by cadence and gaps) as the unit
   instead of bars when there's no pulse.
-- Charts: per-section key regions, transpose; voicing coach (shell / rootless / drop-2).
+- **Additional recognition validation** — broader corpora and live performances before treating continuation gains as recognition gains.
 
 ## Hardware notes
 
@@ -137,7 +137,7 @@ recorded chords, no recording retrigger and equal-velocity preview/playback timb
 - [x] Measure next-chord prediction separately from recognition and record test-split results.
 - [x] Verify inference regression, browser interactions and documentation.
 
-The accuracy/segmentation research, vocabulary layer, voicing coach and native host delivery above
+The accuracy/segmentation research, vocabulary layer and native host delivery above
 remain roadmap work; completed interface work is not evidence that those are delivered.
 
 Prediction validation: 134 tests and production build; existing desktop/mobile sketch interactions and
@@ -147,6 +147,9 @@ and @3 62.3% → 68.5%; all note-recognition metrics are unchanged. See [results
 
 ## Voicing coach
 
-- [ ] Offer shell, rootless and drop-2 choices in chord editing without typing MIDI note numbers.
-- [ ] Preview a choice, apply it as one undoable chord edit and preserve it in MIDI export.
-- [ ] Verify musical invariants, editing/undo and browser interactions.
+- [x] Offer shell, rootless and drop-2 choices in chord editing without typing MIDI note numbers.
+- [x] Preview a choice, apply it as one undoable chord edit and preserve it in MIDI export.
+- [x] Verify musical invariants, editing/undo and browser interactions.
+
+Voicing validation: 139 tests and production build; desktop/mobile browser checks verify noncommitting
+previews, save/undo/redo, MIDI-export pitches, rootless triads and explained drop-2 constraints.

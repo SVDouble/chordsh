@@ -27,6 +27,7 @@
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
   import { voiceChord } from '../theory/voicing';
+  import { voicingChoices, type VoicingPreset, type VoicingChoice } from '../theory/voicingPresets';
 
   let zoom = $state(44);
   let scroller = $state<HTMLDivElement>();
@@ -48,6 +49,7 @@
   let symbol = $state('');
   let duration = $state(4);
   let notes = $state('');
+  let voicingPreset = $state<VoicingPreset | null>(null);
   let velocity = $state(DEFAULT_SETTINGS.editor.velocity);
   let pasted = $state('');
   let drag = $state<{
@@ -68,6 +70,12 @@
   const chart = $derived(sequenceChart(document));
   const selectedIndex = $derived(document.steps.findIndex((s) => s.id === composition.selectedId));
   const selected = $derived(document.steps[selectedIndex]);
+  const voicings = $derived.by(() => {
+    const chord = parseChordSymbol(symbol);
+    const previous = document.steps.find((step) => step.id === editingId)?.notes ?? null;
+    return chord ? voicingChoices(chord, previous) : [];
+  });
+  const chosenVoicing = $derived(voicings.find((choice) => choice.id === voicingPreset));
   const hints = $derived(
     selectedIndex < 0
       ? []
@@ -181,6 +189,7 @@
       existing?.beats ??
       Math.min(document.meter, document.steps.find((s) => s.start > at)?.start - at || document.meter);
     notes = existing?.notes.join(' ') ?? '';
+    voicingPreset = null;
     velocity = existing?.velocity ?? settings.editor.velocity;
     popup = true;
     await tick();
@@ -238,6 +247,12 @@
       return;
     }
     audition([voicing], 'edit-preview', duration, symbol, velocity);
+  }
+  function useVoicing(choice: VoicingChoice) {
+    if (!choice.notes) return;
+    notes = choice.notes.join(' ');
+    voicingPreset = choice.id;
+    preview();
   }
   function beginDrag(e: PointerEvent, s: SequenceStep, mode: 'move' | 'resize') {
     if (e.button !== 0) return;
@@ -682,9 +697,34 @@
         </div>
         <details class="voicing-editor">
           <summary>Voicing</summary>
+          <fieldset class="voicing-presets">
+            <legend class="sr-only">Voicing choices</legend>
+            {#each voicings as choice}
+              <button
+                type="button"
+                class:on={voicingPreset === choice.id}
+                aria-pressed={voicingPreset === choice.id}
+                aria-label={`Use ${choice.label.toLowerCase()} voicing`}
+                title={choice.description}
+                disabled={!choice.notes}
+                onclick={() => useVoicing(choice)}
+              >
+                {choice.label}
+              </button>
+            {/each}
+          </fieldset>
+          {#if chosenVoicing}
+            <p class="small muted voicing-description">{chosenVoicing.description} Preview only until ✓.</p>
+          {/if}
           <div class="row">
             <label
-              >MIDI notes <input aria-label="Voicing MIDI notes" bind:value={notes} placeholder="48 52 55 59"></label
+              >MIDI notes
+              <input
+                aria-label="Voicing MIDI notes"
+                bind:value={notes}
+                oninput={() => (voicingPreset = null)}
+                placeholder="48 52 55 59"
+              ></label
             ><label
               >Velocity <input aria-label="Chord velocity" type="number" min="1" max="127" bind:value={velocity}></label
             >

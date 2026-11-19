@@ -27,6 +27,13 @@ key regions. `SequenceEditor` applies atomic edits with up to 100 undo snapshots
 rests and shifts later blocks only where overlap requires it. Moving, resizing, replacing, duplication,
 transposition and chart import use the same document.
 
+`theory/voicingPresets.ts` offers full, shell, rootless and drop-2 voicings from the chord's actual
+pitch classes. Shells retain bass plus thirds/sevenths (or suspensions); rootless variants remove the
+root without inventing tensions. Drop 2 lowers the second-highest of four closed upper notes by an
+octave; slash-chord inversions are selected to preserve their specified bass. Unsupported choices
+return no notes rather than changing harmony. The editor auditions a draft, then stores the explicit
+notes with a single `SequenceEditor.replace()` on save. Closing the editor discards the draft.
+
 `sequencePiece()` compiles the document into the shared playback format. The editor, suggestion +
 buttons and reharmonisation ✓ buttons all edit this same object; previews leave it unchanged. The
 Svelte bridge persists documents and refreshes a running arrangement at its current beat after an edit.

@@ -22,6 +22,12 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
 
 - Drag the top handle to move a chord or its right edge to resize. The default snap is a quarter beat;
   change it in Settings → Editor. Empty spaces are rests. Overlapping later chords move forward.
+- Open **Voicing** for Full, Shell, Rootless and Drop 2 alternatives. Clicking a choice previews it;
+  ✓ saves it as one undoable chord edit. Shell keeps bass and defining tones; Rootless leaves room for
+  a separate bass. Drop 2 opens a four-note upper voicing by lowering its second-highest note an octave,
+  preserving a specified slash bass. It is unavailable when the chord cannot supply four distinct
+  tones, so triads do not silently become seventh chords. MIDI export retains the chosen notes.
+  Manual notes and velocity remain editable below the choices.
 - Use ▶ in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
 - Undo/redo are above the timeline. Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields.
 - Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Long chords

@@ -1,93 +1,53 @@
 # Musify — plan
 
-A browser app that listens to a MIDI keyboard, names what you play, explains it in
-key-relative terms (I–ii–V, secondary dominants, borrowed chords…), and coaches you
-on where you can go next — including into other keys.
+A browser app that listens to a MIDI keyboard, names what you play, explains it in key-relative terms
+(I–ii–V, secondary dominants, borrowed chords…), and coaches you on where to go next — including into other
+keys. Built for a player who "vibes" rather than reads: matching is forgiving, coaching is about the big
+picture.
 
-Built for a player who "vibes" rather than reads: matching is forgiving (any voicing,
-any inversion, extra or missing tones), and the coaching is about *the big picture* —
-functions, pivots, how a °7 or a modulation actually works — not exact notes.
+Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md),
+[benchmark](docs/benchmark.md), [research](docs/research.md).
 
 ## Principles
 
-- **Interval-only theory.** Every rule is written in semitones relative to a root or
-  tonic, so it applies in any key automatically. No per-key tables.
-- **Pure engine, thin UI.** All music logic is plain TypeScript with no DOM, unit
-  tested. The UI (Svelte 5) only renders engine state and forwards input.
-- **Little code, mostly logic.** No boilerplate layers; each module has one job.
+- **Interval-only theory.** Rules are written in scale degrees / intervals, so they hold in every key.
+- **Flexible interpretation.** Several explanations are kept alive; earlier readings are revised with
+  hindsight; competing theories are shown, not hidden.
+- **Measured, not guessed.** Every engine change is checked on the [benchmark](docs/benchmark.md)
+  (pinned corpora, tune/test split, top-k and error breakdown).
+- **Pure engine, thin UI.** Music logic is plain TypeScript; the Svelte UI only renders it.
+- **Conventional Commits** on `main`; local data under `local/` (git-ignored).
 
-## Modules
+## Done
 
-```
-src/theory/          pure music theory (no state)
-  pitch.ts           pitch classes, enharmonic spelling
-  scales.ts          keys, modes, key relations (relative, parallel, circle of fifths)
-  chords.ts          chord recognition from any note set (jazz extensions, inversions,
-                     rootless voicings), naming, tone roles
-  roman.ts           function analysis in a key: diatonic, secondary dominant,
-                     tritone sub, backdoor, borrowed (modal interchange), Neapolitan…
-  patterns.ts        progression patterns: ii–V–I, cadences, circle of fifths, loops
-  voicing.ts         voice-led voicings for generated chords
+1. **Live companion** — chord recognition (extensions, inversions, rootless), function in the key, next
+   moves incl. the everyday °7s, tonal map, routes to another key with practice mode.
+2. **Songs** — chord charts, forgiving play-along with habits, reharmonisation ideas, charts from your playing.
+3. **Analysis engine v2** — HMM over key × chord with hindsight (↻), competing theories, live vs hindsight
+   layers, top-k.
+4. **Bars** — beat tracking, Viterbi bar decoding, 3 vs 4; bars shown only with a confident pulse,
+   metronome, or a piece's own tempo.
+5. **Library** — the demo, recordings, MIDI files and benchmark pieces all play through the same pipeline.
+6. **Tooling** — session recording + replay, reproducible benchmark over 5 corpora (classical, romantic,
+   pop, jazz), parameter tuning on a tune split.
 
-src/engine/          stateful listening + reasoning
-  segmenter.ts       splits the live note stream into harmony vs melody
-                     (onset grouping, rolled chords, auto hand split, pedal)
-  keyDetector.ts     key probabilities over 24 keys from notes + chord evidence + cadences
-  coach.ts           "where next": next-chord moves, key reachability, routes to a
-                     target key (pivot, ii–V–I, tritone sub, dim7 pivot, dominant chain…)
-  session.ts         orchestrator: history, melody log, key tracking (with pivot
-                     relabelling on modulation), practice mode; exposes reactive state
+## Next
 
-src/io/              outside world
-  midi.ts            Web MIDI in/out (works with the Recital Pro over USB)
-  synth.ts           small WebAudio synth for auditioning suggestions
-  qwerty.ts          computer-keyboard fallback for testing without a piano
+- **Accuracy** (guided by the benchmark error breakdown):
+  - boundary errors (37–66 % of chord misses): beat-aware segmentation, or a segmental / semi-Markov model;
+  - tonicization vs modulation (classical key misses "a fifth away");
+  - non-chord-tone weighting (passing / neighbour notes) from interval, duration and metric features;
+  - more corpora: DCML Beethoven sonatas and ABC quartets, Weimar Jazz Database (real solos over changes),
+    ChoCo chord charts across genres.
+- **Vocabulary layer** — a grammar of harmonic patterns (ii–V, tritone sub, backdoor, passing °7, pedal
+  points…) and figurations (arpeggios, Alberti bass, broken chords), so songs are analysed *in terms of the
+  vocabulary* and you can browse which patterns a song uses — building on the Jazz Harmony Treebank's
+  preparation/prolongation trees.
+- **Live assistance without a fixed tempo** — phrase segmentation (by cadence and gaps) as the unit
+  instead of bars when there's no pulse.
+- Charts: per-section key regions, transpose; voicing coach (shell / rootless / drop-2).
 
-src/ui/              Svelte components (render only)
-  App, NowPlaying, KeyWheel, History, NextMoves, Route, Piano
-```
+## Hardware notes
 
-## Features — phase 1 (now)
-
-1. **Now playing**: chord name (C13(♭9)/E, Dm7♭5, rootless voicings), inversion,
-   roman numeral and function (T / PD / D) in the current key, a one-line explanation,
-   alternative readings.
-2. **History**: chord chips with numerals, pattern brackets (ii–V–I in F, deceptive
-   cadence, Andalusian…), key-change markers placed after the pivot chord, and a melody strip
-   showing each note's role over the chord (3rd, 9th, outside).
-3. **Tonal map**: circle of fifths where every key glows by how likely you are to head
-   there *given the last chords and melody notes*, with the reason (e.g. "D7 is V of G",
-   "melody F♯ fits G").
-4. **Where next**: probable next chords from functional grammar, plus "colour" moves:
-   secondary dominants, tritone sub, borrowed iv, backdoor ♭VII7, passing °7 and
-   common-tone °7 — each with *why*.
-5. **Routes**: click a key → several ways to get there from where you are now
-   (pivot chord, modal-interchange pivot, ii–V–I, direct dominant, tritone sub, dominant
-   chain, °7 pivot, chromatic mediant), each explained, playable (synth or MIDI out),
-   and practisable.
-6. **Practice**: follow a route; the app waits for each chord, accepts any voicing,
-   and shows hit vs missing chord tones.
-
-## Phase 2 (done)
-
-- **Song charts** (`engine/chart.ts`, `theory/symbols.ts`): paste lead-sheet chords with bars,
-  sections and repeats; the app finds the key, labels every chord, and lists the big picture
-  (cadences, tonicizations, borrowed chords, blues form).
-- **Play-along** (`engine/song.ts`): per chord *exact / close enough / substitute / wrong*,
-  forgiving about voicing, re-syncs on skipped or repeated chords, scores each pass and
-  tallies habits ("you left out the 7th 5×").
-- **Reharmonisation hints** (`engine/reharm.ts`): tritone sub, ii–V, °7, secondary dominant,
-  passing and common-tone °7, borrowed iv, add the 7th — each playable.
-- **Save / import**: turn what you played into a chart; replay a MIDI file through the engine.
-
-## Phase 3 (ideas)
-
-- Per-section key regions in charts (a bridge in another key), transpose a chart.
-- Rhythm awareness: chord durations from bars and tempo, so "Hear chart" swings.
-- Voicing coach: suggest shell / rootless / drop-2 voicings for the chord you're on.
-
-## Notes on hardware
-
-The Alesis Recital Pro shows up as a USB-MIDI device. Input definitely works; whether
-it plays notes it *receives* is model/firmware dependent, so the app has a "test
-output" button and always falls back to the built-in synth.
+Recital Pro: USB-MIDI in works; whether it plays notes it *receives* depends on firmware (⚙ → MIDI out →
+Test). MPK mini: no speakers — sound comes from the browser synth (🔊).

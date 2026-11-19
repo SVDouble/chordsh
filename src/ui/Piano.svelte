@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { session, ui } from './store.svelte';
+  import { live, session, ui } from './store.svelte';
   import { mod12 } from '../theory/pitch';
 
   const LO = 21, HI = 108; // full 88 keys
@@ -81,8 +81,8 @@
     for (const [n, k] of keys) if (x >= k.x && x < k.x + k.w && (!k.black || y < height * 0.62) && (k.black || found === null)) found = n;
     return found;
   }
-  const down = (e: PointerEvent) => { mouseNote = hit(e); if (mouseNote !== null) session.noteOn(mouseNote, 90); };
-  const up = () => { if (mouseNote !== null) session.noteOff(mouseNote); mouseNote = null; };
+  const down = (e: PointerEvent) => { mouseNote = hit(e); if (mouseNote !== null) live.noteOn(mouseNote, 90); };
+  const up = () => { if (mouseNote !== null) live.noteOff(mouseNote); mouseNote = null; };
 </script>
 
 <svelte:window bind:innerHeight={winH} />

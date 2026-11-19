@@ -53,6 +53,7 @@ select { background: var(--card-2); border: 1px solid var(--line); border-radius
 .topbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--card); }
 .topbar label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 15px; }
 .spacer { flex: 1; }
+.sound-btn { background: color-mix(in srgb, var(--PD) 22%, var(--card-2)); border-color: var(--PD); font-weight: 650; }
 .brand { font-weight: 800; font-size: 21px; letter-spacing: -0.02em; background: linear-gradient(90deg, var(--harmony), var(--audition)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .midi-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line); max-width: 44ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
 .midi-chip.ok { border-color: color-mix(in srgb, var(--guide) 50%, var(--line)); }

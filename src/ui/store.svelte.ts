@@ -6,11 +6,13 @@ import type { MidiEvent } from '../io/midifile';
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
 export const session = new Session();
 export const synth = new Synth();
-export const midi = new Midi({
-  noteOn: (n, v, t) => session.noteOn(n, v, t),
-  noteOff: (n, t) => session.noteOff(n, t),
-  pedal: (on, t) => session.pedal(on, t),
-});
+/** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
+export const live = {
+  noteOn: (n: number, v: number, t = performance.now()) => { session.noteOn(n, v, t); if (ui.monitor) synth.noteOn(n, v); },
+  noteOff: (n: number, t = performance.now()) => { session.noteOff(n, t); synth.noteOff(n); },
+  pedal: (on: boolean, t = performance.now()) => { session.pedal(on, t); synth.setPedal(on); },
+};
+export const midi = new Midi(live);
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem('musify') ?? '{}'); } catch { return {}; } })();
 
@@ -28,7 +30,11 @@ export const ui = $state({
   demo: false,
   /** Right-hand panel: song chart or key-change routes. */
   tab: 'song' as 'song' | 'route',
+  /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
+  monitor: (saved.monitor ?? true) as boolean,
+  audioBlocked: true,
 });
+synth.onState = () => (ui.audioBlocked = synth.blocked);
 
 let queued = false;
 const bump = () => {
@@ -40,7 +46,7 @@ session.onChange = bump;
 midi.onPorts = bump;
 
 export function persist(extra: Record<string, unknown> = {}) {
-  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, charts: $state.snapshot(ui.charts) }, extra);
+  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, monitor: ui.monitor, charts: $state.snapshot(ui.charts) }, extra);
   try { localStorage.setItem('musify', JSON.stringify(saved)); } catch { /* private mode */ }
 }
 export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: string; output?: string };

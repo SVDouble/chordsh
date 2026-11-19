@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { stopAudition, midi, persist, savedSettings, session, ui } from './store.svelte';
+  import { live, stopAudition, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
   import { midiName } from '../theory/pitch';
@@ -21,11 +21,7 @@
     midi.inputId = savedSettings.input ?? 'all';
     midi.outputId = savedSettings.output ?? '';
     void midi.init();
-    return attachQwerty({
-      noteOn: (n, v, t) => session.noteOn(n, v, t),
-      noteOff: (n, t) => session.noteOff(n, t),
-      pedal: (on, t) => session.pedal(on, t),
-    });
+    return attachQwerty(live);
   });
 
   const m = $derived.by(() => {
@@ -55,6 +51,7 @@
       {#if m.last}<code class="muted">{m.last.text}</code>{:else if m.devices.length}<span class="muted">· press a key</span>{/if}
     </span>
     {#if m.errors.length}<span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>{/if}
+    {#if ui.audioBlocked && ui.monitor}<button class="sound-btn" onclick={() => synth.unlock()} title="Browsers only allow sound after you click the page">🔇 Click to enable sound</button>{/if}
     <span class="spacer"></span>
     <label>Key
       <select bind:value={lock} onchange={() => session.setKeyLock(lock === 'auto' ? null : keyFromIndex(+lock))}>
@@ -86,7 +83,10 @@
             <button disabled={!m.outputId} onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}>Test</button>
           </span>
         </label>
-        <label>Sound
+        <label>Hear what I play
+          <input type="checkbox" bind:checked={ui.monitor} onchange={() => { persist(); synth.unlock(); }} />
+        </label>
+        <label>Suggestions sound
           <select bind:value={ui.sound} onchange={() => persist()}>
             <option value="synth">Browser synth</option><option value="midi">MIDI out</option>
             <option value="both">Both</option><option value="off">Off</option>
@@ -125,4 +125,5 @@
   <footer><Piano /></footer>
 </div>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && stopAudition()} />
+<!-- any click or key press unlocks browser audio (MIDI notes don't count as a gesture) -->
+<svelte:window onpointerdown={() => synth.unlock()} onkeydown={(e) => { synth.unlock(); if (e.key === 'Escape') stopAudition(); }} />

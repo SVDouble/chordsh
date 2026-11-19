@@ -167,3 +167,5 @@ The final 684-piece recognition regression at `99b5d96` exactly matches the prec
 This supersedes the earlier default of printing every note name and numeric key degree on the piano.
 Validation: 143 tests, production build and browser checks for idle roots, white/black-key positions,
 major/minor context, settings persistence, configurable sizing, hover references and mobile layout.
+
+- [x] Use ear icons for chord/reharmonisation previews; keep transport and source playback icons.

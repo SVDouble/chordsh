@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     Play,
+    Ear,
     Pause,
     Square,
     Circle,
@@ -30,6 +31,7 @@
   } from '@lucide/svelte';
   const icons = {
     play: Play,
+    ear: Ear,
     pause: Pause,
     stop: Square,
     record: Circle,

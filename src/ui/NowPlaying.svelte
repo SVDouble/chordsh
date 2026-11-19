@@ -28,7 +28,7 @@
         title={`Hear ${v.name}`}
         onclick={() => audition([v.notes], 'inspector', 2, v.name, v.step?.velocity ?? settings.editor.velocity)}
       >
-        <Icon name="play" />
+        <Icon name="ear" />
       </button>
     {/if}
   </div>

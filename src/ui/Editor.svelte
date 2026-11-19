@@ -635,7 +635,7 @@
             disabled={!symbol.trim()}
             onclick={preview}
           >
-            <Icon name="play" />
+            <Icon name="ear" />
           </button>
           <button
             type="submit"
@@ -750,7 +750,7 @@
                       selected.velocity,
                     )}
                 >
-                  <Icon name="play" />
+                  <Icon name="ear" />
                 </button><button
                   type="button"
                   class="icon"

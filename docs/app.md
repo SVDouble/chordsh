@@ -28,7 +28,7 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
   preserving a specified slash bass. It is unavailable when the chord cannot supply four distinct
   tones, so triads do not silently become seventh chords. MIDI export retains the chosen notes.
   Manual notes and velocity remain editable below the choices.
-- Use ▶ in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
+- Use the ear icon in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
 - Undo/redo are above the timeline. Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields.
 - Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Long chords
   continue on the next row and retain one identity; dragging can move chords between rows.

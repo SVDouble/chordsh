@@ -159,4 +159,14 @@ export class Synth {
     for (const v of this.scheduled) this.release(v, this.ctx.currentTime);
     this.scheduled.clear();
   }
+
+  /** Stop every sound, including held, sustained and not-yet-started notes. */
+  silence() {
+    this.stop();
+    if (this.ctx) for (const v of this.live.values()) this.release(v, this.ctx.currentTime);
+    this.live.clear();
+    this.waiting.clear();
+    this.sustained.clear();
+    this.pedal = false;
+  }
 }

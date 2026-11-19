@@ -1,15 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { playPiece, session, stopPiece, ui } from './store.svelte';
+  import { playPiece, session, stopPlayback, ui } from './store.svelte';
   import { BUILT_IN, type Piece, fromBenchmark, fromMidi, fromRecording } from '../library/pieces';
-  import { EXAMPLES, parseChart } from '../engine/chart';
   import { midiFileMeta, parseMidiFile } from '../io/midifile';
+  import Song from './Song.svelte';
 
   let recordings = $state<string[]>([]);
   let corpora = $state<Record<string, string[]>>({});
   let corpus = $state('');
   let opened = $state<Piece[]>([]);
   let error = $state('');
+  const hasSong = $derived.by(() => {
+    void ui.tick;
+    return !!session.song;
+  });
 
   async function refresh() {
     try {
@@ -29,13 +33,19 @@
   }); // a new recording appears after saving
 
   async function play(load: () => Promise<Piece>) {
+    stopPlayback();
+    const request = ui.playbackRequest;
+    ui.loading = true;
     try {
       error = '';
-      session.clear();
-      playPiece(await load());
+      const piece = await load();
+      if (request !== ui.playbackRequest) return;
+      playPiece(piece);
       ui.tab = 'progression';
     } catch (e) {
-      error = (e as Error).message;
+      if (request === ui.playbackRequest) error = (e as Error).message;
+    } finally {
+      if (request === ui.playbackRequest) ui.loading = false;
     }
   }
   const getJson = async (p: string) => {
@@ -46,86 +56,76 @@
   async function openFile(e: Event) {
     const f = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!f) return;
-    const buf = await f.arrayBuffer();
-    const p = fromMidi(`file:${f.name}`, f.name, parseMidiFile(buf), midiFileMeta(buf));
-    opened = [p, ...opened.filter((x) => x.id !== p.id)];
-    void play(async () => p);
-  }
-  function openChart(c: { title: string; text: string }) {
-    session.loadSong(parseChart(c.text, c.title));
-    ui.tab = 'song';
+    void play(async () => {
+      const buf = await f.arrayBuffer();
+      const p = fromMidi(`file:${f.name}`, f.name, parseMidiFile(buf), midiFileMeta(buf));
+      opened = [p, ...opened.filter((x) => x.id !== p.id)];
+      return p;
+    });
   }
 </script>
 
 <div class="panel library">
-  {#if ui.nowPlaying}
-    <div class="row playing-now">
-      <span>▶ <b>{ui.nowPlaying}</b></span><button type="button" class="right" onclick={stopPiece}>■ Stop</button>
-    </div>
-  {/if}
   {#if error}
     <p class="warn small">{error}</p>
   {/if}
 
-  <div class="label">Play into the app <span class="muted">— analysed exactly as if you played it</span></div>
-  <div class="lib-list">
-    {#each [...BUILT_IN, ...opened] as p (p.id)}
-      <button type="button" class="lib-item" onclick={() => play(async () => p)}>
-        <b>{p.title}</b><span class="muted small">{p.source}{p.bpm ? ` · ♩${Math.round(p.bpm)}` : ''}</span>
-      </button>
-    {/each}
-    <label class="lib-item filebtn">
-      <b>Open a MIDI file…</b><span class="muted small">a recording or a score</span>
-      <input type="file" accept=".mid,.midi" onchange={openFile}>
-    </label>
-  </div>
-
-  {#if recordings.length}
-    <div class="label">Your recordings</div>
+  <details class="library-browser" open={!hasSong}>
+    <summary>Performances <span class="muted small">· demo, MIDI and recordings</span></summary>
+    <div class="label">Play into the app <span class="muted">— analysed exactly as if you played it</span></div>
     <div class="lib-list">
-      {#each recordings as f (f)}
-        <button
-          type="button"
-          class="lib-item"
-          onclick={() => play(async () => fromRecording(f, await getJson(`recordings/${f}`)))}
-        >
-          <b>{f.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2')}</b
-          ><span class="muted small"> recording </span>
+      {#each [...BUILT_IN, ...opened] as p (p.id)}
+        <button type="button" class="lib-item" onclick={() => play(async () => p)}>
+          <b>{p.title}</b><span class="muted small">{p.source}{p.bpm ? ` · ♩${Math.round(p.bpm)}` : ''}</span>
         </button>
       {/each}
+      <label class="lib-item filebtn">
+        <b>Open a MIDI file…</b><span class="muted small">a recording or a score</span>
+        <input type="file" accept=".mid,.midi" onchange={openFile}>
+      </label>
     </div>
-  {/if}
 
-  {#if Object.keys(corpora).length}
-    <div class="label">
-      Benchmark pieces <span class="muted">— expert-annotated; see how the analysis compares</span>
-    </div>
-    <div class="row">
-      <select bind:value={corpus}>
-        {#each Object.keys(corpora) as c}
-          <option value={c}>{c} ({corpora[c].length})</option>
+    {#if recordings.length}
+      <div class="label">Your recordings</div>
+      <div class="lib-list">
+        {#each recordings as f (f)}
+          <button
+            type="button"
+            class="lib-item"
+            onclick={() => play(async () => fromRecording(f, await getJson(`recordings/${f}`)))}
+          >
+            <b>{f.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2')}</b
+            ><span class="muted small"> recording </span>
+          </button>
         {/each}
-      </select>
-    </div>
-    <div class="lib-list scrolly">
-      {#each (corpora[corpus] ?? []).slice(0, 200) as id (id)}
-        <button
-          type="button"
-          class="lib-item"
-          onclick={() => play(async () => fromBenchmark(`${corpus}/${id}`, await getJson(`data/${corpus}/${id}.json`)))}
-        >
-          <b>{id}</b>
-        </button>
-      {/each}
-    </div>
-  {/if}
+      </div>
+    {/if}
 
-  <div class="label">Chord charts <span class="muted">— play along</span></div>
-  <div class="lib-list">
-    {#each [...EXAMPLES, ...ui.charts] as c (c.title)}
-      <button type="button" class="lib-item" onclick={() => openChart(c)}>
-        <b>{c.title}</b><span class="muted small">chart</span>
-      </button>
-    {/each}
-  </div>
+    {#if Object.keys(corpora).length}
+      <div class="label">
+        Benchmark pieces <span class="muted">— expert-annotated; see how the analysis compares</span>
+      </div>
+      <div class="row">
+        <select bind:value={corpus}>
+          {#each Object.keys(corpora) as c}
+            <option value={c}>{c} ({corpora[c].length})</option>
+          {/each}
+        </select>
+      </div>
+      <div class="lib-list scrolly">
+        {#each (corpora[corpus] ?? []).slice(0, 200) as id (id)}
+          <button
+            type="button"
+            class="lib-item"
+            onclick={() =>
+              play(async () => fromBenchmark(`${corpus}/${id}`, await getJson(`data/${corpus}/${id}.json`)))}
+          >
+            <b>{id}</b>
+          </button>
+        {/each}
+      </div>
+    {/if}
+  </details>
+  <div class="label">Chord charts <span class="muted">— open, create or play along</span></div>
+  <Song />
 </div>

@@ -74,4 +74,27 @@ describe('browser audio activation', () => {
     await Promise.resolve();
     expect(oscillators).toHaveLength(0);
   });
+
+  it('silences sustained live voices and future previews, then releases the pedal', () => {
+    const { synth, oscillators } = setup('running');
+    synth.noteOn(60, 90);
+    synth.setPedal(true);
+    synth.noteOff(60);
+    synth.play([64], 30, 1);
+    synth.silence();
+    expect(oscillators).toHaveLength(4);
+    for (const oscillator of oscillators) expect(oscillator.stop).toHaveBeenLastCalledWith(0.6);
+    synth.noteOn(62, 90);
+    synth.noteOff(62);
+    expect(oscillators[4].stop).toHaveBeenCalled();
+  });
+
+  it('discards blocked notes when Stop is pressed before audio is enabled', async () => {
+    const { synth, oscillators, resume } = setup();
+    synth.noteOn(60, 90);
+    synth.silence();
+    resume();
+    await Promise.resolve();
+    expect(oscillators).toHaveLength(0);
+  });
 });

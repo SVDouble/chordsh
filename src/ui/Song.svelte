@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { audition, persist, session, ui } from './store.svelte';
+  import { audition, persist, session, stopPlayback, ui } from './store.svelte';
   import { EXAMPLES, parseChart } from '../engine/chart';
   import { reharmHints } from '../engine/reharm';
   import { type Chord, toneNames } from '../theory/chords';
@@ -23,6 +23,7 @@
   };
 
   function load(c: { title: string; text: string }) {
+    stopPlayback();
     session.loadSong(parseChart(c.text, c.title));
     selected = null;
     editing = false;
@@ -50,6 +51,7 @@
       chords.map((c) => (prev = voiceChord(c, prev))),
       id,
       beats ?? 2,
+      id === 'chart' ? (session.song?.chart.title ?? 'Chart preview') : 'Reharm preview',
     );
   }
   /** Each chord gets its share of the bar (a bar of 4 beats split between its chords). */

@@ -37,6 +37,13 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
    better key accuracy and combined score, with a chord-accuracy tradeoff documented in
    [the benchmark comparison](docs/benchmark.md#2026-11-19--five-corpus-tuning-test-split).
 
+9. **Learned prediction transitions** — corpus-balanced scale-degree transitions trained on 687 tune
+   pieces. Test objective 1.7318 → 1.7407; classical hindsight chords improve, with a small pop-chord
+   regression. Full comparison and limitations in [the benchmark](docs/benchmark.md#2026-11-19--learned-harmonic-transitions).
+10. **Flexible music workspace** — charts and performances together in Library; top-bar Play/Stop/Rec
+    and performance seek; sound unlock on the sound icon; PaneForge resizing, saved layouts and panel
+    visibility, including song/progression focus. Where next keeps its tabs.
+
 ## Next
 
 - **Accuracy** (guided by the benchmark error breakdown):

@@ -1,7 +1,8 @@
 import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
-import type { Piece } from '../library/pieces';
+import { BUILT_IN, type Piece } from '../library/pieces';
+import { voiceChord } from '../theory/voicing';
 import { Recorder, saveRecording } from '../io/recorder';
 
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
@@ -49,8 +50,20 @@ export const ui = $state({
   charts: (saved.charts ?? []) as { title: string; text: string }[],
   /** Title of the library piece currently playing. */
   nowPlaying: null as string | null,
+  preview: null as string | null,
+  loading: false,
+  playbackRequest: 0,
+  playbackPosition: 0,
+  playbackDuration: 0,
+  loadedTitle: '',
+  panels: {
+    now: saved.panels?.now ?? true,
+    next: saved.panels?.next ?? true,
+    map: saved.panels?.map ?? true,
+    piano: saved.panels?.piano ?? true,
+  },
   /** Main panel: the live progression, a song chart, or the library. */
-  tab: 'progression' as 'progression' | 'library' | 'song',
+  tab: 'progression' as 'progression' | 'library',
   /** Chord suggestions and key-change routes share Where next. */
   nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
@@ -94,6 +107,7 @@ export function persist(extra: Record<string, unknown> = {}) {
       meter: ui.meter,
       click: ui.click,
       charts: $state.snapshot(ui.charts),
+      panels: $state.snapshot(ui.panels),
     },
     extra,
   );
@@ -108,8 +122,12 @@ export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: strin
 let timers: ReturnType<typeof setTimeout>[] = [];
 
 /** Play a sequence of voicings through the synth and/or MIDI out, highlighting each step. */
-export function audition(seq: number[][], id = '', beats: number | number[] = 2) {
+export function audition(seq: number[][], id = '', beats: number | number[] = 2, label = 'Chord preview') {
+  ui.playbackRequest++;
+  ui.loading = false;
+  stopPiece();
   stopAudition();
+  ui.preview = label;
   const beat = 60 / ui.tempo;
   const t0 = performance.now() + 60;
   let at = 0; // seconds
@@ -163,30 +181,104 @@ export function stopAudition() {
   ui.playing = null;
   ui.playingId = '';
   ui.playingStep = -1;
+  ui.preview = null;
 }
 
 let pieceTimers: ReturnType<typeof setTimeout>[] = [];
+const pieceNotes = new Set<number>();
+let selectedPiece = BUILT_IN[0];
+let playbackStarted = 0;
+let playbackOffset = 0;
+
+export function updatePlaybackClock() {
+  if (ui.nowPlaying)
+    ui.playbackPosition = Math.min(
+      ui.playbackDuration,
+      Math.max(playbackOffset, performance.now() - playbackStarted + playbackOffset),
+    );
+}
+
+/** Play the selected chart or performance from the global transport. */
+export function playSelection() {
+  const chart = session.song?.chart;
+  if (chart) {
+    let previous = session.lastVoicing;
+    audition(
+      chart.chords.map((c) => (previous = voiceChord(c.chord, previous))),
+      'chart',
+      chart.chords.map((c) => ui.meter / chart.chords.filter((x) => x.bar === c.bar).length),
+      chart.title,
+    );
+  } else playPiece(selectedPiece, ui.playbackPosition >= ui.playbackDuration ? 0 : ui.playbackPosition);
+}
+
+export function seekPlayback(at: number) {
+  const position = Math.max(0, Math.min(ui.playbackDuration, at));
+  if (ui.nowPlaying) playPiece(selectedPiece, position);
+  else ui.playbackPosition = position;
+}
 
 /** Play any library piece into the app, exactly as if you played it (analysis, sound, recording). */
-export function playPiece(p: Piece) {
-  stopPiece();
+export function playPiece(p: Piece, from = 0) {
+  stopPlayback();
+  session.clear();
+  session.loadSong(null);
+  selectedPiece = p;
+  ui.loadedTitle = p.title;
+  ui.playbackDuration = p.notes.reduce((end, [t, d]) => Math.max(end, t + d), 0);
+  playbackOffset = Math.max(0, Math.min(ui.playbackDuration, from));
+  ui.playbackPosition = playbackOffset;
   const lead = 300,
     start = performance.now() + lead;
-  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start);
+  playbackStarted = start;
+  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start - playbackOffset);
   for (const [t, d, note, vel] of p.notes) {
-    pieceTimers.push(setTimeout(() => live.noteOn(note, vel), lead + t));
-    pieceTimers.push(setTimeout(() => live.noteOff(note), lead + t + Math.max(20, d)));
+    if (t + d <= playbackOffset) continue;
+    pieceTimers.push(
+      setTimeout(
+        () => {
+          pieceNotes.add(note);
+          live.noteOn(note, vel);
+        },
+        lead + Math.max(0, t - playbackOffset),
+      ),
+    );
+    pieceTimers.push(
+      setTimeout(
+        () => {
+          pieceNotes.delete(note);
+          live.noteOff(note);
+        },
+        lead + t + Math.max(20, d) - playbackOffset,
+      ),
+    );
   }
   ui.nowPlaying = p.title;
-  const end = Math.max(0, ...p.notes.map(([t, d]) => t + d));
-  pieceTimers.push(setTimeout(() => (ui.nowPlaying = null), lead + end + 200));
+  pieceTimers.push(setTimeout(stopPiece, lead + ui.playbackDuration - playbackOffset + 200));
 }
 
 export function stopPiece() {
+  updatePlaybackClock();
   pieceTimers.forEach(clearTimeout);
   pieceTimers = [];
-  for (const n of session.seg.held.keys()) live.noteOff(n);
+  if (pieceNotes.size) live.pedal(false);
+  for (const n of pieceNotes) live.noteOff(n);
+  pieceNotes.clear();
   ui.nowPlaying = null;
+  if (ui.bars === 'file') setBars('auto');
+}
+
+/** One global stop action for library playback, previews, metronome and lingering notes. */
+export function stopPlayback() {
+  ui.playbackRequest++;
+  ui.loading = false;
+  stopPiece();
+  stopAudition();
+  if (ui.bars === 'metronome') setBars('auto');
+  live.pedal(false);
+  for (const n of session.seg.held.keys()) live.noteOff(n);
+  synth.silence();
+  ui.playbackPosition = 0;
 }
 
 export function startRecording() {

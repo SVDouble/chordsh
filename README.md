@@ -31,6 +31,7 @@ annotated piece.
 | `npm run fetch-data`   | download + convert the benchmark corpora into `local/data` (pinned in `scripts/datasets.json`) |
 | `npm run benchmark`    | score the engine on all corpora (`WRITE=1` records results in `benchmarks/`)                   |
 | `npm run tune`         | search engine parameters on the tune split                                                     |
+| `npm run train`        | reproduce learned harmonic transitions from the pinned tune-split annotations                  |
 | `npm run replay`       | replay the newest session recording (`local/recordings/`) through the engine                   |
 | `npm run lint`         | Biome linting plus Markdown structure checks with markdownlint                                 |
 | `npm run format`       | format TypeScript, Svelte, CSS, JSON and Markdown with Biome                                   |
@@ -38,6 +39,9 @@ annotated piece.
 
 Biome's full Svelte support is experimental and enabled in `biome.json`; the production build validates
 the formatted components. Dependencies, generated builds, local data and benchmark history are excluded.
+
+The workspace uses [PaneForge](https://paneforge.com/docs/getting-started) for resizing, keyboard-accessible
+dividers and saved layouts. Use **Panels** for chart/progression focus or to hide individual panels.
 
 Everything local and uncommitted (datasets, recordings, caches) lives under `local/`.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).

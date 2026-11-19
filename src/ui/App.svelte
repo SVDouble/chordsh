@@ -1,45 +1,23 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    live,
-    recorder,
-    setBars,
-    startRecording,
-    stopRecording,
-    stopAudition,
-    midi,
-    persist,
-    savedSettings,
-    session,
-    synth,
-    ui,
-  } from './store.svelte';
+  import { live, setBars, stopPlayback, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { midiName } from '../theory/pitch';
-  import NowPlaying from './NowPlaying.svelte';
-  import KeyWheel from './KeyWheel.svelte';
-  import History from './History.svelte';
-  import NextMoves from './NextMoves.svelte';
   import Piano from './Piano.svelte';
-  import Song from './Song.svelte';
-  import Library from './Library.svelte';
+  import Workspace from './Workspace.svelte';
+  import Transport from './Transport.svelte';
+  import Panels from './Panels.svelte';
 
   let lock = $state('auto');
-  let recClock = $state('0:00');
-  $effect(() => {
-    if (!ui.recording) return;
-    const id = setInterval(() => {
-      const s = Math.floor(recorder.elapsed / 1000);
-      recClock = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    }, 500);
-    return () => clearInterval(id);
-  });
+  let topbarHeight = $state(0);
   $effect(() => {
     document.documentElement.dataset.theme = ui.theme;
   });
+  let unlockRequested = false;
   function toggleSound() {
-    ui.monitor = !ui.monitor;
+    ui.monitor = unlockRequested || ui.audioBlocked ? true : !ui.monitor;
+    unlockRequested = false;
     persist();
     synth.unlock();
   }
@@ -64,7 +42,6 @@
       devices: midi.devices,
       last: midi.last,
       errors,
-      song: session.song?.chart.title ?? '',
       label:
         midi.status === 'unsupported'
           ? 'Web MIDI unavailable — use Chrome or Edge'
@@ -79,8 +56,8 @@
   });
 </script>
 
-<div class="app">
-  <header class="topbar">
+<div class="app" style:--topbar-height={`${topbarHeight}px`}>
+  <header class="topbar" bind:clientHeight={topbarHeight}>
     <div class="brand">Musify</div>
     <span
       class="midi-chip"
@@ -104,38 +81,7 @@
     {#if m.errors.length}
       <span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>
     {/if}
-    {#if ui.audioBlocked && ui.monitor}
-      <button
-        type="button"
-        class="sound-btn"
-        onclick={() => synth.unlock()}
-        title="Your browser has paused audio. Click anywhere or press a computer key to enable it; MIDI input cannot unlock it."
-      >
-        Click to enable sound
-      </button>
-    {/if}
-    {#if ui.recording}
-      <span class="rec-on"><i class="rec-dot"></i>{recClock}</span>
-      <input
-        class="rec-note"
-        bind:value={ui.recNote}
-        placeholder="What are you playing? e.g. held Cmaj7 LH, improvising RH"
-      >
-      <button type="button" class="rec-stop" onclick={stopRecording}>■ Save</button>
-    {:else}
-      <button
-        type="button"
-        onclick={startRecording}
-        title="Record your MIDI and the app's analysis to a file, for debugging the predictions"
-      >
-        ● Rec
-      </button>
-    {/if}
-    {#if ui.recMsg && !ui.recording}
-      <span class="small rec-msg" title={ui.recMsg}>
-        {ui.recMsg.startsWith('Saved') ? '✓ saved' : ui.recMsg}
-      </span>
-    {/if}
+    <Transport />
     <span class="spacer"></span>
     <label>
       Key
@@ -161,14 +107,20 @@
     </label>
     <button
       type="button"
-      class="icon"
+      class="icon sound-toggle"
       class:dim={!ui.monitor}
+      class:locked={ui.audioBlocked && ui.monitor}
+      aria-label={ui.audioBlocked && ui.monitor ? 'Enable sound' : ui.monitor ? 'Mute sound' : 'Unmute sound'}
+      onpointerdown={() => (unlockRequested = ui.audioBlocked)}
+      onkeydown={() => (unlockRequested = ui.audioBlocked)}
       onclick={toggleSound}
-      title={ui.monitor
-        ? 'Sound on — you hear what you play (click to mute)'
-        : 'Sound off (click to hear what you play)'}
+      title={ui.audioBlocked && ui.monitor
+        ? 'Enable sound — click to unlock browser audio'
+        : ui.monitor
+          ? 'Sound on — you hear what you play (click to mute)'
+          : 'Sound off (click to hear what you play)'}
     >
-      {ui.monitor ? '🔊' : '🔇'}
+      {ui.audioBlocked && ui.monitor ? '🔓' : ui.monitor ? '🔊' : '🔇'}
     </button>
     <button
       type="button"
@@ -181,6 +133,7 @@
     >
       {ui.theme === 'dark' ? '☀' : '☾'}
     </button>
+    <Panels />
     <details class="settings">
       <summary title="Settings">⚙</summary>
       <div class="settings-panel">
@@ -298,35 +251,11 @@
     </details>
   </header>
 
-  <main class="stage">
-    <section class="pane left">
-      <NowPlaying />
-      <NextMoves />
-    </section>
-    <section class="pane centre"><KeyWheel /></section>
-    <section class="pane right">
-      <nav class="tabs">
-        <button type="button" class:on={ui.tab === 'progression'} onclick={() => (ui.tab = 'progression')}>
-          Progression
-        </button>
-        <button type="button" class:on={ui.tab === 'song'} onclick={() => (ui.tab = 'song')}>
-          Song{m.song ? `: ${m.song}` : ''}
-        </button>
-        <button type="button" class:on={ui.tab === 'library'} onclick={() => (ui.tab = 'library')}>Library</button>
-      </nav>
-      <div class="tab-body">
-        {#if ui.tab === 'progression'}
-          <History />
-        {:else if ui.tab === 'song'}
-          <Song />
-        {:else}
-          <Library />
-        {/if}
-      </div>
-    </section>
-  </main>
+  <main class="stage"><Workspace /></main>
 
-  <footer><Piano /></footer>
+  {#if ui.panels.piano}
+    <footer><Piano /></footer>
+  {/if}
 </div>
 
 <!-- any click or key press unlocks browser audio (MIDI notes don't count as a gesture) -->
@@ -334,6 +263,6 @@
   onpointerdown={() => synth.unlock()}
   onkeydown={(e) => {
     synth.unlock();
-    if (e.key === 'Escape') stopAudition();
+    if (e.key === 'Escape') stopPlayback();
   }}
 />

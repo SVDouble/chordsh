@@ -150,15 +150,6 @@ button.link {
 button.link:hover {
   text-decoration: underline;
 }
-.big-btn {
-  font-size: 18px;
-  padding: 10px 20px;
-  background: var(--accent);
-  color: #0b0d12;
-  border: 0;
-  font-weight: 700;
-  margin-top: 8px;
-}
 select {
   background: var(--card-2);
   border: 1px solid var(--line);
@@ -198,8 +189,8 @@ select {
 }
 .topbar {
   display: flex;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex-wrap: wrap;
+  overflow: visible;
   gap: 8px 14px;
   align-items: center;
   padding: 6px 12px;
@@ -216,7 +207,7 @@ select {
 .spacer {
   flex: 1;
 }
-.sound-btn {
+.sound-toggle.locked {
   background: color-mix(in srgb, var(--PD) 22%, var(--card-2));
   border-color: var(--PD);
   font-weight: 650;
@@ -308,11 +299,29 @@ select {
 
 .stage {
   min-height: 0;
-  display: grid;
-  gap: var(--gap);
   padding: var(--gap);
-  grid-template-columns: minmax(320px, 1.05fr) minmax(0, 1fr) minmax(340px, 1.05fr);
-  grid-template-rows: minmax(0, 1fr);
+}
+.workspace {
+  height: 100%;
+}
+.workspace .pane {
+  height: 100%;
+}
+.pane-resizer {
+  flex: 0 0 8px;
+  display: grid;
+  place-items: center;
+}
+.pane-resizer::before {
+  content: "";
+  width: 3px;
+  height: 36px;
+  border-radius: 4px;
+  background: var(--line);
+}
+.pane-resizer:hover::before,
+.pane-resizer[data-active]::before {
+  background: var(--accent);
 }
 .pane {
   min-height: 0;
@@ -1003,6 +1012,60 @@ footer {
   border-top: 1px solid var(--line);
   padding: 5px 8px;
 }
+.transport {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  max-width: 560px;
+}
+.transport-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.seek {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.seek input {
+  width: 110px;
+}
+.seek span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.playback-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 28ch;
+}
+.stop-playback {
+  flex: none;
+  border-color: var(--D);
+}
+.library-browser {
+  margin-bottom: 16px;
+}
+.library-browser summary {
+  cursor: pointer;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
 .piano canvas {
   display: block;
   max-width: 100%;
@@ -1021,9 +1084,37 @@ footer {
     flex-wrap: wrap;
     overflow: visible;
   }
+  .settings-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: calc(var(--topbar-height) + 6px);
+    width: auto;
+    max-height: calc(100dvh - var(--topbar-height) - 20px);
+    overflow: auto;
+  }
   .stage {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
+    min-height: 0;
+  }
+  .workspace[data-pane-group] {
+    /* biome-ignore lint/complexity/noImportantStyles: override the desktop inline layout. */
+    display: block !important;
+    /* biome-ignore lint/complexity/noImportantStyles: allow the stacked layout to grow. */
+    height: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: stacked content scrolls with the page. */
+    overflow: visible !important;
+  }
+  .workspace > [data-pane] {
+    width: 100%;
+    /* biome-ignore lint/complexity/noImportantStyles: remove the desktop pane clipping. */
+    overflow: visible !important;
+    margin-bottom: var(--gap);
+  }
+  .workspace .pane {
+    height: auto;
+  }
+  .pane-resizer {
+    display: none;
   }
   .wheel svg {
     height: auto;
@@ -1350,9 +1441,4 @@ button.icon.dim {
   flex-direction: column;
   align-items: flex-start;
   padding: 6px 12px;
-}
-.playing-now {
-  padding: 6px 10px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 14%, var(--card-2));
 }

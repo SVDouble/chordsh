@@ -18,7 +18,8 @@ npm run dev        # open the printed URL in Chrome or Edge (Web MIDI)
 
 ### Why a click can still be needed
 
-The sound prompt reflects the actual audio engine state, including before the first note. When a browser
+The sound icon shows 🔓 while audio is blocked; click it to enable sound. It reflects the actual audio
+engine state, including before the first note. When a browser
 blocks Web Audio autoplay, MIDI messages cannot count as a page gesture: one click, tap or computer key
 press is still needed. The app unlocks audio on any of these interactions, and preserves a held first note
 while audio resumes. Chrome may allow autoplay after sufficient use of the site; its
@@ -32,10 +33,24 @@ Installing the app is not a guaranteed way to remove the prompt.
 | **Now playing** | the chord you're holding (name, inversion, tones coloured by role), its numeral and function in the key, a one-line explanation    |
 | **Where next**  | Next chord suggests playable moves; Change key shows destinations and routes to hear or practise                                   |
 | **Tonal map**   | circle of fifths; colour = how likely you're heading to each key; ring = how close it is; click a key to plan a route              |
-| **Library**     | play the demo, your recordings, MIDI files or annotated benchmark pieces into the app; open chord charts                           |
-| **Song**        | a chord chart to play along with: per-chord verdicts, what you tend to miss, the song's big picture, reharmonisation ideas         |
+| **Library**     | performances and chord charts together: play a demo, recording or MIDI file; open or create a chart and play along with feedback   |
 | **Progression** | the default main panel: your chords, functions, cadences, key changes and pivots — bars when there's a pulse, otherwise a sequence |
 | **Piano**       | what's sounding: harmony blue, melody amber, suggestions violet, practice targets green                                            |
+
+### Playback and panels
+
+The top bar has **Play**, **Stop** and **Rec**. Play hears the open chart, or plays the selected performance
+(the demo initially). Stop and **Escape** cancel performances, previews and the metronome, release held
+sound and clear queued MIDI output. Recording has its own **Save recording** action.
+
+Performances have a seek slider and elapsed/total time. Seeking restarts analysis at that position,
+including notes already sounding there. Stopping returns the playhead to the beginning. Chart previews
+can be stopped but do not use the performance seek slider.
+
+Use **Panels** to show or hide Now playing, Where next, the tonal map and the piano. **Song** focus gives
+the main space to the Library's chart view; **Progression** focus gives it to the analysis. Drag the
+dividers to resize panels, or focus a divider and use arrow keys. Panel visibility and sizes are saved
+in the browser. On narrow screens panels stack vertically.
 
 ### Colours
 
@@ -61,14 +76,14 @@ optional click); library pieces and MIDI files bring their own tempo.
 ## Recording a session
 
 **● Rec** records your MIDI and every decision the engine makes; type what you _meant_ to play in the note
-field, then **■ Save**. Files go to `local/recordings/` (git-ignored) and appear in the Library.
+field, then **■ Save recording**. Files go to `local/recordings/` (git-ignored) and appear in the Library.
 `npm run replay` (or `REC=local/recordings/x.json npm run replay`) replays one through the engine and prints
 a timeline — useful for reporting "it got this wrong".
 
 ## Practising
 
 - **Where next → Change key → Practise**: the app waits for each chord of a route; any voicing counts; missing chord tones are listed.
-- **Song**: chords turn green (exact / close enough), violet (a valid substitute) or red; _From playing_ turns your session into a chart.
+- **Library → Chord charts**: chords turn green (exact / close enough), violet (a valid substitute) or red; _From playing_ turns your session into a chart.
 
 ## Settings (⚙)
 

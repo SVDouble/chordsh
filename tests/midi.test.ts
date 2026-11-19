@@ -26,6 +26,20 @@ async function setup(ports: ReturnType<typeof fakePort>[]) {
 }
 
 describe('Web MIDI input', () => {
+  it('cancels queued output and silences sustained audition notes', async () => {
+    const output = { id: 'out', name: 'Test output', clear: vi.fn(), send: vi.fn() };
+    vi.stubGlobal('navigator', {
+      requestMIDIAccess: () => Promise.resolve({ inputs: new Map(), outputs: new Map([['out', output]]) }),
+    });
+    const midi = new Midi({ noteOn: vi.fn(), noteOff: vi.fn(), pedal: vi.fn() });
+    await midi.init();
+    midi.outputId = 'out';
+    midi.send([60], 1000, 500);
+    midi.panic();
+    expect(output.clear).toHaveBeenCalledOnce();
+    expect(output.send.mock.calls.slice(-3)).toEqual([[[0xb0, 64, 0]], [[0xb0, 123, 0]], [[0xb0, 120, 0]]]);
+  });
+
   it('recognises an MPK mini Plus II, ignores Midi Through, takes notes on any channel', async () => {
     const mpk = fakePort('a', 'MPK mini Plus II:MPK mini Plus II MIDI Port 36:0');
     const daw = fakePort('b', 'MPK mini Plus II:MPK mini Plus II DAW Port 36:1');

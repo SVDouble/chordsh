@@ -110,6 +110,8 @@ export class Midi {
   panic() {
     const out = this.outputId ? this.access?.outputs.get(this.outputId) : undefined;
     (out as (MIDIOutput & { clear?: () => void }) | undefined)?.clear?.(); // drop scheduled notes
+    out?.send([0xb0, 64, 0]); // release sustain before silencing the audition channel
     out?.send([0xb0, 123, 0]);
+    out?.send([0xb0, 120, 0]); // all sound off, including sustained voices
   }
 }

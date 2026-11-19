@@ -47,6 +47,9 @@ The workspace uses [PaneForge](https://paneforge.com/docs/getting-started) for r
 dividers and saved layouts. Use **Panels** for song/progression focus or to hide individual panels.
 
 Everything local and uncommitted (datasets, recordings, caches) lives under `local/`.
+Vite excludes that directory from watching; library and recording endpoints still read it on demand.
+On Linux, source watching uses polling to avoid shared inotify quota errors (`ENOSPC`). Set
+`CHOKIDAR_USEPOLLING=false npm run dev` to opt into native watching when quota is available.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## MIDI troubleshooting

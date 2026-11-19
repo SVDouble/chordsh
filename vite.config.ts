@@ -86,6 +86,17 @@ function library(): Plugin {
 
 export default defineConfig({
   plugins: [svelte(), recordings(), library()],
+  server: {
+    // Datasets, recordings and QA artifacts are read by the endpoints above, not bundled.
+    // Watching this growing directory can exhaust the OS's file-watcher quota.
+    watch: {
+      ignored: ['**/local/**'],
+      // Linux inotify quotas are shared with other apps; poll the small source tree instead.
+      // CHOKIDAR_USEPOLLING=false opts back into native watching.
+      usePolling: process.platform === 'linux',
+      interval: 250,
+    },
+  },
   test: {
     include: process.env.REPLAY
       ? ['scripts/replay.test.ts']

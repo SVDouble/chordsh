@@ -127,3 +127,15 @@ Validation: `npm run check` (125 tests) and production build; desktop/mobile bro
 layout, key-targeted ideas, insertion/undo, chord editing, timeline scrubbing, MIDI, source switching
 and persistence. Additional browser checks cover dual piano references, repeated/held/sustained
 recorded chords, no recording retrigger and equal-velocity preview/playback timbre.
+
+## Remaining-work pass
+
+- [x] Exclude local datasets/recordings from development watching and avoid exhausted Linux inotify quotas.
+- [ ] Train a chord-quality-aware next-chord model using recent sequence context and tune-split data only.
+- [ ] Use learned ranking in Ideas while retaining harmonic explanations and colour alternatives.
+- [ ] Expose prediction controls in shared Settings and reset sequence context at local key changes.
+- [ ] Measure next-chord prediction separately from recognition and record test-split results.
+- [ ] Verify inference regression, browser interactions and documentation.
+
+The accuracy/segmentation research, vocabulary layer, voicing coach and native host delivery above
+remain roadmap work; completed interface work is not evidence that those are delivered.

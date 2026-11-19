@@ -29,7 +29,7 @@
     canvas.height = height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const seg = session.seg;
-    const guide = new Set(session.practice && !session.practice.done ? session.practice.path.steps[session.practice.index].voicing : []);
+    const guide = new Set(session.guideNotes);
     const playing = new Set(ui.playing ?? []);
     const colour = (n: number) => {
       const sounding = seg.held.has(n) || seg.sustained.has(n);

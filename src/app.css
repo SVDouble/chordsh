@@ -45,10 +45,10 @@ select { background: var(--card-2); border: 1px solid var(--line); border-radius
 .status { margin-left: auto; color: var(--muted); }
 
 /* layout */
-.grid { display: grid; gap: 14px; padding: 14px 16px; grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr); grid-template-areas: 'now wheel' 'history history' 'next route'; }
+.grid { display: grid; gap: 14px; padding: 14px 16px; grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr); grid-template-areas: 'now wheel' 'history history' 'song song' 'next route'; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
-.now { grid-area: now; } .wheel { grid-area: wheel; } .history { grid-area: history; } .next { grid-area: next; } .route { grid-area: route; }
-@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'now' 'wheel' 'history' 'next' 'route'; } }
+.now { grid-area: now; } .wheel { grid-area: wheel; } .history { grid-area: history; } .next { grid-area: next; } .song { grid-area: song; } .route { grid-area: route; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'now' 'wheel' 'history' 'song' 'next' 'route'; } }
 
 /* now playing */
 .now-top { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
@@ -131,3 +131,32 @@ footer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card);
 .piano canvas { display: block; touch-action: none; cursor: pointer; border-radius: 4px; }
 .piano-legend { display: flex; gap: 14px; margin-top: 4px; }
 .piano-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
+
+/* song charts */
+h3 { font-size: 13px; margin: 12px 0 4px; }
+.editor { display: grid; gap: 6px; }
+.title-in, textarea { background: var(--card-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; color: var(--text); font: inherit; }
+textarea { font-family: ui-monospace, 'SF Mono', Menlo, monospace; resize: vertical; }
+.filebtn { position: relative; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; color: var(--text) !important; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.bars { display: flex; flex-wrap: wrap; gap: 0; margin: 8px 0; }
+.bar { position: relative; display: flex; gap: 4px; padding: 14px 8px 4px; border-left: 2px solid var(--line); min-width: 110px; }
+.section { position: absolute; top: -2px; left: 6px; font-size: 11px; color: var(--guide); font-weight: 600; }
+.cell { display: flex; flex-direction: column; align-items: center; min-width: 58px; padding: 4px 8px; }
+.cell:not(.k-diatonic) .c-roman { color: var(--audition); }
+.cell.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cell.sel { border-color: var(--audition); }
+.v-exact { background: color-mix(in srgb, var(--T) 28%, var(--card-2)); }
+.v-match { background: color-mix(in srgb, var(--T) 14%, var(--card-2)); border-color: var(--T); }
+.v-substitute { background: color-mix(in srgb, var(--X) 22%, var(--card-2)); }
+.v-wrong { background: color-mix(in srgb, var(--D) 22%, var(--card-2)); }
+.v-skipped { opacity: 0.45; border-style: dashed; }
+.song-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .song-cols { grid-template-columns: 1fr; } }
+.tone.mini { padding: 0 6px; margin-right: 3px; flex-direction: row; gap: 4px; }
+.live { padding: 6px 10px; border-radius: 8px; }
+.live.v-wrong { color: #ffd0d0; } .live.v-exact, .live.v-match { color: var(--T); background: none; } .live.v-substitute { color: var(--audition); background: none; }
+.insights li { margin-bottom: 2px; }
+.hint { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
+.hint button { padding: 2px 8px; }
+.hint button.playing { border-color: var(--audition); }

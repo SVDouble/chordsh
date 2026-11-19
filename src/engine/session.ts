@@ -6,6 +6,9 @@ import { Key, ScaleName, keyEq, keyFromIndex, keyIndex, keyShort as keyShortOf, 
 import { KeyDetector } from './keyDetector';
 import { Segmenter } from './segmenter';
 import { KeyReach, NextMove, Path, Style, computeReach, suggestNext, suggestPaths } from './coach';
+import { Chart, toChartText } from './chart';
+import { SongFollower } from './song';
+import { voiceChord } from '../theory/voicing';
 
 export interface ChordEntry {
   type: 'chord';
@@ -59,6 +62,9 @@ export class Session {
   practice: Practice | null = null;
   style: Style = 'jazz';
   lastVoicing: number[] | null = null;
+  song: SongFollower | null = null;
+  /** Show the song's next chord on the piano. */
+  songGuide = false;
 
   private id = 1;
   private pending: { ident: Identification; notes: number[]; t: number } | null = null;
@@ -97,6 +103,16 @@ export class Session {
   setTarget(k: Key | null) { this.target = k; this.practice = null; this.refresh(); }
   startPractice(path: Path) { this.practice = { path, index: 0, done: false, hit: [], missing: [] }; this.updatePracticeFeedback(); this.onChange(); }
   stopPractice() { this.practice = null; this.onChange(); }
+  loadSong(chart: Chart | null) { this.song = chart ? new SongFollower(chart) : null; this.onChange(); }
+  /** What you've played so far, as chart text (to save, edit or reharmonise). */
+  historyAsChart(): string { return toChartText(this.chords.map((c) => c.name)); }
+  /** Notes to highlight as a target on the piano. */
+  get guideNotes(): number[] {
+    const p = this.practice;
+    if (p && !p.done) return p.path.steps[p.index].voicing;
+    const e = this.songGuide ? this.song?.expected : null;
+    return e ? voiceChord(e.chord, this.lastVoicing) : [];
+  }
   clear() {
     Object.assign(this, { now: EMPTY, nowRoman: null, history: [], patterns: [], melody: [], key: null, practice: null, lastVoicing: null, chordCount: 0, melodyCount: 0 });
     this.detector.reset();
@@ -112,6 +128,7 @@ export class Session {
     const key = this.activeKey;
     this.nowRoman = ident.best && key ? analyzeRoman(ident.best, key) : null;
     this.checkPractice(ident);
+    if (ident.best) this.song?.preview(ident.best);
     if (strike && this.pending && t - this.pending.t > 60) this.commit();
     this.pending = { ident, notes, t };
     if (this.commitTimer) clearTimeout(this.commitTimer);
@@ -136,6 +153,7 @@ export class Session {
     if (this.history.length > 300) this.history.splice(0, this.history.length - 300);
     this.chordCount++;
     this.lastVoicing = p.notes;
+    this.song?.played(c);
     this.detector.addChord(c, p.t);
     this.updatePatterns(p.t);
     this.updateKey();

@@ -31,7 +31,8 @@ export class KeyDetector {
   private cad = new Float64Array(24);
   private last = 0;
 
-  constructor(public halfLifeMs = 10000) {}
+  /** `chordDecay` < 1 makes recent chords dominate (live); use 1 and Infinity to weigh a whole chart evenly. */
+  constructor(public halfLifeMs = 10000, public chordDecay = 0.85) {}
 
   reset() {
     this.hist.fill(0);
@@ -56,7 +57,7 @@ export class KeyDetector {
   }
 
   addChord(c: Chord, t: number, w = 1) {
-    this.decay(t, 0.85);
+    this.decay(t, this.chordDecay);
     for (const tone of c.tones) this.hist[mod12(c.root + tone.interval)] += w * (TONE_WEIGHT[tone.role] ?? 0.4);
     if (c.rootless) this.hist[c.root] += w;
     const core = corePcs(c);

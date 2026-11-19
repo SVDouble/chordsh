@@ -11,6 +11,7 @@
   import NextMoves from './NextMoves.svelte';
   import Route from './Route.svelte';
   import Piano from './Piano.svelte';
+  import Song from './Song.svelte';
 
   let demo = $state(false);
   let lock = $state('auto');
@@ -95,6 +96,7 @@
   <NowPlaying />
   <KeyWheel />
   <History />
+  <Song />
   <NextMoves />
   <Route />
 </main>

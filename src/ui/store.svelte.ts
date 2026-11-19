@@ -1,6 +1,7 @@
 import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
+import type { MidiEvent } from '../io/midifile';
 
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
 export const session = new Session();
@@ -21,6 +22,9 @@ export const ui = $state({
   playing: null as number[] | null,
   playingId: '',
   playingStep: -1,
+  /** User charts, saved in the browser. */
+  charts: (saved.charts ?? []) as { title: string; text: string }[],
+  filePlaying: false,
 });
 
 let queued = false;
@@ -33,7 +37,7 @@ session.onChange = bump;
 midi.onPorts = bump;
 
 export function persist(extra: Record<string, unknown> = {}) {
-  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId }, extra);
+  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, charts: $state.snapshot(ui.charts) }, extra);
   try { localStorage.setItem('musify', JSON.stringify(saved)); } catch { /* private mode */ }
 }
 export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: string; output?: string };
@@ -61,4 +65,34 @@ export function stopAudition() {
   ui.playing = null;
   ui.playingId = '';
   ui.playingStep = -1;
+}
+
+let fileTimers: ReturnType<typeof setTimeout>[] = [];
+
+/** Replay a MIDI file through the engine (as if you played it) and the synth. */
+export function playMidiFile(events: MidiEvent[]) {
+  stopMidiFile();
+  const lead = 300;
+  const onAt = new Map<number, number>();
+  for (const e of events) {
+    const at = (f: () => void) => fileTimers.push(setTimeout(f, lead + e.t));
+    if (e.type === 'on') {
+      onAt.set(e.note, e.t);
+      at(() => session.noteOn(e.note, e.vel));
+    } else if (e.type === 'off') {
+      const start = onAt.get(e.note) ?? e.t;
+      const dur = Math.max(0.05, (e.t - start) / 1000);
+      fileTimers.push(setTimeout(() => synth.play([e.note], 0, dur, 0.6), lead + start));
+      at(() => session.noteOff(e.note));
+    } else at(() => session.pedal(e.vel >= 64));
+  }
+  ui.filePlaying = true;
+  fileTimers.push(setTimeout(() => (ui.filePlaying = false), lead + (events[events.length - 1]?.t ?? 0) + 200));
+}
+
+export function stopMidiFile() {
+  fileTimers.forEach(clearTimeout);
+  fileTimers = [];
+  synth.stop();
+  ui.filePlaying = false;
 }

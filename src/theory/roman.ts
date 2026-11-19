@@ -12,7 +12,8 @@ export type RomanKind =
   | 'borrowed'
   | 'neapolitan'
   | 'chromatic-mediant'
-  | 'chromatic';
+  | 'chromatic'
+  | 'blues';
 
 export interface Roman {
   numeral: string;

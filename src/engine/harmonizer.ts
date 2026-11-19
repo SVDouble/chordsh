@@ -30,20 +30,20 @@ export interface HarmonizerParams {
   durationWeight: number;
 }
 
-/** Tuned on BPS-FH 1–12 + POP909 1–15 (scripts/tune.test.ts); checked on the held-out rest. */
+/** Tuned with `npm run tune` on the benchmark's tune split (5 corpora); checked on the test split. */
 export const DEFAULT_PARAMS: HarmonizerParams = {
-  chordChange: 0.81,
-  keyChange: 2.0,
+  chordChange: 0.61,
+  keyChange: 3.6,
   extraNote: 0.6,
   missingTone: 0.2,
-  prior: { diatonic: 0, secondary: -0.065, borrowed: -0.5, other: -1.1, tonic: 0.32, dominant: 0.44 },
-  keyFit: 0.175,
-  bassRoot: 0.4,
-  bassInChord: 0.04,
-  bassOutside: -0.02,
-  heldDecayMs: 910,
+  prior: { diatonic: 0, secondary: -0.065, borrowed: -0.25, other: -0.74, tonic: 0.43, dominant: 0.44 },
+  keyFit: 0.47,
+  bassRoot: 0.3,
+  bassInChord: 0.02,
+  bassOutside: -0.04,
+  heldDecayMs: 2460,
   durExp: 0.8,
-  saturation: 2.0,
+  saturation: 1.5,
   durationWeight: 0,
 };
 
@@ -343,7 +343,7 @@ export class Harmonizer {
   }
 
   private weight(seg: Segment): number {
-    return Math.pow(Math.min(3, Math.max(0.05, (seg.t1 - seg.t0) / 1000)), this.params.durExp);
+    return Math.min(3, Math.max(0.05, (seg.t1 - seg.t0) / 1000)) ** this.params.durExp;
   }
 
   push(seg: Segment) {

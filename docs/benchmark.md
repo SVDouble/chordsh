@@ -21,6 +21,10 @@ Options (environment variables):
 `npm run tune` searches the harmonizer parameters on the **tune** split only; report the **test** split
 when claiming an improvement.
 
+Use `P_<name>=value` (or `P_prior_<name>=value`) to compare parameters without editing the engine, for
+example `P_chordChange=0.81 SPLIT=test npm run benchmark`. Recorded runs include the parameter values;
+new reports also mark changes to benchmark source files and show the command for the recorded split.
+
 ## Corpora
 
 Defined in [`scripts/datasets.json`](../scripts/datasets.json) (repo, pinned commit, license, genre, tempo).
@@ -70,6 +74,28 @@ The **error breakdown** classifies every hindsight top-1 miss, so we know what t
 ## Results history
 
 Latest: [benchmarks/LATEST.md](../benchmarks/LATEST.md) · all runs: `benchmarks/history.jsonl`.
+
+### 2026-11-19 — five-corpus tuning, test split
+
+Coordinate search used up to ten pieces per corpus from the tune split. The selected rounded defaults
+improved its objective from 1.7847 to approximately 1.8463. On the full test split (684 pieces), the same
+corpus-balanced objective improved from **1.7098 to 1.7318**. It combines hindsight chord accuracy,
+live chord accuracy, key accuracy (close keys for pop) and a penalty for over/under-segmentation;
+these scores are not percentages.
+
+| corpus | live chord @1, before → tuned | hindsight chord @1, before → tuned | hindsight key @1, before → tuned |
+| ------ | ----------------------------- | ---------------------------------- | -------------------------------- |
+| bps-fh | 62.0 → 60.7                   | 70.8 → 70.6                        | 77.5 → 79.0                      |
+| chopin | 60.4 → 60.4                   | 71.0 → 69.9                        | 69.8 → 76.9                      |
+| jazz * | 80.1 → 80.3                   | 91.6 → 91.6                        | 45.2 → 46.2                      |
+| mozart | 56.3 → 54.1                   | 65.6 → 65.5                        | 77.7 → 83.7                      |
+| pop909 | 75.2 → 73.7                   | 83.1 → 81.0                        | 68.0 → 72.3                      |
+
+This is a tradeoff: better keys and combined score, with lower chord accuracy on several corpora.
+Restoring the old chord-change penalty (0.81) in the tuned set was also checked; it reduced hindsight
+chord accuracy further on Chopin, jazz, Mozart and pop, so the tune-selected 0.61 remains the default.
+The test split has now been inspected for that diagnostic comparison; future parameter searches must
+use the tune split, and this comparison is not an independent new holdout.
 
 ### 2026-11-19 — baseline of the HMM harmonizer (all pieces)
 

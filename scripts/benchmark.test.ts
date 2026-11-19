@@ -38,7 +38,7 @@ interface Row {
   beatF: number;
 }
 
-export function metrics(r: Row) {
+function metrics(r: Row) {
   const c = r.c,
     n = Math.max(1, c.n),
     miss = Math.max(1, c.n - c.chord1),
@@ -153,15 +153,16 @@ it('benchmark', () => {
   console.log(`\nsplit: ${sp}   (* = synthetic performance rendered from chord changes)\n\n${report}\n`);
   if (env.WRITE) {
     const git = execSync('git rev-parse --short HEAD').toString().trim();
+    const dirty = !!execSync('git status --porcelain -- src/engine src/theory scripts').toString().trim();
     const date = new Date().toISOString().slice(0, 10);
     fs.mkdirSync('benchmarks', { recursive: true });
     fs.appendFileSync(
       'benchmarks/history.jsonl',
-      JSON.stringify({ date, git, split: sp, params: PARAMS, rows }) + '\n',
+      JSON.stringify({ date, git, dirty, split: sp, params: PARAMS, rows }) + '\n',
     );
     fs.writeFileSync(
       'benchmarks/LATEST.md',
-      `# Latest benchmark\n\n${date} · commit ${git} · split \`${sp}\` · reproduce with \`npm run fetch-data && npm run benchmark\`\n\nAll numbers are % of 250 ms samples (chords, keys) or F-measure (beats, bars). \`*\` = synthetic performance rendered from chord changes. See [docs/benchmark.md](../docs/benchmark.md) for what each column means.\n\n${report}\n`,
+      `# Latest benchmark\n\n${date} · commit ${git}${dirty ? ' (modified working tree)' : ''} · split \`${sp}\` · reproduce with \`npm run fetch-data && SPLIT=${sp} npm run benchmark\`\n\nAll numbers are % of 250 ms samples (chords, keys) or F-measure (beats, bars). \`*\` = synthetic performance rendered from chord changes. See [docs/benchmark.md](../docs/benchmark.md) for what each column means.\n\nParameters (including any \`P_\` overrides):\n\n\`\`\`json\n${JSON.stringify(PARAMS, null, 2)}\n\`\`\`\n\n${report}\n`,
     );
     console.log('wrote benchmarks/history.jsonl and benchmarks/LATEST.md');
   }

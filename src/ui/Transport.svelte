@@ -8,7 +8,6 @@
     playSelection,
     pausePlayback,
     recorder,
-    seekPlayback,
     startRecording,
     stopPlayback,
     stopRecording,
@@ -93,21 +92,6 @@
     <input class="rec-note" bind:value={ui.recNote} placeholder="Recording note (optional)" aria-label="Recording note">
   {:else if ui.recMsg}
     <span class="small rec-msg" title={ui.recMsg}>{ui.recMsg.startsWith('Saved') ? '✓ saved' : ui.recMsg}</span>
-  {/if}
-  {#if ui.playbackDuration > 0 && !ui.preview}
-    <label class="seek"
-      ><span class="sr-only">Playback position</span>
-      <input
-        type="range"
-        min="0"
-        max={ui.playbackDuration}
-        step="100"
-        value={ui.playbackPosition}
-        onchange={(e) => seekPlayback(+e.currentTarget.value)}
-      ><span title={`Position ${time(ui.playbackPosition)} of ${time(ui.playbackDuration)}`}
-        >{time(ui.playbackPosition)}</span
-      ></label
-    >
   {/if}
   <span class="playback-status sr-only" aria-live="polite"
     >{ui.loading ? 'Loading…' : (ui.preview ?? (ui.nowPlaying ? 'Playing' : ui.playbackPaused ? 'Paused' : ''))}</span

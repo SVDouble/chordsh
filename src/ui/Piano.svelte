@@ -1,20 +1,15 @@
 <script lang="ts">
   import { focusedChord } from './composition.svelte';
-  import { toneNames, prettyRole } from '../theory/chords';
+  import { noteContext } from './noteContext';
   import { roleClass } from './colours';
   import { live, session, ui, settings } from './store.svelte';
   import { mod12 } from '../theory/pitch';
 
   const voice = $derived(focusedChord());
-  const tones = $derived(voice.chord ? toneNames(voice.chord, voice.key) : []);
-  const roles = $derived(
-    new Map(
-      voice.chord?.tones.map((tone) => [
-        mod12(voice.chord!.root + tone.interval),
-        tone.role === '1' ? 'R' : prettyRole(tone.role),
-      ]) ?? [],
-    ),
-  );
+  const activeNotes = $derived.by(() => {
+    void ui.tick;
+    return [...new Set([...voice.notes, ...session.seg.held.keys(), ...session.seg.sustained, ...(ui.playing ?? [])])];
+  });
   const ROLE_COLOURS: Record<string, string> = {
     'r-root': '--guide',
     'r-guide': '--harmony',
@@ -30,8 +25,10 @@
   let width = $state(800);
   let keyboard = $state<HTMLElement>();
   const drawWidth = $derived(Math.max(width, settings.editor.pianoKeyWidth * 52));
-  const noteSignature = $derived(voice.notes.join(','));
+  const noteSignature = $derived(activeNotes.join(','));
   let winH = $state(900);
+  let hovered = $state<number | null>(null);
+  const hoverText = $derived(hovered === null ? '' : noteContext(hovered, voice.chord, voice.key).description);
   /** Scale the on-screen piano with the window so it never crowds out the panels. */
   const height = $derived(Math.round(Math.max(70, Math.min(130, winH * 0.13))));
 
@@ -57,15 +54,13 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const seg = session.seg;
     const guide = new Set(session.guideNotes);
-    const playing = new Set(ui.playing ?? []);
-    const selected = new Set(voice.notes);
+    const active = new Set(activeNotes);
     const colour = (n: number) => {
-      const sounding = seg.held.has(n) || seg.sustained.has(n);
-      if (selected.has(n)) return roles.has(mod12(n)) ? roleColour(roles.get(mod12(n))!) : css('--melody');
-      if (sounding)
-        return seg.melodyNotes.has(n) ? css('--melody') : seg.harmony.has(n) ? css('--harmony') : css('--accent');
-      if (playing.has(n)) return css('--audition');
-      return null;
+      if (!active.has(n)) return null;
+      const relation = noteContext(n, voice.chord, voice.key).role;
+      if (!relation) return css('--accent');
+      if (relation.kind === 'outside') return css('--D');
+      return roleColour(relation.label);
     };
     for (const pass of [false, true])
       for (const [n, k] of keys) {
@@ -86,30 +81,38 @@
           ctx.arc(k.x + k.w / 2, h - 10, Math.min(6, k.w / 3), 0, Math.PI * 2);
           ctx.fill();
         }
-        const role = selected.has(n) ? roles.get(mod12(n)) : undefined;
-        if (role) {
-          ctx.fillStyle = '#0b0d12';
-          ctx.font = `bold ${Math.min(12, Math.max(8, k.w - 2))}px system-ui`;
-          ctx.textAlign = 'center';
-          ctx.fillText(role === 'R' ? 'R' : role, k.x + k.w / 2, h - 21);
+        const context = noteContext(n, voice.chord, voice.key);
+        const on = active.has(n);
+        const blue = context.role && context.role.kind !== 'outside' && roleClass(context.role.label) === 'r-guide';
+        const ink = on
+          ? blue && settings.preferences.theme === 'light'
+            ? '#fff'
+            : '#0b0d12'
+          : k.black
+            ? '#e7eaf1'
+            : '#47516a';
+        ctx.fillStyle = ink;
+        ctx.textAlign = 'center';
+        ctx.font = `${Math.max(8, Math.min(11, k.w * 0.54))}px system-ui`;
+        ctx.fillText(k.black ? context.pitchName : context.name, k.x + k.w / 2, h - 5, k.w - 2);
+        if (on && context.role) {
+          if (context.role.label === 'R' && context.chordName) {
+            ctx.save();
+            ctx.translate(k.x + k.w / 2, Math.max(19, h * 0.34));
+            ctx.rotate(-Math.PI / 2);
+            ctx.font = `bold ${Math.min(11, k.w * 0.58)}px system-ui`;
+            ctx.fillText(context.chordName, 0, 3, Math.max(24, h * 0.52));
+            ctx.restore();
+          } else {
+            ctx.font = `bold ${Math.min(12, Math.max(8, k.w * 0.7))}px system-ui`;
+            ctx.fillText(context.role.label, k.x + k.w / 2, Math.max(20, h * 0.32), k.w - 2);
+          }
         }
-        if (mod12(n) === 0 && !k.black) {
-          ctx.fillStyle = css('--muted');
-          ctx.font = '11px system-ui';
-          ctx.textAlign = 'center';
-          ctx.fillText(`C${n / 12 - 1}`, k.x + k.w / 2, height - 4);
+        if (on && context.degree) {
+          ctx.font = `${Math.max(8, Math.min(11, k.w * 0.55))}px system-ui`;
+          ctx.fillText(`ˆ${context.degree}`, k.x + k.w / 2, h - 22, k.w - 2);
         }
       }
-    const split = seg.split;
-    if (split !== null && keys.get(split)) {
-      ctx.strokeStyle = css('--muted');
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(keys.get(split)!.x, 0);
-      ctx.lineTo(keys.get(split)!.x, height);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
   });
 
   $effect(() => {
@@ -141,32 +144,26 @@
 </script>
 
 <svelte:window bind:innerHeight={winH} />
-<section class="keyboard-roles" aria-label="Chord tones">
-  {#if tones.length}
-    <b>{voice.name}</b>
-    {#each tones as tone}
-      <span class="key-role {roleClass(tone.role)}" title={tone.implied ? 'Implied tone, not in this voicing' : ''}
-        ><b>{tone.name}</b> {tone.role === 'R' ? 'Root' : tone.role}</span
-      >
-    {/each}
-  {:else}
-    <span class="muted small">Note roles appear here when you select or play a chord.</span>
-  {/if}
-</section>
 <section
   class="piano"
   bind:clientWidth={width}
   bind:this={keyboard}
+  title={hoverText ||
+    'Note names below; chord intervals above; ˆ marks degrees in the current key. Hover a key for both references.'}
   aria-label={voice.name
-    ? `Piano: ${voice.name}. ${tones.map((t) => `${t.name} ${t.role === 'R' ? 'root' : t.role}`).join(', ')}`
-    : 'Piano keyboard'}
+    ? `Piano relative to ${voice.name}. Note names below, chord intervals above, scale degrees marked with a caret. ${activeNotes.map((n) => noteContext(n, voice.chord, voice.key).description).join('; ')}`
+    : 'Piano keyboard with note names. Select or play a chord to inspect chord intervals and scale degrees.'}
 >
   <canvas
     bind:this={canvas}
     style="width:{drawWidth}px;height:{height}px"
+    onpointermove={(e) => (hovered = hit(e))}
     onpointerdown={down}
     onpointerup={up}
-    onpointerleave={up}
+    onpointerleave={() => {
+      hovered = null;
+      up();
+    }}
     onpointercancel={up}
   ></canvas>
 </section>

@@ -15,7 +15,7 @@ import { computeReach, type Path } from '../engine/coach';
 import { parseChordSymbol } from '../theory/symbols';
 import { chordName, identify } from '../theory/chords';
 import { analyzeRoman } from '../theory/roman';
-import { keyIndex } from '../theory/scales';
+import { type Key, keyIndex } from '../theory/scales';
 import {
   savedData as saved,
   downloadMidi,
@@ -83,7 +83,15 @@ export const composition = $state({
   cursor: initial.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0),
   documents: restored.length ? restored : [initial],
   error: '',
-  take: null as { started: number; at: number; bpm: number; songId: string; inputSerial: number } | null,
+  take: null as {
+    started: number;
+    at: number;
+    bpm: number;
+    songId: string;
+    inputSerial: number;
+    heldAtStart: boolean;
+    origin: number | null;
+  } | null,
 });
 
 export const currentSequence = () => editor.document;
@@ -110,7 +118,16 @@ export function editSequence(action: (editor: SequenceEditor) => void) {
     const playing = !!ui.nowPlaying && ui.sourceId === `sequence:${editor.document.id}`;
     const beat = (ui.playbackPosition * editor.document.bpm) / 60000;
     editor.settings = $state.snapshot(settings.editor);
+    const before = editor.document;
     action(editor);
+    const after = editor.document;
+    if (composition.selectedId && !after.steps.some((s) => s.id === composition.selectedId)) {
+      const removed = before.steps.filter((s) => !after.steps.some((n) => n.id === s.id));
+      if (removed.length) selectTimeline(Math.min(...removed.map((s) => s.start)));
+    } else if (!composition.selectedId) {
+      const added = after.steps.filter((s) => !before.steps.some((n) => n.id === s.id));
+      if (added.length) selectStep(added[added.length - 1].id);
+    }
     stopPlayback();
     sync();
     ui.tab = 'editor';
@@ -264,15 +281,14 @@ export function acceptChords(inputs: ChordInput[], replace = false, announce = t
     );
 }
 
-export function acceptPath(path: Path) {
+export function acceptPath(path: Path, destination?: Key) {
   const from = compositionContext().key ?? undefined;
-  const to = session.target ?? from;
+  const to = destination ?? session.target ?? from;
   acceptChords(
     path.steps.map((s, i) => ({ symbol: s.name, notes: s.voicing, key: i === path.steps.length - 1 ? to : from })),
   );
   if (!composition.error) {
     session.setTarget(null);
-    ui.nextTab = 'chords';
   }
 }
 
@@ -292,17 +308,18 @@ export function inputTimeline() {
   const doc = editor.document;
   const take = composition.take;
   if (take && take.songId === doc.id) {
-    if (ui.inputSerial === take.inputSerial) return [];
+    if (ui.inputSerial === take.inputSerial && !take.heldAtStart) return [];
     const now = take.started + ui.recordingElapsed;
+    const origin = take.origin ?? take.started;
     return session.chords
-      .filter((c) => c.t1 > take.started && c.t0 < now)
+      .filter((c) => c.t1 > take.started && c.t0 < now && (c.t0 >= take.started - 1 || take.heldAtStart))
       .map((c, i, chords) => {
-        const start = Math.max(take.started, c.t0);
+        const start = Math.max(origin, c.t0);
         const end = Math.max(start, Math.min(now, chords[i + 1]?.t0 ?? c.t1));
         return {
           id: `input:${c.id}`,
           symbol: c.name,
-          start: take.at + ((start - take.started) * take.bpm) / 60000,
+          start: take.at + ((start - origin) * take.bpm) / 60000,
           beats: Math.max(MUSIC_LIMITS.minChordBeats, ((end - start) * take.bpm) / 60000),
           notes: c.notes,
           key: c.key ?? undefined,
@@ -319,9 +336,17 @@ export function inputTimeline() {
       beats: doc.meter,
       notes: session.now.notes,
       key: session.activeKey ?? undefined,
-      velocity: settings.editor.velocity,
+      velocity: ui.inputVelocity,
     },
   ].filter((s) => s.symbol);
+}
+
+/** The first played attack anchors a sketch take at the insertion cursor. */
+export function recordingBeat() {
+  const take = composition.take;
+  if (!take) return composition.cursor;
+  if (take.origin === null) return take.at;
+  return take.at + (Math.max(0, ui.recordingElapsed - (take.origin - take.started)) * take.bpm) / 60000;
 }
 
 /** One chord focus for the inspector, keyboard and timeline, regardless of how it was entered. */
@@ -389,13 +414,32 @@ export async function resetWorkspace() {
 
 recordingHooks.start = () => {
   const doc = editor.document;
+  const held = [...session.seg.held].map(([note, data]) => ({ note, velocity: data.vel }));
+  const sustained = [...session.seg.sustained].filter((note) => !session.seg.held.has(note));
+  const started = performance.now();
   composition.take = {
-    started: performance.now(),
+    started,
     at: composition.cursor,
     bpm: doc.bpm,
     songId: doc.id,
     inputSerial: ui.inputSerial,
+    heldAtStart: held.length + sustained.length > 0,
+    origin: held.length + sustained.length > 0 ? started : null,
   };
+  // Start a fresh analysis take, so a repeated chord cannot merge into pre-recording history.
+  // Feed sounding notes into analysis only; the synth and MIDI output continue without a retrigger.
+  session.clear();
+  if (ui.inputPedal) session.pedal(true, started);
+  for (const { note, velocity } of held) session.noteOn(note, velocity, started);
+  if (sustained.length) {
+    for (const note of sustained) {
+      session.noteOn(note, ui.inputVelocity, started);
+      session.noteOff(note, started);
+    }
+  }
+};
+recordingHooks.noteOn = (t) => {
+  if (composition.take && composition.take.origin === null) composition.take.origin = t;
 };
 recordingHooks.stop = (recording) => {
   const take = composition.take;
@@ -407,13 +451,21 @@ recordingHooks.stop = (recording) => {
   if (!recording.input.some((e) => e.kind === 'on') || !steps.length) return;
   selectTimeline(steps[0].start);
   acceptChords(
-    steps.map((s, i) => ({
-      ...s,
-      beats: Math.max(
-        MUSIC_LIMITS.minChordBeats,
-        Math.min(MUSIC_LIMITS.maxChordBeats, (steps[i + 1]?.start ?? s.start + s.beats) - s.start),
-      ),
-    })),
+    steps.map((s, i) => {
+      const onset = ((s.start - take.at) * 60000) / take.bpm + ((take.origin ?? take.started) - take.started);
+      const nextOnset =
+        (((steps[i + 1]?.start ?? s.start + s.beats) - take.at) * 60000) / take.bpm +
+        ((take.origin ?? take.started) - take.started);
+      const attacks = recording.input.filter((e) => e.kind === 'on' && e.t >= onset - 1 && e.t < nextOnset);
+      return {
+        ...s,
+        velocity: attacks.length ? Math.round(attacks.reduce((sum, e) => sum + e.vel, 0) / attacks.length) : s.velocity,
+        beats: Math.max(
+          MUSIC_LIMITS.minChordBeats,
+          Math.min(MUSIC_LIMITS.maxChordBeats, (steps[i + 1]?.start ?? s.start + s.beats) - s.start),
+        ),
+      };
+    }),
   );
 };
 

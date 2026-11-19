@@ -98,6 +98,32 @@ play a sequence through it). MPK mini: no speakers — sound comes from the brow
 - [x] Replace the song-wide key dropdown with editable key regions and timeline indicators for modulations.
 - [x] Wrap the timeline into rows according to the available bar width and use vertical space.
 - [x] Consolidate Song tools into contextual controls/menus.
-- [x] Keep seek and transport on one toolbar row; use a consistent icon set.
+- [x] Use consistent transport icons; seeking now lives on the timeline ruler (see refinement below).
 - [x] Verify editing, capture, region changes, playback/pause/seek, MIDI, responsive layout and persistence.
 - [x] Update documentation and record the final regression checks.
+
+## Sketch workflow refinement
+
+- [x] Make the timeline the largest area; the later harmony-block layout below supersedes the initial three-column arrangement.
+- [x] Combine next-chord and key-change suggestions into one playable, insertable list.
+- [x] Make the circle of fifths an optional target picker for that same list, with no separate workflow.
+- [x] Keep the timeline panel fixed; scroll only its bar area and move chord editing out of the panel flow.
+- [x] Remove toolbar seeking and make seeking/scrubbing part of the timeline.
+- [x] Investigate and stabilize preview/playback sound and audio lifecycle during development updates.
+- [x] Verify the sketch workflow, layout, input, playback, MIDI and persistence; update documentation.
+
+## Harmony block and piano notation
+
+- [x] Group chord information, compact ideas and the circle together on the left; give the timeline the remaining space.
+- [x] Let circle selection switch the same ideas list to routes into the selected key, without tabs.
+- [x] Move playback controls and source selection into the timeline panel.
+- [x] Highlight the current insertion beat, including after accepting/undoing an idea.
+- [x] Put note names on all piano keys; remove the keyboard message/legend row.
+- [x] Show chord-relative roles above and key-relative scale degrees below, with explicit reference names in tooltips.
+- [x] Use interval relationships for every sounding note instead of melody/harmony classification colours.
+- [x] Verify the revised layout, keyboard semantics, recording, interactive editing and audio consistency.
+
+Validation: `npm run check` (125 tests) and production build; desktop/mobile browser checks for
+layout, key-targeted ideas, insertion/undo, chord editing, timeline scrubbing, MIDI, source switching
+and persistence. Additional browser checks cover dual piano references, repeated/held/sustained
+recorded chords, no recording retrigger and equal-velocity preview/playback timbre.

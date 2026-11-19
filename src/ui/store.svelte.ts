@@ -48,7 +48,11 @@ export const live = {
     playback = false,
   ) => {
     ui.inputSerial++;
-    if (!playback) ui.harmonyContext = 'input';
+    if (!playback) {
+      ui.harmonyContext = 'input';
+      ui.inputVelocity = v;
+    }
+    if (ui.recording) recordingHooks.noteOn(t);
     recorder.input('on', n, v, t);
     session.noteOn(n, v, t);
     if (monitor) synth.noteOn(n, v);
@@ -63,6 +67,7 @@ export const live = {
       midi.message([0x80, n, 0]);
   },
   pedal: (on: boolean, t = performance.now(), forward = true) => {
+    ui.inputPedal = on;
     recorder.input('pedal', 0, on ? 127 : 0, t);
     session.pedal(on, t);
     synth.setPedal(on);
@@ -102,13 +107,13 @@ export const ui = $state({
   /** Main panel: one song timeline, or the library. */
   tab: 'editor' as 'editor' | 'library',
   harmonyContext: 'timeline' as 'timeline' | 'input',
-  /** Chord suggestions and key-change routes share Where next. */
-  nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
   audioBlocked: true,
   recording: false,
   recordingElapsed: 0,
   inputSerial: 0,
+  inputVelocity: 80,
+  inputPedal: false,
   /** Where bars come from: estimated from playing, a metronome, or a MIDI file's tempo. */
   bars: 'auto' as 'auto' | 'metronome' | 'file',
   recNote: '',
@@ -199,7 +204,13 @@ function outputReady() {
 }
 
 /** Play a sequence of voicings through the synth and/or MIDI out, highlighting each step. */
-export function audition(seq: number[][], id = '', beats: number | number[] = 2, label = 'Chord preview') {
+export function audition(
+  seq: number[][],
+  id = '',
+  beats: number | number[] = 2,
+  label = 'Chord preview',
+  velocities: number | number[] = settings.editor.velocity,
+) {
   if (!outputReady()) return;
   ui.playbackRequest++;
   ui.loading = false;
@@ -210,11 +221,12 @@ export function audition(seq: number[][], id = '', beats: number | number[] = 2,
   const t0 = performance.now() + 60;
   let at = 0; // seconds
   seq.forEach((notes, i) => {
+    const velocity = Array.isArray(velocities) ? (velocities[i] ?? settings.editor.velocity) : velocities;
     const dur = beat * (Array.isArray(beats) ? (beats[i] ?? 2) : beats);
     if (settings.preferences.sound === 'synth' || settings.preferences.sound === 'both')
-      synth.play(notes, 0.06 + at, dur * settings.editor.gate);
+      synth.play(notes, 0.06 + at, dur * settings.editor.gate, velocity);
     if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
-      midi.send(notes, t0 + at * 1000, dur * settings.editor.gate * 1000);
+      midi.send(notes, t0 + at * 1000, dur * settings.editor.gate * 1000, velocity);
     timers.push(
       setTimeout(
         () => {
@@ -442,7 +454,7 @@ export function stopPlayback() {
   ui.playbackPosition = 0;
 }
 
-export const recordingHooks = { start: () => {}, stop: (_recording: Recording) => {} };
+export const recordingHooks = { start: () => {}, noteOn: (_t: number) => {}, stop: (_recording: Recording) => {} };
 
 export function startRecording() {
   recorder.start({
@@ -457,6 +469,11 @@ export function startRecording() {
     inputs: midi.devices,
     userAgent: navigator.userAgent,
   });
+  // A take includes notes already sounding when Record is pressed, without retriggering the synth.
+  for (const [note, data] of session.seg.held) recorder.input('on', note, data.vel);
+  for (const note of session.seg.sustained)
+    if (!session.seg.held.has(note)) recorder.input('on', note, ui.inputVelocity);
+  if (ui.inputPedal) recorder.input('pedal', 0, 127);
   session.trace = (e) => recorder.engine(e);
   ui.recording = true;
   ui.recordingElapsed = 0;
@@ -474,3 +491,9 @@ export async function stopRecording() {
   setTimeout(() => (ui.recMsg = ''), 8000);
   ui.recNote = '';
 }
+
+if (import.meta.hot)
+  import.meta.hot.dispose(() => {
+    stopPlayback();
+    synth.dispose();
+  });

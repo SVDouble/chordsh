@@ -10,6 +10,8 @@ function setup(state: AudioContextState = 'suspended') {
     setTargetAtTime: vi.fn(),
     cancelScheduledValues: vi.fn(),
   });
+  const gainParams: ReturnType<typeof param>[] = [];
+  const filters: ReturnType<typeof param>[] = [];
   const node = () => ({ connect: vi.fn().mockReturnThis() });
   const oscillators: { start: ReturnType<typeof vi.fn>; stop: ReturnType<typeof vi.fn> }[] = [];
   const ctx = {
@@ -18,9 +20,18 @@ function setup(state: AudioContextState = 'suspended') {
     destination: node(),
     onstatechange: () => {},
     resume: vi.fn(() => Promise.resolve()),
-    createGain: () => ({ ...node(), gain: param() }),
+    close: vi.fn(() => Promise.resolve()),
+    createGain: () => {
+      const gain = param();
+      gainParams.push(gain);
+      return { ...node(), gain };
+    },
     createDynamicsCompressor: node,
-    createBiquadFilter: () => ({ ...node(), frequency: param() }),
+    createBiquadFilter: () => {
+      const frequency = param();
+      filters.push(frequency);
+      return { ...node(), frequency };
+    },
     createOscillator: () => {
       const oscillator = { ...node(), frequency: param(), start: vi.fn(), stop: vi.fn() };
       oscillators.push(oscillator);
@@ -39,12 +50,34 @@ function setup(state: AudioContextState = 'suspended') {
     ctx.state = 'running';
     ctx.onstatechange();
   };
-  return { synth, ctx, oscillators, resume };
+  return { synth, ctx, oscillators, resume, gainParams, filters };
 }
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('browser audio activation', () => {
+  it('uses the same velocity curve, brightness and envelope for live/playback notes and previews', () => {
+    const { synth, filters, gainParams } = setup('running');
+    synth.noteOn(60, 96);
+    synth.play([60], 0, 1, 96);
+    expect(filters[0].setValueAtTime.mock.calls[0]).toEqual(filters[1].setValueAtTime.mock.calls[0]);
+    const attacks = gainParams.filter((p) => p.linearRampToValueAtTime.mock.calls.length);
+    expect(attacks).toHaveLength(2);
+    expect(attacks[0].linearRampToValueAtTime.mock.calls[0]).toEqual(attacks[1].linearRampToValueAtTime.mock.calls[0]);
+  });
+
+  it('silences notes and closes the old audio context once when disposed for a development update', () => {
+    const { synth, ctx, oscillators } = setup('running');
+    synth.noteOn(60, 90);
+    synth.play([64], 30, 1);
+    synth.dispose();
+    expect(ctx.close).toHaveBeenCalledTimes(1);
+    expect(ctx.onstatechange).toBeNull();
+    expect(oscillators.every((o) => o.stop.mock.calls.length)).toBe(true);
+    synth.dispose();
+    expect(ctx.close).toHaveBeenCalledTimes(1);
+  });
+
   it('reports already permitted audio before any notes are played', () => {
     const { synth } = setup('running');
     synth.onState = vi.fn();

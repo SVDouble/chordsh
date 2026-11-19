@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import Transport from './Transport.svelte';
   import { DEFAULT_SETTINGS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import {
@@ -7,6 +8,7 @@
     canRedo,
     canUndo,
     inputTimeline,
+    recordingBeat,
     commitInputPreview,
     composition,
     currentSequence,
@@ -19,7 +21,7 @@
     selectStep,
     selectTimeline,
   } from './composition.svelte';
-  import { audition, seekPlayback, session, settings, ui } from './store.svelte';
+  import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
@@ -35,6 +37,10 @@
   let regionKey = $state('auto');
   let regionLabel = $state('');
   let regionId = $state<string | null>(null);
+  let chordPopover = $state<HTMLElement>();
+  let popupX = $state(12);
+  let popupY = $state(80);
+  let scrubbing = $state<{ pointer: number; resume: boolean } | null>(null);
   let chordInput = $state<HTMLInputElement>();
   let popup = $state(false);
   let editingId = $state<string | null>(null);
@@ -92,17 +98,14 @@
   const playBeat = $derived((ui.playbackPosition * document.bpm) / 60000);
   const focusBeat = $derived(playing || ui.playbackPaused ? playBeat : (selected?.start ?? composition.cursor));
   const localKey = $derived(sequenceKeyAt(document, focusBeat));
+  const cursorBeat = $derived(playing || ui.playbackPaused || ui.playbackPosition > 0 ? playBeat : composition.cursor);
 
   $effect(() => {
     void document.id;
     popup = false;
   });
   $effect(() => {
-    const focus = composition.take
-      ? composition.take.at + (ui.recordingElapsed * composition.take.bpm) / 60000
-      : playing
-        ? playBeat
-        : (incoming.at(-1)?.start ?? selected?.start);
+    const focus = composition.take ? recordingBeat() : playing ? playBeat : (incoming.at(-1)?.start ?? selected?.start);
     if (focus === undefined || !scroller) return;
     const row = Math.floor(focus / beatsPerRow);
     const top = row * 192;
@@ -141,6 +144,32 @@
     );
   }
 
+  function seekTo(beat: number) {
+    const at = Math.max(0, Math.round(beat / settings.editor.snapBeats) * settings.editor.snapBeats);
+    selectTimeline(at);
+    seekPlayback((at * 60000) / document.bpm);
+  }
+  function beginSeek(e: PointerEvent) {
+    if (e.button !== 0 || ui.recording) return;
+    e.preventDefault();
+    const resume = playing;
+    if (resume) pausePlayback();
+    scrubbing = { pointer: e.pointerId, resume };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    seekTo(Number((e.currentTarget as HTMLElement).dataset.beat));
+  }
+  function movePointer(e: PointerEvent) {
+    if (scrubbing?.pointer === e.pointerId) seekTo(pointerBeat(e));
+    else moveDrag(e);
+  }
+  function endPointer(e: PointerEvent) {
+    if (scrubbing?.pointer === e.pointerId) {
+      const resume = scrubbing.resume;
+      scrubbing = null;
+      if (resume) resumePlayback(ui.playbackPosition);
+    } else endDrag(e);
+  }
+
   async function openAt(at: number, step?: SequenceStep) {
     const existing = step ?? document.steps.find((s) => s.start <= at && s.start + s.beats > at);
     if (existing) selectStep(existing.id);
@@ -155,6 +184,16 @@
     velocity = existing?.velocity ?? settings.editor.velocity;
     popup = true;
     await tick();
+    chordPopover?.showPopover();
+    const rowStart = Math.floor(at / beatsPerRow) * beatsPerRow;
+    const row = scroller?.querySelector<HTMLElement>(`[data-start="${rowStart}"]`);
+    const box = row?.getBoundingClientRect();
+    const panel = chordPopover?.getBoundingClientRect();
+    popupX = Math.max(
+      12,
+      Math.min(innerWidth - (panel?.width ?? 440) - 12, (box?.left ?? 12) + (at - rowStart) * beatWidth),
+    );
+    popupY = Math.max(12, Math.min(innerHeight - (panel?.height ?? 260) - 12, (box?.top ?? 40) + 150));
     chordInput?.focus();
     chordInput?.select();
   }
@@ -198,7 +237,7 @@
       composition.error = 'Choose MIDI notes from 0 to 127.';
       return;
     }
-    audition([voicing], 'edit-preview', duration, symbol);
+    audition([voicing], 'edit-preview', duration, symbol, velocity);
   }
   function beginDrag(e: PointerEvent, s: SequenceStep, mode: 'move' | 'resize') {
     if (e.button !== 0) return;
@@ -252,7 +291,14 @@
   }
 </script>
 
-<svelte:window onpointermove={moveDrag} onpointerup={endDrag} onpointercancel={() => (drag = null)} />
+<svelte:window
+  onpointermove={movePointer}
+  onpointerup={endPointer}
+  onpointercancel={(e) => {
+    if (scrubbing?.pointer === e.pointerId) endPointer(e);
+    drag = null;
+  }}
+/>
 <div class="sequence-editor">
   <div class="sequence-heading">
     <input
@@ -317,6 +363,7 @@
       </details>
     </div>
   </div>
+  <Transport />
   <div
     class="song-status small"
     class:warn={!ui.savedLocally}
@@ -358,6 +405,9 @@
     >
       <Icon name="key" />
     </button>
+    <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
+      >Bar {Math.floor(cursorBeat / document.meter) + 1} · beat {+((cursorBeat % document.meter) + 1).toFixed(2)}</span
+    >
     <span class="right row tight timeline-zoom"
       ><button
         type="button"
@@ -385,7 +435,7 @@
     {#each rows as rowStart}
       {@const rowEnd = rowStart + beatsPerRow}
       {@const head = composition.take
-        ? composition.take.at + (ui.recordingElapsed * composition.take.bpm) / 60000
+        ? recordingBeat()
         : playing || ui.playbackPosition > 0
           ? playBeat
           : composition.cursor}
@@ -412,13 +462,17 @@
           <button
             type="button"
             class="timeline-ruler"
+            class:insertion={composition.cursor >= beat && composition.cursor < beat + 1}
+            data-beat={beat}
             class:bar-start={beat % document.meter === 0}
             style:left={`${(beat - rowStart) * beatWidth}px`}
             style:width={`${beatWidth}px`}
             aria-label={`Seek bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
-            onclick={() => {
-              selectTimeline(beat);
-              seekPlayback((beat * 60000) / document.bpm);
+            disabled={ui.recording}
+            title="Click or drag to seek"
+            onpointerdown={beginSeek}
+            onclick={(e) => {
+              if (e.detail === 0 && !ui.recording) seekTo(beat);
             }}
           >
             {beat % document.meter === 0 ? Math.floor(beat / document.meter) + 1 : '·'}
@@ -426,6 +480,8 @@
           <button
             type="button"
             class="timeline-slot"
+            class:insertion={composition.cursor >= beat && composition.cursor < beat + 1}
+            aria-current={composition.cursor >= beat && composition.cursor < beat + 1 ? 'location' : undefined}
             class:bar-start={beat % document.meter === 0}
             style:left={`${(beat - rowStart) * beatWidth}px`}
             style:width={`${beatWidth}px`}
@@ -525,140 +581,158 @@
       </div>
     {/each}
   </div>
-  <div class="timeline-caption muted small">
-    Click to add or change a chord · drag to move · drag its edge to resize
-  </div>
+  <div class="timeline-caption muted small">Click a beat to add · drag chords to arrange · drag the ruler to seek</div>
 
   {#if popup}
-    <form
-      class="chord-popover"
+    <section
+      bind:this={chordPopover}
+      popover="auto"
+      class="chord-editor-popover"
+      style:left={`${popupX}px`}
+      style:top={`${popupY}px`}
       aria-label={editingId ? 'Edit chord' : 'Add chord'}
-      onsubmit={(e) => {
-        e.preventDefault();
-        save();
+      ontoggle={() => {
+        if (chordPopover && !chordPopover.matches(':popover-open')) popup = false;
       }}
     >
-      <div class="chord-popover-main">
-        <input
-          bind:this={chordInput}
-          aria-label="Chord symbol"
-          bind:value={symbol}
-          placeholder="Cmaj7"
-          autocomplete="off"
-          spellcheck="false"
-        >
-        <button
-          type="button"
-          class="icon"
-          aria-label="Preview chord"
-          title="Preview"
-          disabled={!symbol.trim()}
-          onclick={preview}
-        >
-          <Icon name="play" />
-        </button>
-        <button
-          type="submit"
-          class="icon"
-          aria-label={editingId ? 'Save chord' : 'Add chord'}
-          title={editingId ? 'Save chord' : 'Add chord'}
-          disabled={!symbol.trim()}
-        >
-          <Icon name="check" />
-        </button>
-        {#if editingId}
+      <form
+        class="chord-popover"
+        aria-label={editingId ? 'Edit chord' : 'Add chord'}
+        onsubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <div class="chord-popover-main">
+          <input
+            bind:this={chordInput}
+            aria-label="Chord symbol"
+            bind:value={symbol}
+            placeholder="Cmaj7"
+            autocomplete="off"
+            spellcheck="false"
+          >
           <button
             type="button"
             class="icon"
-            aria-label="Duplicate chord"
-            title="Duplicate"
-            onclick={() => {
-              const id = editingId!;
-              editSequence((e) => {
-                composition.selectedId = e.duplicate(id);
-              });
-              popup = false;
-            }}
-          >
-            <Icon name="copy" />
-          </button><button type="button" class="icon" aria-label="Delete chord" title="Delete" onclick={removeSelected}>
-            <Icon name="delete" />
-          </button>
-        {/if}
-        <button
-          type="button"
-          class="icon"
-          aria-label="Close chord editor"
-          title="Close"
-          onclick={() => (popup = false)}
-        >
-          <Icon name="close" />
-        </button>
-      </div>
-      <div class="duration-choices">
-        <span class="small muted">Beats</span>
-        {#each [0.5, 1, 2, 4, 8] as n}
-          <button type="button" class:on={duration === n} onclick={() => (duration = n)}>{n}</button>
-        {/each}
-        <input
-          aria-label="Chord duration"
-          type="number"
-          min={MUSIC_LIMITS.minChordBeats}
-          max={MUSIC_LIMITS.maxChordBeats}
-          step="any"
-          bind:value={duration}
-        >
-      </div>
-      <details class="voicing-editor">
-        <summary>Voicing</summary>
-        <div class="row">
-          <label>MIDI notes <input aria-label="Voicing MIDI notes" bind:value={notes} placeholder="48 52 55 59"></label
-          ><label
-            >Velocity <input aria-label="Chord velocity" type="number" min="1" max="127" bind:value={velocity}></label
-          >
-        </div>
-      </details>
-    </form>
-  {/if}
-  {#if selected && hints.length}
-    <div class="timeline-ideas">
-      <span class="small muted">Try instead</span>
-      {#each hints as h, i}
-        <span class="idea-chip" title={h.why}
-          ><span>{h.names.join(' → ')}</span
-          ><button
-            type="button"
-            class="icon"
-            aria-label={`Preview ${h.label}`}
-            title={h.label}
-            onclick={() =>
-              audition(
-                h.chords.map((c) => voiceChord(c, selected.notes)),
-                `reharm:${i}`,
-                selected.beats / h.chords.length,
-                h.label,
-              )}
+            aria-label="Preview chord"
+            title="Preview"
+            disabled={!symbol.trim()}
+            onclick={preview}
           >
             <Icon name="play" />
-          </button><button
-            type="button"
+          </button>
+          <button
+            type="submit"
             class="icon"
-            aria-label={`Use ${h.label}`}
-            title={`Use ${h.label}`}
-            disabled={selected.beats / h.chords.length < MUSIC_LIMITS.minChordBeats}
-            onclick={() => {
-              acceptChords(
-                h.names.map((name) => ({ symbol: name, beats: selected.beats / h.chords.length })),
-                true,
-              );
-              popup = false;
-            }}
+            aria-label={editingId ? 'Save chord' : 'Add chord'}
+            title={editingId ? 'Save chord' : 'Add chord'}
+            disabled={!symbol.trim()}
           >
             <Icon name="check" />
-          </button></span
-        >
-      {/each}
-    </div>
+          </button>
+          {#if editingId}
+            <button
+              type="button"
+              class="icon"
+              aria-label="Duplicate chord"
+              title="Duplicate"
+              onclick={() => {
+                const id = editingId!;
+                editSequence((e) => {
+                  composition.selectedId = e.duplicate(id);
+                });
+                popup = false;
+              }}
+            >
+              <Icon name="copy" />
+            </button><button
+              type="button"
+              class="icon"
+              aria-label="Delete chord"
+              title="Delete"
+              onclick={removeSelected}
+            >
+              <Icon name="delete" />
+            </button>
+          {/if}
+          <button
+            type="button"
+            class="icon"
+            aria-label="Close chord editor"
+            title="Close"
+            onclick={() => (popup = false)}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+        <div class="duration-choices">
+          <span class="small muted">Beats</span>
+          {#each [0.5, 1, 2, 4, 8] as n}
+            <button type="button" class:on={duration === n} onclick={() => (duration = n)}>{n}</button>
+          {/each}
+          <input
+            aria-label="Chord duration"
+            type="number"
+            min={MUSIC_LIMITS.minChordBeats}
+            max={MUSIC_LIMITS.maxChordBeats}
+            step="any"
+            bind:value={duration}
+          >
+        </div>
+        <details class="voicing-editor">
+          <summary>Voicing</summary>
+          <div class="row">
+            <label
+              >MIDI notes <input aria-label="Voicing MIDI notes" bind:value={notes} placeholder="48 52 55 59"></label
+            ><label
+              >Velocity <input aria-label="Chord velocity" type="number" min="1" max="127" bind:value={velocity}></label
+            >
+          </div>
+        </details>
+        {#if selected && hints.length}
+          <div class="timeline-ideas">
+            <span class="small muted">Try instead</span>
+            {#each hints as h, i}
+              <span class="idea-chip" title={h.why}
+                ><span>{h.names.join(' → ')}</span
+                ><button
+                  type="button"
+                  class="icon"
+                  aria-label={`Preview ${h.label}`}
+                  title={h.label}
+                  onclick={() =>
+                    audition(
+                      h.chords.map((c) => voiceChord(c, selected.notes)),
+                      `reharm:${i}`,
+                      selected.beats / h.chords.length,
+                      h.label,
+                      selected.velocity,
+                    )}
+                >
+                  <Icon name="play" />
+                </button><button
+                  type="button"
+                  class="icon"
+                  aria-label={`Use ${h.label}`}
+                  title={`Use ${h.label}`}
+                  disabled={selected.beats / h.chords.length < MUSIC_LIMITS.minChordBeats}
+                  onclick={() => {
+                    acceptChords(
+                      h.names.map((name) => ({ symbol: name, beats: selected.beats / h.chords.length })),
+                      true,
+                    );
+                    popup = false;
+                  }}
+                >
+                  <Icon name="check" />
+                </button></span
+              >
+            {/each}
+          </div>
+        {/if}
+      </form>
+    </section>
   {/if}
   <dialog bind:this={regionDialog} class="region-dialog" aria-label="Edit key region">
     <form

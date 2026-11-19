@@ -370,9 +370,9 @@ export const settingsSchema = z
     preferences: preferencesSchema.prefault({}),
     panels: z
       .object({
-        now: flag(true, 'Now playing', 'Show the current chord panel.'),
-        next: flag(true, 'Where next', 'Show chord and transition suggestions.'),
-        map: flag(true, 'Tonal map', 'Show the map of related keys.'),
+        now: flag(true, 'Chord inspector', 'Show the focused chord and its harmonic function.'),
+        next: flag(true, 'Ideas', 'Show chord and key-change ideas in one list.'),
+        map: flag(true, 'Key exploration', 'Show the circle of fifths as a destination picker for ideas.'),
         piano: flag(true, 'Piano', 'Show the interactive piano.'),
       })
       .prefault({}),

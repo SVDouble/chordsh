@@ -8,7 +8,6 @@
   import { attachQwerty } from '../io/qwerty';
   import Piano from './Piano.svelte';
   import Workspace from './Workspace.svelte';
-  import Transport from './Transport.svelte';
   import Panels from './Panels.svelte';
   import Settings from './Settings.svelte';
 
@@ -38,7 +37,6 @@
   <header class="topbar" bind:clientHeight={topbarHeight}>
     <div class="brand">chord.sh</div>
     <DevicePicker />
-    <Transport />
     <span class="spacer"></span>
     <button
       type="button"
@@ -114,7 +112,7 @@
   onpointerdown={() => synth.unlock()}
   onkeydown={(e) => {
     synth.unlock();
-    if (document.querySelector('dialog[open]')) return;
+    if (document.querySelector('dialog[open], [popover]:popover-open')) return;
     if (e.key === 'Escape') {
       stopPlayback();
       if (ui.recording) void stopRecording();

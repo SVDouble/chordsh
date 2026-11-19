@@ -26,11 +26,11 @@
       <input type="checkbox" bind:checked={settings.panels.now} onchange={() => persist()}></label
     >
     <label
-      ><span>Where next</span>
+      ><span>Ideas</span>
       <input type="checkbox" bind:checked={settings.panels.next} onchange={() => persist()}></label
     >
     <label
-      ><span>Tonal map</span>
+      ><span>Key exploration</span>
       <input type="checkbox" bind:checked={settings.panels.map} onchange={() => persist()}></label
     >
     <label

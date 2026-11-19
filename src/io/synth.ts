@@ -1,3 +1,5 @@
+import { DEFAULT_SETTINGS } from '../config/settings';
+
 interface Voice {
   osc: OscillatorNode[];
   gain: GainNode;
@@ -90,6 +92,10 @@ export class Synth {
     v.osc.forEach((o) => o.stop(at + 0.6));
   }
 
+  private velocity(value: number) {
+    return (Math.max(1, Math.min(127, value)) / 127) ** 0.8;
+  }
+
   // ── live playing ──
   noteOn(note: number, velocity: number) {
     const ctx = this.ensure();
@@ -102,7 +108,7 @@ export class Synth {
     const old = this.live.get(note);
     if (old) this.release(old, ctx.currentTime);
     this.sustained.delete(note);
-    this.live.set(note, this.voice(note, ctx.currentTime, (velocity / 127) ** 0.8));
+    this.live.set(note, this.voice(note, ctx.currentTime, this.velocity(velocity)));
   }
 
   noteOff(note: number) {
@@ -144,11 +150,11 @@ export class Synth {
 
   // ── auditions ──
   /** Play notes `delay` seconds from now for `dur` seconds. */
-  play(notes: number[], delay: number, dur: number, vel = 0.7) {
+  play(notes: number[], delay: number, dur: number, velocity = DEFAULT_SETTINGS.editor.velocity) {
     const ctx = this.ensure();
     const t0 = ctx.currentTime + delay;
     for (const n of notes) {
-      const v = this.voice(n, t0, vel);
+      const v = this.voice(n, t0, this.velocity(velocity));
       this.release(v, t0 + dur);
       this.scheduled.add(v);
       v.osc[0].onended = () => this.scheduled.delete(v);
@@ -159,6 +165,15 @@ export class Synth {
     if (!this.ctx) return;
     for (const v of this.scheduled) this.release(v, this.ctx.currentTime);
     this.scheduled.clear();
+  }
+
+  /** Release the context when a development update replaces this audio engine. */
+  dispose() {
+    this.silence();
+    if (!this.ctx) return;
+    this.ctx.onstatechange = null;
+    void this.ctx.close().catch(() => {});
+    this.ctx = null;
   }
 
   setMuted(muted: boolean) {

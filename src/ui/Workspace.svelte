@@ -5,36 +5,28 @@
   import NextMoves from './NextMoves.svelte';
   import KeyWheel from './KeyWheel.svelte';
   import Editor from './Editor.svelte';
-
-  const left = $derived(settings.panels.now || settings.panels.next);
-  const count = $derived(1 + Number(left) + Number(settings.panels.map));
+  const harmony = $derived(settings.panels.now || settings.panels.next || settings.panels.map);
 </script>
 
-<PaneGroup direction="horizontal" autoSaveId={`musify-workspace-${left}-${settings.panels.map}`} class="workspace">
-  {#if left}
-    <Pane id="assistant" order={1} defaultSize={count === 3 ? 34 : 32} minSize={18}>
-      <section class="pane left">
+<PaneGroup direction="horizontal" autoSaveId={`chordsh-harmony-v3-${harmony}`} class="workspace">
+  {#if harmony}
+    <Pane id="harmony" order={1} defaultSize={34} minSize={25} maxSize={50}>
+      <aside class="pane harmony-pane" aria-label="Harmony exploration">
         {#if settings.panels.now}
           <NowPlaying />
         {/if}
         {#if settings.panels.next}
           <NextMoves />
+        {:else if settings.panels.map}
+          <KeyWheel compact />
         {/if}
-      </section>
+      </aside>
     </Pane>
-    <PaneResizer class="pane-resizer" aria-label="Resize suggestions" />
+    <PaneResizer class="pane-resizer" aria-label="Resize harmony and timeline" />
   {/if}
-  {#if settings.panels.map}
-    <Pane id="tonal-map" order={2} defaultSize={count === 3 ? 29 : 32} minSize={16}>
-      <section class="pane centre"><KeyWheel /></section>
-    </Pane>
-    <PaneResizer class="pane-resizer" aria-label="Resize tonal map" />
-  {/if}
-  <Pane id="music" order={3} defaultSize={count === 3 ? 37 : count === 2 ? 68 : 100} minSize={25}>
-    <section class="pane right">
-      <div class="tab-body">
-        <Editor />
-      </div>
+  <Pane id="timeline" order={2} defaultSize={harmony ? 66 : 100} minSize={45}>
+    <section class="pane right timeline-panel">
+      <div class="tab-body"><Editor /></div>
     </section>
   </Pane>
 </PaneGroup>

@@ -1,6 +1,7 @@
 <script lang="ts">
+  let { compact = false }: { compact?: boolean } = $props();
   import { settings } from './store.svelte';
-  import { session, ui } from './store.svelte';
+  import { session, ui, persist } from './store.svelte';
   import { type Key, SCALE_LABEL, keyEq, keyIndex, keyLong, keyShort } from '../theory/scales';
   import type { KeyReach } from '../engine/coach';
   import { compositionContext } from './composition.svelte';
@@ -69,16 +70,19 @@
   function pick(k: Key) {
     const off = keyEq(k, session.target) || keyEq(k, compositionContext().key);
     session.setTarget(off ? null : k);
-    if (!off) ui.nextTab = 'key';
+    if (!off && !settings.panels.next) {
+      settings.panels.next = true;
+      persist();
+    }
   }
 </script>
 
-<div class="card wheel">
+<div class="card wheel" class:compact>
   <div
     class="label"
     title="Colour = how likely you're heading there (yellow = most likely). Green ring = close key (one accidental away), amber dashes = reachable through a shared chord, dotted = remote. Click a key to plan a route."
   >
-    Tonal map
+    Explore keys
   </div>
   <svg viewBox="-196 -196 392 392" preserveAspectRatio="xMidYMid meet">
     <title>Tonal map — select a key to explore routes</title>
@@ -100,7 +104,13 @@
         tabindex="0"
         aria-label={keyLong(n.key)}
         onclick={() => pick(n.key)}
-        onkeydown={(e) => e.key === 'Enter' && pick(n.key)}
+        onkeydown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            pick(n.key);
+          }
+        }}
         onmouseenter={() => (hover = r ?? null)}
         onmouseleave={() => (hover = null)}
       >

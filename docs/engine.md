@@ -151,3 +151,22 @@ local key to numerals, the inspector and suggestions. Inserted route destination
 the same undo action as their chords. Inserting/resizing chords moves boundaries anchored to affected
 chords; the opening region stays at beat zero. Transposition moves all region keys together. Editing a
 region is undoable and browser persistence retains names and boundaries.
+
+## Sketch UI and audio bridge
+
+Chord moves and destination-key paths are rendered as one idea list. The optional circle and the
+destination chooser drive the same target, rather than changing tabs. Selecting a target replaces
+next-chord rows with routes to that key. Routes carry their destination explicitly when inserted, so
+the final region gets the correct key.
+
+`ui/noteContext.ts` keeps piano annotations separate: intervals refer to the focused chord root, while
+scale degrees refer to the current major/natural-minor tonic. Every sounding note is annotated,
+including notes outside the chord voicing, without using the segmenter's melody/harmony split to
+colour them. Enharmonic note names retain their spelled octave. This is a display change, not a change
+to melody classification or chord detection.
+
+Audio previews and note playback now share one MIDI-velocity curve and the same oscillator/filter
+voice. The UI passes focused/input velocities instead of mixing a normalized preview gain with MIDI
+velocities. Recorded sketches anchor their first attack at the insertion cursor, retain attack
+velocities and include already sounding notes when armed. Hot-module disposal cancels playback and
+closes the old AudioContext. These changes do not alter harmonic inference.

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { audition, ui } from './store.svelte';
+  import { audition, settings, ui } from './store.svelte';
   import { inversionLabel } from '../theory/chords';
   import { keyLong } from '../theory/scales';
   import { focusedChord } from './composition.svelte';
@@ -12,10 +12,7 @@
       kind: focus.chord ? 'chord' : 'none',
       key: focus.key ? keyLong(focus.key) : null,
       inversion: focus.chord ? inversionLabel(focus.chord) : '',
-      empty:
-        ui.nowPlaying || ui.playbackPaused
-          ? 'Rest'
-          : 'Click the timeline or play a chord. Note roles appear on the piano below.',
+      empty: ui.nowPlaying || ui.playbackPaused ? 'Rest' : 'Click the timeline or play a chord.',
     };
   });
 </script>
@@ -29,7 +26,7 @@
         class="icon"
         aria-label={`Preview ${v.name}`}
         title={`Hear ${v.name}`}
-        onclick={() => audition([v.notes], 'inspector', 2, v.name)}
+        onclick={() => audition([v.notes], 'inspector', 2, v.name, v.step?.velocity ?? settings.editor.velocity)}
       >
         <Icon name="play" />
       </button>

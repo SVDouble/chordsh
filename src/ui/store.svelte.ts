@@ -2,17 +2,20 @@ import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
 import type { MidiEvent } from '../io/midifile';
+import { Recorder, saveRecording } from '../io/recorder';
 
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
 export const session = new Session();
 export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
+export const recorder = new Recorder();
 export const live = {
-  noteOn: (n: number, v: number, t = performance.now()) => { session.noteOn(n, v, t); if (ui.monitor) synth.noteOn(n, v); },
-  noteOff: (n: number, t = performance.now()) => { session.noteOff(n, t); synth.noteOff(n); },
-  pedal: (on: boolean, t = performance.now()) => { session.pedal(on, t); synth.setPedal(on); },
+  noteOn: (n: number, v: number, t = performance.now()) => { recorder.input('on', n, v, t); session.noteOn(n, v, t); if (ui.monitor) synth.noteOn(n, v); },
+  noteOff: (n: number, t = performance.now()) => { recorder.input('off', n, 0, t); session.noteOff(n, t); synth.noteOff(n); },
+  pedal: (on: boolean, t = performance.now()) => { recorder.input('pedal', 0, on ? 127 : 0, t); session.pedal(on, t); synth.setPedal(on); },
 };
 export const midi = new Midi(live);
+midi.onRaw = (d, port, t) => recorder.midi(d, port, t);
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem('musify') ?? '{}'); } catch { return {}; } })();
 
@@ -33,6 +36,10 @@ export const ui = $state({
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
   monitor: (saved.monitor ?? true) as boolean,
   audioBlocked: true,
+  recording: false,
+  theme: (saved.theme ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) as 'light' | 'dark',
+  recNote: '',
+  recMsg: '',
 });
 synth.onState = () => (ui.audioBlocked = synth.blocked);
 
@@ -46,7 +53,7 @@ session.onChange = bump;
 midi.onPorts = bump;
 
 export function persist(extra: Record<string, unknown> = {}) {
-  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, monitor: ui.monitor, charts: $state.snapshot(ui.charts) }, extra);
+  Object.assign(saved, { sound: ui.sound, tempo: ui.tempo, style: session.style, input: midi.inputId, output: midi.outputId, monitor: ui.monitor, theme: ui.theme, charts: $state.snapshot(ui.charts) }, extra);
   try { localStorage.setItem('musify', JSON.stringify(saved)); } catch { /* private mode */ }
 }
 export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: string; output?: string };
@@ -104,4 +111,21 @@ export function stopMidiFile() {
   fileTimers = [];
   synth.stop();
   ui.filePlaying = false;
+}
+
+export function startRecording() {
+  recorder.start({ style: session.style, split: session.seg.splitMode, keyLock: session.keyLock, monitor: ui.monitor, inputs: midi.devices, userAgent: navigator.userAgent });
+  session.trace = (e) => recorder.engine(e);
+  ui.recording = true;
+  ui.recMsg = '';
+}
+
+export async function stopRecording() {
+  session.trace = null;
+  const rec = recorder.stop(ui.recNote);
+  ui.recording = false;
+  ui.recMsg = 'Saving…';
+  ui.recMsg = `Saved ${await saveRecording(rec)} — ${rec.input.filter((e) => e.kind === 'on').length} notes, ${rec.engine.length} engine events`;
+  setTimeout(() => (ui.recMsg = ''), 8000);
+  ui.recNote = '';
 }

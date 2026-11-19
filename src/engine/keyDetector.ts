@@ -32,7 +32,7 @@ export class KeyDetector {
   private last = 0;
 
   /** `chordDecay` < 1 makes recent chords dominate (live); use 1 and Infinity to weigh a whole chart evenly. */
-  constructor(public halfLifeMs = 10000, public chordDecay = 0.85) {}
+  constructor(public halfLifeMs = 40000, public chordDecay = 0.85) {}
 
   reset() {
     this.hist.fill(0);

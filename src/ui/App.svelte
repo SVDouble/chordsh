@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { live, stopAudition, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
+  import { live, recorder, startRecording, stopRecording, stopAudition, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
   import { midiName } from '../theory/pitch';
@@ -14,6 +14,21 @@
   import Song from './Song.svelte';
 
   let lock = $state('auto');
+  let recClock = $state('0:00');
+  $effect(() => {
+    if (!ui.recording) return;
+    const id = setInterval(() => {
+      const s = Math.floor(recorder.elapsed / 1000);
+      recClock = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }, 500);
+    return () => clearInterval(id);
+  });
+  $effect(() => { document.documentElement.dataset.theme = ui.theme; });
+  function toggleSound() {
+    ui.monitor = !ui.monitor;
+    persist();
+    synth.unlock();
+  }
   let split = $state('auto');
 
   onMount(() => {
@@ -51,7 +66,15 @@
       {#if m.last}<code class="muted">{m.last.text}</code>{:else if m.devices.length}<span class="muted">· press a key</span>{/if}
     </span>
     {#if m.errors.length}<span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>{/if}
-    {#if ui.audioBlocked && ui.monitor}<button class="sound-btn" onclick={() => synth.unlock()} title="Browsers only allow sound after you click the page">🔇 Click to enable sound</button>{/if}
+    {#if ui.audioBlocked && ui.monitor}<button class="sound-btn" onclick={() => synth.unlock()} title="Browsers only allow sound after you click the page">Click to enable sound</button>{/if}
+    {#if ui.recording}
+      <span class="rec-on"><i class="rec-dot"></i>{recClock}</span>
+      <input class="rec-note" bind:value={ui.recNote} placeholder="What are you playing? e.g. held Cmaj7 LH, improvising RH" />
+      <button class="rec-stop" onclick={stopRecording}>■ Save</button>
+    {:else}
+      <button onclick={startRecording} title="Record your MIDI and the app's analysis to a file, for debugging the predictions">● Rec</button>
+    {/if}
+    {#if ui.recMsg && !ui.recording}<span class="small rec-msg" title={ui.recMsg}>{ui.recMsg.startsWith('Saved') ? '✓ saved' : ui.recMsg}</span>{/if}
     <span class="spacer"></span>
     <label>Key
       <select bind:value={lock} onchange={() => session.setKeyLock(lock === 'auto' ? null : keyFromIndex(+lock))}>
@@ -65,6 +88,8 @@
       </select>
     </label>
     <button class:active={ui.demo} onclick={toggleDemo}>{ui.demo ? '■ Stop' : '▶ Demo'}</button>
+    <button class="icon" class:dim={!ui.monitor} onclick={toggleSound} title={ui.monitor ? 'Sound on — you hear what you play (click to mute)' : 'Sound off (click to hear what you play)'}>{ui.monitor ? '🔊' : '🔇'}</button>
+    <button class="icon" onclick={() => { ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; persist(); }} title="Switch light / dark">{ui.theme === 'dark' ? '☀' : '☾'}</button>
     <details class="settings">
       <summary title="Settings">⚙</summary>
       <div class="settings-panel">
@@ -82,9 +107,6 @@
             </select>
             <button disabled={!m.outputId} onclick={() => midi.send([48, 52, 55, 60], performance.now(), 800)}>Test</button>
           </span>
-        </label>
-        <label>Hear what I play
-          <input type="checkbox" bind:checked={ui.monitor} onchange={() => { persist(); synth.unlock(); }} />
         </label>
         <label>Suggestions sound
           <select bind:value={ui.sound} onchange={() => persist()}>

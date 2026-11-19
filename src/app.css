@@ -17,10 +17,24 @@
   --D: #ff6b6b;
   --X: #c792ea;
   --gap: 8px;
+  --current-fill: #f4f6fb;
+  --current-text: #0b0d12;
+  --dim: #444b58;
+  --ring-remote: #4a5163;
+  --step-on: #2a2140;
+  --shadow: #000a;
   color-scheme: dark;
   font: 16px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
+}
+:root[data-theme='light'] {
+  --bg: #eef0f4; --card: #ffffff; --card-2: #f2f4f8; --line: #d9dde5; --text: #1a1d24; --muted: #5d6474;
+  --accent: #3a63de; --harmony: #3767ea; --melody: #d98200; --audition: #9246d8; --guide: #0f9f64;
+  --key-white: #ffffff; --key-black: #23262d;
+  --T: #12a265; --PD: #d69200; --D: #df4040; --X: #9246d8;
+  --current-fill: #1a1d24; --current-text: #ffffff; --dim: #b9bfcb; --ring-remote: #c3c9d4; --step-on: #efe5fb; --shadow: #0002;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -50,7 +64,7 @@ select { background: var(--card-2); border: 1px solid var(--line); border-radius
 
 /* ── app shell: fills the window, never scrolls ── */
 .app { height: 100vh; height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
-.topbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--card); }
+.topbar { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 8px 14px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--card); }
 .topbar label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 15px; }
 .spacer { flex: 1; }
 .sound-btn { background: color-mix(in srgb, var(--PD) 22%, var(--card-2)); border-color: var(--PD); font-weight: 650; }
@@ -58,14 +72,14 @@ select { background: var(--card-2); border: 1px solid var(--line); border-radius
 .midi-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line); max-width: 44ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
 .midi-chip.ok { border-color: color-mix(in srgb, var(--guide) 50%, var(--line)); }
 .midi-chip.bad { border-color: var(--D); }
-.led { width: 10px; height: 10px; border-radius: 50%; background: #444b58; flex: none; }
+.led { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
 .midi-chip.ok .led { background: color-mix(in srgb, var(--guide) 45%, #333); }
 .led.flash { animation: flash 0.35s ease-out; }
 @keyframes flash { from { background: var(--guide); box-shadow: 0 0 10px var(--guide); } }
 .settings { position: relative; }
 .settings summary { list-style: none; cursor: pointer; border: 1px solid var(--line); border-radius: 9px; padding: 5px 12px; background: var(--card-2); font-size: 18px; line-height: 24px; }
 .settings summary::-webkit-details-marker { display: none; }
-.settings-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; width: 380px; box-shadow: 0 12px 40px #000a; }
+.settings-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; width: 380px; box-shadow: 0 12px 40px var(--shadow); }
 .settings-panel label { justify-content: space-between; }
 .settings-panel select { max-width: 230px; }
 
@@ -116,17 +130,18 @@ select { background: var(--card-2); border: 1px solid var(--line); border-radius
 .node circle { stroke: var(--line); stroke-width: 2.5; transition: fill 0.5s; }
 .node.close circle { stroke: var(--T); }
 .node.pivot circle { stroke: color-mix(in srgb, var(--PD) 45%, transparent); stroke-width: 1.5; stroke-dasharray: 4 3; }
-.node.remote circle { stroke: #4a5163; stroke-dasharray: 1.5 3; }
+.node.remote circle { stroke: var(--ring-remote); stroke-dasharray: 1.5 3; }
 .node.current circle { stroke: var(--accent); stroke-width: 4; filter: drop-shadow(0 0 9px var(--accent)); }
 .node.target circle { stroke: var(--guide); stroke-width: 3.5; }
 .node:hover circle, .node:focus-visible circle { stroke: var(--guide); stroke-width: 3; }
 .node text { fill: var(--text); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .node text.dark { fill: #0b0d12; }
+.node.current text { fill: var(--current-text); }
 .node text.pct { font-size: 11px; font-weight: 600; opacity: 0.9; }
 .wheel-legend { position: absolute; left: 12px; bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); pointer-events: none; }
 .wheel-legend .ramp { width: 70px; height: 7px; border-radius: 4px; }
 .wheel-legend .ring { width: 11px; height: 11px; border-radius: 50%; border: 2px solid; margin-left: 8px; }
-.ring.close { border-color: var(--T); } .ring.pivot { border-color: var(--PD); border-style: dashed; } .ring.remote { border-color: #4a5163; border-style: dotted; }
+.ring.close { border-color: var(--T); } .ring.pivot { border-color: var(--PD); border-style: dashed; } .ring.remote { border-color: var(--ring-remote); border-style: dotted; }
 .centre { fill: var(--text); text-anchor: middle; font-size: 19px; font-weight: 750; }
 .centre.small { fill: var(--muted); font-size: 13px; font-weight: 400; }
 .route-line { fill: none; stroke: var(--guide); stroke-width: 2.5; stroke-dasharray: 6 5; opacity: 0.85; }
@@ -176,7 +191,7 @@ textarea { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 15
 .v-skipped { opacity: 0.45; border-style: dashed; }
 .tone.mini { padding: 0 7px; margin-left: 3px; flex-direction: row; gap: 4px; }
 .live { padding: 6px 10px; border-radius: 9px; font-size: 17px; background: var(--card-2); }
-.live.v-wrong { color: #ffc4c4; } .live.v-exact, .live.v-match { color: var(--T); } .live.v-substitute { color: var(--audition); }
+.live.v-wrong { color: var(--D); } .live.v-exact, .live.v-match { color: var(--T); } .live.v-substitute { color: var(--audition); }
 .song .label { margin-top: 10px; }
 .hint { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0; }
 .hint button { flex: none; }
@@ -189,7 +204,7 @@ textarea { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 15
 .steps .step { padding: 2px 9px; }
 .steps .step b { font-size: 16px; }
 .steps .step i { font-size: 12px; }
-.step.current { border-color: var(--audition); background: #2a2140; }
+.step.current { border-color: var(--audition); background: var(--step-on); }
 .step.done { border-color: var(--guide); opacity: 0.6; }
 .success { color: var(--guide); font-weight: 700; font-size: 18px; }
 
@@ -211,7 +226,7 @@ footer { background: var(--card); border-top: 1px solid var(--line); padding: 5p
    function: tonic green · predominant amber · dominant red · chromatic violet
    chord tones: root plain · guide tones (3rd/7th) blue · 5th grey · colour tensions amber · altered red */
 .numeral.f-T { color: var(--T); } .numeral.f-PD { color: var(--PD); } .numeral.f-D { color: var(--D); } .numeral.f-\? { color: var(--X); }
-.tone.r-root { border-color: #c9cede; }
+.tone.r-root { border-color: var(--text); }
 .tone.r-guide { border-color: var(--harmony); background: color-mix(in srgb, var(--harmony) 18%, var(--card-2)); }
 .tone.r-fifth { opacity: 0.75; }
 .tone.r-ext { border-color: var(--melody); background: color-mix(in srgb, var(--melody) 14%, var(--card-2)); }
@@ -232,3 +247,13 @@ footer { background: var(--card); border-top: 1px solid var(--line); padding: 5p
 .fl { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
 .fl::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--X); }
 .fl.f-T::before { background: var(--T); } .fl.f-PD::before { background: var(--PD); } .fl.f-D::before { background: var(--D); }
+
+/* top-bar switches & recording */
+button.icon { min-width: 40px; padding: 4px 8px; font-size: 18px; line-height: 1; }
+button.icon.dim { opacity: 0.55; }
+.rec-on { display: inline-flex; align-items: center; gap: 6px; color: var(--D); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--D); animation: pulse 1s ease-in-out infinite alternate; }
+@keyframes pulse { to { opacity: 0.3; } }
+.rec-note { width: 28ch; background: var(--card-2); border: 1px solid var(--D); border-radius: 8px; padding: 6px 10px; }
+.rec-stop { border-color: var(--D); color: var(--D); font-weight: 700; }
+.rec-msg { color: var(--T); white-space: nowrap; }

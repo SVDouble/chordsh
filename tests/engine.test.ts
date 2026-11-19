@@ -52,6 +52,21 @@ describe('session', () => {
     expect(s.melody.length).toBe(15);
   });
 
+  it('stays in C while you play its diatonic chords in order (no evidence → no modulation)', () => {
+    const triads = [[48, 52, 55], [50, 53, 57], [52, 55, 59], [53, 57, 60], [55, 59, 62], [57, 60, 64], [59, 62, 65], [48, 52, 55]];
+    for (const c of triads) { // slowly: ~3 s per chord, like practising
+      c.forEach((n) => s.noteOn(n, 80, t)); vi.advanceTimersByTime(3000); t += 3000; c.forEach((n) => s.noteOff(n, t)); vi.advanceTimersByTime(200); t += 200;
+    }
+    expect(s.history.filter((h) => h.type === 'key').map((h) => h.type === 'key' && keyShort(h.key))).toEqual(['C']);
+    expect(s.chords.map((c) => c.roman?.numeral)).toEqual(['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', 'I']);
+  });
+
+  it('I–IV–V–I with triads stays in the key (C→F is not a cadence into F)', () => {
+    [[48, 52, 55], [53, 57, 60], [55, 59, 62], [48, 52, 55]].forEach((c) => play(c));
+    expect(s.history.filter((h) => h.type === 'key')).toHaveLength(1);
+    expect(s.chords.map((c) => c.roman?.numeral)).toEqual(['I', 'IV', 'V', 'I']);
+  });
+
   it('a held left-hand chord stays one chord while the right hand improvises', () => {
     [48, 52, 55, 59].forEach((n) => s.noteOn(n, 80, t)); // hold Cmaj7, never released
     vi.advanceTimersByTime(400); t += 400;

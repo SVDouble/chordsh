@@ -20,6 +20,8 @@ export class Midi {
   /** Last message received — shown as an activity light, handy when a device "isn't recognised". */
   last: { port: string; text: string; t: number } | null = null;
   onPorts: () => void = () => {};
+  /** Every raw message (for session recording). */
+  onRaw: (data: Uint8Array, port: string, t: number) => void = () => {};
   private access: MIDIAccess | null = null;
   private errors = new Map<string, string>();
 
@@ -65,6 +67,7 @@ export class Midi {
     const d = e.data;
     if (!d || d.length < 1 || d[0] === 0xf8 || d[0] === 0xfe) return; // ignore clock / active sensing
     const t = performance.now();
+    this.onRaw(d, port, t);
     this.last = { port: deviceOf(port), text: [...d].map((b) => b.toString(16).padStart(2, '0')).join(' '), t };
     this.onPorts();
     if (d.length < 2) return;

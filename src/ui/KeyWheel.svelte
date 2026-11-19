@@ -14,8 +14,10 @@
   const pos = (k: Key | null) => nodes.find((n) => keyEq(n.key, k));
 
   // Likelihood ramp: dim slate → blue → teal → green → yellow (bright = likely).
-  const RAMP = [[38, 44, 58], [52, 84, 200], [22, 160, 170], [130, 205, 80], [255, 212, 59]];
-  const rampCss = RAMP.map((c) => `rgb(${c})`).join(', ');
+  const RAMP_DARK = [[38, 44, 58], [52, 84, 200], [22, 160, 170], [130, 205, 80], [255, 212, 59]];
+  const RAMP_LIGHT = [[221, 225, 234], [120, 150, 235], [40, 180, 180], [140, 205, 70], [250, 196, 30]];
+  const RAMP = $derived(ui.theme === 'light' ? RAMP_LIGHT : RAMP_DARK);
+  const rampCss = $derived(RAMP.map((c) => `rgb(${c})`).join(', '));
   /** Colour for a key, relative to the most likely destination (so the scale always uses its full range). */
   function heat(l: number): string {
     const t = Math.pow(Math.min(1, Math.max(0, l / v.maxL)), 1.3) * (RAMP.length - 1);
@@ -72,7 +74,7 @@
         onmouseenter={() => (hover = r ?? null)}
         onmouseleave={() => (hover = null)}
       >
-        <circle cx={n.x} cy={n.y} r={n.r} style="fill:{cur ? '#f4f6fb' : v.current ? heat(l) : 'var(--card-2)'}" />
+        <circle cx={n.x} cy={n.y} r={n.r} style="fill:{cur ? 'var(--current-fill)' : v.current ? heat(l) : 'var(--card-2)'}" />
         <text x={n.x} y={n.y - (strong ? 6 : 0)} class:dark>{keyShort(n.key)}</text>
         {#if strong}<text class="pct" class:dark x={n.x} y={n.y + 11}>{Math.round(l * 100)}%</text>{/if}
       </g>

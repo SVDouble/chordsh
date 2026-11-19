@@ -48,6 +48,7 @@
         ctx.fillStyle = c ?? (k.black ? css('--key-black') : css('--key-white'));
         ctx.fillRect(k.x + 0.5, 0, k.w - 1, h);
         ctx.globalAlpha = 1;
+        if (!k.black) { ctx.strokeStyle = css('--line'); ctx.strokeRect(k.x + 0.5, 0.5, k.w - 1, h - 1); }
         if (guide.has(n)) {
           ctx.fillStyle = css('--guide');
           ctx.beginPath();

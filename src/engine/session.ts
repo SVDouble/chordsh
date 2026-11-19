@@ -35,6 +35,9 @@ export interface Practice {
   missing: string[];
 }
 
+/** Engine decisions, for session recordings and replay analysis. */
+export type TraceEvent = { t: number; kind: string } & Record<string, unknown>;
+
 const EMPTY: Identification = { kind: 'none', best: null, alternatives: [], notes: [] };
 
 /**
@@ -45,6 +48,9 @@ export class Session {
   readonly detector = new KeyDetector();
   readonly seg: Segmenter;
   onChange: () => void = () => {};
+  /** Set to receive every engine decision (session recording). */
+  trace: ((e: TraceEvent) => void) | null = null;
+  private log(e: TraceEvent) { this.trace?.(e); }
 
   now: Identification = EMPTY;
   nowRoman: Roman | null = null;
@@ -79,6 +85,7 @@ export class Session {
         harmony: (n, t, strike) => this.onHarmony(n, t, strike),
         melody: (n, _v, t) => this.onMelody(n, t),
         retractMelody: (notes) => {
+          this.log({ t: performance.now(), kind: 'retract-melody', notes });
           for (const n of notes) {
             const i = this.melody.findLastIndex((m) => m.note === n);
             if (i >= 0) this.melody.splice(i, 1);
@@ -128,6 +135,12 @@ export class Session {
   // ── harmony ──
   private onHarmony(notes: number[], t: number, strike: boolean) {
     const ident = identify(notes, this.activeKey);
+    this.log({
+      t, kind: 'harmony', notes, strike, split: this.seg.split, result: ident.kind,
+      chord: ident.best ? chordName(ident.best, this.activeKey) : null,
+      score: ident.best ? +ident.best.score.toFixed(2) : null,
+      alts: ident.alternatives.map((a) => chordName(a, this.activeKey)),
+    });
     if (!ident.best && ident.kind !== 'interval') return;
     this.now = ident;
     const key = this.activeKey;
@@ -150,10 +163,13 @@ export class Session {
     const name = chordName(c, key);
     const chords = this.chords;
     const last = chords[chords.length - 1];
-    if (last && last.name === name) { last.count++; this.onChange(); return; }
+    if (last && last.name === name) { this.log({ t: p.t, kind: 'commit', name, action: 'repeat' }); last.count++; this.onChange(); return; }
     // Same chord with an added colour tone (Cmaj7 → Cmaj9): not a new chord in the progression.
     const l = last?.chord;
-    if (l && l.root === c.root && l.quality === c.quality && l.seventh === c.seventh && l.bass === c.bass) return;
+    if (l && l.root === c.root && l.quality === c.quality && l.seventh === c.seventh && l.bass === c.bass) {
+      this.log({ t: p.t, kind: 'commit', name, action: 'merged-extension', into: last!.name });
+      return;
+    }
 
     const entry: ChordEntry = { type: 'chord', id: this.id++, chord: c, name, roman: key ? analyzeRoman(c, key) : null, key, t0: p.t, count: 1, notes: p.notes };
     if (last?.key) last.roman = analyzeRoman(last.chord, last.key, c); // the resolution confirms applied chords
@@ -164,7 +180,8 @@ export class Session {
     this.song?.played(c);
     this.detector.addChord(c, p.t);
     this.updatePatterns(p.t);
-    this.updateKey();
+    this.log({ t: p.t, kind: 'commit', name, action: 'new', roman: entry.roman?.numeral ?? null, notes: p.notes });
+    this.updateKey(p.t);
     this.refresh();
   }
 
@@ -177,6 +194,7 @@ export class Session {
       // a ii–V–I supersedes the ii–V it grew from; a growing cycle replaces itself
       this.patterns = this.patterns.filter((x) => !(x.startId === startId && (x.kind === 'ii-V' || x.kind === m.kind)));
       this.patterns.push({ kind: m.kind, label: m.label, startId, endId });
+      this.log({ t, kind: 'pattern', label: m.label });
     };
     const cadence = found.find((m) => m.kind !== 'cycle' && m.kind !== 'loop');
     if (cadence) mark(cadence);
@@ -191,14 +209,14 @@ export class Session {
   }
 
   // ── key tracking with hysteresis ──
-  private updateKey() {
+  private updateKey(t = performance.now()) {
     this.keyProbs = this.detector.probabilities();
     let best = 0;
     for (let i = 1; i < 24; i++) if (this.keyProbs[i] > this.keyProbs[best]) best = i;
     const cand = keyFromIndex(best);
     if (!this.keyLock) {
       if (!this.key) {
-        if (this.keyProbs[best] > 0.6 || (this.chordCount >= 4 && this.keyProbs[best] > 0.3) || this.melodyCount >= 12) this.changeKey(cand);
+        if (this.keyProbs[best] > 0.6 || (this.chordCount >= 4 && this.keyProbs[best] > 0.3) || this.melodyCount >= 12) this.changeKey(cand, t);
       } else if (!keyEq(cand, this.key)) {
         const margin = this.keyProbs[best] - this.keyProbs[keyIndex(this.key)];
         this.challenger = keyEq(this.challenger?.key, cand) ? { key: cand, count: this.challenger!.count + 1 } : { key: cand, count: 1 };
@@ -206,16 +224,20 @@ export class Session {
         const recent = this.chords.slice(-3);
         const evidence =
           recent.some((e) => !isDiatonic(e.chord, this.key!)) ||
-          this.patterns.slice(-2).some((p) => p.endId === recent[recent.length - 1]?.id && p.label.includes(keyShortOf(cand)));
-        if (margin > 0.35 || (evidence && (margin > 0.15 || (this.challenger.count >= 2 && margin > 0.05)))) this.changeKey(cand);
+          this.patterns.slice(-2).some((p) => p.endId === recent[recent.length - 1]?.id && ['ii-V-I', 'V-I', 'subV-I'].includes(p.kind) && p.label.includes(keyShortOf(cand)));
+        // Never modulate on probabilities alone: chords that fit the current key keep it, however slowly you play.
+        if (evidence && (margin > 0.15 || (this.challenger.count >= 2 && margin > 0.05))) this.changeKey(cand, t);
       } else this.challenger = null;
     }
     const k = this.activeKey;
     this.flavour = k ? this.detector.flavour(k) : null;
+    const top = [...this.keyProbs].map((p, i) => [p, i]).sort((a, b) => b[0] - a[0]).slice(0, 3);
+    this.log({ t, kind: 'key', key: k ? keyShortOf(k) : null, top: top.map(([p, i]) => `${keyShortOf(keyFromIndex(i))} ${Math.round(p * 100)}%`) });
   }
 
   /** Switch key; place the key-change marker right after the pivot chord and relabel from there. */
-  private changeKey(newKey: Key) {
+  private changeKey(newKey: Key, t = performance.now()) {
+    this.log({ t, kind: 'modulation', from: this.key ? keyShortOf(this.key) : null, to: keyShortOf(newKey) });
     const old = this.key;
     this.key = newKey;
     this.challenger = null;
@@ -258,6 +280,7 @@ export class Session {
 
   // ── melody ──
   private onMelody(note: number, t: number) {
+    this.log({ t, kind: 'melody', note });
     const key = this.activeKey;
     const over = this.now.best ?? this.chords[this.chords.length - 1]?.chord ?? null;
     this.melody.push({
@@ -269,7 +292,7 @@ export class Session {
     if (this.melody.length > 64) this.melody.shift();
     this.melodyCount++;
     this.detector.addMelody(note, t);
-    if (!this.key) this.updateKey();
+    if (!this.key) this.updateKey(t);
     this.refreshReach();
     this.onChange();
   }

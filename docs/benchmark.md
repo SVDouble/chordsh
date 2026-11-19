@@ -78,6 +78,13 @@ The **error breakdown** classifies every hindsight top-1 miss, so we know what t
 
 Latest: [benchmarks/LATEST.md](../benchmarks/LATEST.md) · all runs: `benchmarks/history.jsonl`.
 
+### 2026-11-19 — shared settings regression check
+
+After moving defaults into the shared configuration schema, the full test split (684 pieces) matches
+all previous per-corpus chord/key metrics, error breakdowns and beat/bar F-measures exactly. This is a
+configuration regression check, not a model improvement. The harmonic objective remains **1.7407**.
+The recorded run uses commit `3946891`; browser preferences do not affect benchmark defaults.
+
 ### 2026-11-19 — learned harmonic transitions
 
 Training used **687 tune pieces and 43,219 labelled changes**, with equal total weight per corpus.

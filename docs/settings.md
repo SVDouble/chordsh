@@ -24,17 +24,17 @@ it has no Svelte or browser dependency. Standalone trackers and editors use the 
 harmonizer's existing `DEFAULT_PARAMS` export remains compatible with benchmark and tuning scripts,
 and now comes from the shared schema.
 
-| Section                  | Controls                                                                                                                                 |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                |
-| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                      |
-| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                        |
-| Editor                   | new-song tempo/meter, timeline snap/length, piano key width, undo depth, chord velocity and note gate                                    |
-| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights |
-| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                |
-| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                     |
-| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                  |
-| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                         |
+| Section                  | Controls                                                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                      |
+| Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                            |
+| Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                              |
+| Editor                   | new-song tempo/meter, timeline snap/length, piano width/label size and root/name/interval visibility, undo depth, chord velocity and note gate |
+| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights       |
+| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                      |
+| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                           |
+| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                        |
+| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                               |
 
 ## Beat and bar detection
 
@@ -86,3 +86,11 @@ ranking** blends it with the functional rules (default 0.85); zero restores the 
 smoothing** control backoff for rare contexts (both default 20). Higher values prefer broader evidence.
 **Main chord ideas** and **Colour ideas** set visible counts (defaults 4 and 5); zero colour ideas hides
 those extra alternatives. These settings apply without restarting analysis or clearing recorded input.
+
+## Piano labels
+
+**Piano chord roots** is on by default: Roman numerals mark the roots of the local key's chords, even
+on unplayed keys. **Piano note names** and **Piano chord tones** are optional and off by default. Panels
+has shortcuts to these same saved settings. Hover still identifies notes and both harmonic references.
+**Piano label size** defaults to 18 px (12–28); the minimum white-key width is the larger of the configured
+key width and twice this label size when root labels are shown. Horizontal scrolling preserves legibility.

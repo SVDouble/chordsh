@@ -382,6 +382,29 @@ export const analysisSchema = z.object({
 });
 
 export const editorSchema = z.object({
+  pianoRootLabels: flag(
+    true,
+    'Piano chord roots',
+    'Show Roman numerals on keys that root the chords of the current key: I, ii, iii…',
+  ),
+  pianoNoteNames: flag(
+    false,
+    'Piano note names',
+    'Show note letters/octaves on every key. Names remain available on hover when hidden.',
+  ),
+  pianoChordRoles: flag(
+    false,
+    'Piano chord tones',
+    'Show intervals of the focused chord above the key-relative Roman root labels.',
+  ),
+  pianoLabelSize: integer(
+    18,
+    12,
+    28,
+    'Piano label size',
+    'Size of Roman chord-root labels. Keys widen to keep these readable.',
+    'px',
+  ),
   pianoKeyWidth: integer(
     20,
     12,

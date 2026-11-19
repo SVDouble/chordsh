@@ -54,16 +54,22 @@ accidental overlap. Notes already held when Record is pressed are included.
 Later material moves forward if the take overlaps it. A recording without note input adds no chords.
 The MIDI/analysis recording is also saved, as before. There is no separate Live view or played-phrase panel.
 
-The chord inspector shows the chord, its function and position. Note names and roles belong to the
-**piano below**. Every key carries its note name; sounding notes also show their chord interval above
-and their key-relative degree below, marked with a caret (ˆ). The root shows the full chord name
-instead of R. For example, G over Em in C shows ♭3 above and ˆ5 below. Hover a key for both reference
-names. Key degrees use the current major or natural-minor scale.
+The chord inspector shows the chord, its function and position. The **piano below** maps the roots of
+chords in the current local key, even when nothing is sounding: in C major, C is **I**, D **ii**,
+E **iii**, F **IV**, G **V**, A **vi** and B **vii°**. Numeral case describes the triad's quality; the
+underline follows its harmonic function. The labels change with the timeline's key region or live key
+context. Minor uses the same convention as the inspector (i, ii°, ♭III, iv, V, ♭VI, ♭VII, plus vii° on
+the raised leading tone). Accidentals sit above the Roman numeral on narrow black keys.
 
-Colours describe every sounding note's interval: roots green, guide tones (thirds/sevenths) blue, fifths
-grey, extensions amber and alterations/outside notes red. They do not claim to distinguish melody
-from accompaniment. On narrow screens the piano scrolls horizontally instead of squeezing the keys;
-Settings → Piano key width controls their minimum width.
+**Note names are hidden by default**, but remain available on hover. Panels → Piano note names toggles
+them; Settings → Editor has the same choice plus label size. Keys widen to keep Roman labels readable,
+and the piano scrolls horizontally when needed. Optional **Piano chord tones** adds the focused chord's
+intervals above the root map, with its full chord name on root notes. It is off by default. These are
+separate references: G is the root of V in C major, while it is the third of a focused Em chord.
+
+Sounding-note colours continue to describe intervals within the focused chord: roots green, guide
+tones (thirds/sevenths) blue, fifths grey, extensions amber and alterations/outside notes red. They do
+not classify melody versus accompaniment. No separate keyboard legend or placeholder row is needed.
 
 ## Transport
 

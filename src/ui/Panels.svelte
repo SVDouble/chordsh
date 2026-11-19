@@ -36,6 +36,20 @@
     <label
       ><span>Piano</span><input type="checkbox" bind:checked={settings.panels.piano} onchange={() => persist()}></label
     >
+    {#if settings.panels.piano}
+      <label
+        ><span>Piano chord roots</span>
+        <input type="checkbox" bind:checked={settings.editor.pianoRootLabels} onchange={() => persist()}></label
+      >
+      <label
+        ><span>Piano note names</span>
+        <input type="checkbox" bind:checked={settings.editor.pianoNoteNames} onchange={() => persist()}></label
+      >
+      <label
+        ><span>Piano chord tones</span>
+        <input type="checkbox" bind:checked={settings.editor.pianoChordRoles} onchange={() => persist()}></label
+      >
+    {/if}
     <p class="small muted">Drag the dividers to resize. Your layout is remembered.</p>
   </div>
 </details>

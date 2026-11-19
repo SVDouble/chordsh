@@ -154,3 +154,16 @@ and @3 62.3% → 68.5%; all note-recognition metrics are unchanged. See [results
 Voicing validation: 139 tests and production build; desktop/mobile browser checks verify noncommitting
 previews, save/undo/redo, MIDI-export pitches, rootless triads and explained drop-2 constraints.
 The final 684-piece recognition regression at `99b5d96` exactly matches the preceding run.
+
+## Piano chord-root map
+
+- [x] Replace the default note-name/caret annotations with Roman labels for chord roots in the local key.
+- [x] Show idle as well as sounding roots, with proper quality case and diminished markers.
+- [x] Enlarge labels and key spacing; keep black-key accidentals legible in major and minor keys.
+- [x] Make note names and focused-chord interval labels optional, off by default, in Panels and shared Settings.
+- [x] Retain informative hover references without adding a keyboard message row.
+- [x] Verify key changes, label controls/persistence, both themes and narrow screens.
+
+This supersedes the earlier default of printing every note name and numeric key degree on the piano.
+Validation: 143 tests, production build and browser checks for idle roots, white/black-key positions,
+major/minor context, settings persistence, configurable sizing, hover references and mobile layout.

@@ -50,6 +50,10 @@ describe('settings validation and recovery', () => {
     expect(settings.harmony.transitionWeight).toBe(0.4);
     expect(settings.harmony.prior.tonic).toBe(0.8);
     expect(settings.editor.snapBeats).toBe(0.5);
+    expect(settings.editor.pianoNoteNames).toBe(false);
+    expect(settings.editor.pianoRootLabels).toBe(true);
+    expect(settings.editor.pianoChordRoles).toBe(false);
+    expect(settings.editor.pianoLabelSize).toBe(18);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);
   });

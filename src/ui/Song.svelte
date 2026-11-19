@@ -2,7 +2,7 @@
   import { audition, persist, playMidiFile, session, stopMidiFile, ui } from './store.svelte';
   import { EXAMPLES, parseChart } from '../engine/chart';
   import { reharmHints } from '../engine/reharm';
-  import { parseMidiFile } from '../io/midifile';
+  import { midiFileMeta, parseMidiFile } from '../io/midifile';
   import { type Chord, toneNames } from '../theory/chords';
   import { keyLong } from '../theory/scales';
   import { voiceChord } from '../theory/voicing';
@@ -40,17 +40,20 @@
     session.loadSong(null);
   }
   /** Voice a chord sequence from your current hand position and play it. */
-  function hear(chords: Chord[], id: string) {
+  function hear(chords: Chord[], id: string, beats?: number[]) {
     let prev = session.lastVoicing;
-    audition(chords.map((c) => (prev = voiceChord(c, prev))), id);
+    audition(chords.map((c) => (prev = voiceChord(c, prev))), id, beats ?? 2);
   }
+  /** Each chord gets its share of the bar (a bar of 4 beats split between its chords). */
+  const chartBeats = (cells: { bar: number }[]) => cells.map((c) => ui.meter / cells.filter((x) => x.bar === c.bar).length);
   async function openFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!file) return;
     try {
       fileError = '';
       session.clear();
-      playMidiFile(parseMidiFile(await file.arrayBuffer()));
+      const buf = await file.arrayBuffer();
+      playMidiFile(parseMidiFile(buf), midiFileMeta(buf));
     } catch (err) {
       fileError = (err as Error).message;
     }
@@ -122,7 +125,7 @@
   {:else}
     <div class="row small">
       <b>{v.title}</b><span class="muted">{v.key}</span>
-      <button class="link" onclick={() => hear(v.all.map((c) => c.chord), 'chart')}>▶ hear</button>
+      <button class="link" onclick={() => hear(v.all.map((c) => c.chord), 'chart', chartBeats(v.all))}>▶ hear</button>
       <label class="muted"><input type="checkbox" checked={session.songGuide} onchange={(e) => { session.songGuide = e.currentTarget.checked; session.onChange(); }} /> show on piano</label>
       <span class="right row tight">
         {#if v.passes.length}<span class="muted" title="Score per pass through the song">{v.passes.map((p) => p + '%').join(' · ')}</span>{/if}

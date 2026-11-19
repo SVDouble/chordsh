@@ -34,5 +34,8 @@ function recordings(): Plugin {
 
 export default defineConfig({
   plugins: [svelte(), recordings()],
-  test: { include: process.env.REPLAY ? ['scripts/replay.test.ts'] : ['tests/**/*.test.ts'] },
+  test: {
+    include: process.env.REPLAY ? ['scripts/replay.test.ts'] : process.env.EVAL ? [process.env.EVAL === '1' ? 'scripts/eval.test.ts' : process.env.EVAL] : ['tests/**/*.test.ts'],
+    testTimeout: 600_000,
+  },
 });

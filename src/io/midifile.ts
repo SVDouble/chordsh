@@ -52,3 +52,15 @@ export function parseMidiFile(buf: ArrayBuffer): MidiEvent[] {
   }
   return out;
 }
+
+/** First tempo and time signature of a MIDI file (defaults 120 bpm, 4/4). */
+export function midiFileMeta(buf: ArrayBuffer): { bpm: number; beatsPerBar: number } {
+  const b = new Uint8Array(buf);
+  let bpm = 120, beatsPerBar = 4, gotTempo = false, gotSig = false;
+  for (let i = 0; i + 6 < b.length && !(gotTempo && gotSig); i++) {
+    if (b[i] !== 0xff) continue;
+    if (!gotTempo && b[i + 1] === 0x51 && b[i + 2] === 3) { bpm = 60e6 / ((b[i + 3] << 16) | (b[i + 4] << 8) | b[i + 5]); gotTempo = true; }
+    if (!gotSig && b[i + 1] === 0x58 && b[i + 2] === 4) { beatsPerBar = b[i + 3] || 4; gotSig = true; }
+  }
+  return { bpm, beatsPerBar };
+}

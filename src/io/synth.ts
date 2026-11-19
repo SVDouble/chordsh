@@ -92,6 +92,20 @@ export class Synth {
     this.sustained.clear();
   }
 
+  /** Metronome tick; louder and higher on the downbeat. */
+  click(accent: boolean, delay = 0) {
+    const ctx = this.ensure();
+    if (ctx.state !== 'running') return;
+    const t0 = ctx.currentTime + delay;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = accent ? 1760 : 1175;
+    g.gain.setValueAtTime(accent ? 0.35 : 0.2, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
+    o.connect(g).connect(this.out);
+    o.start(t0);
+    o.stop(t0 + 0.06);
+  }
+
   // ── auditions ──
   /** Play notes `delay` seconds from now for `dur` seconds. */
   play(notes: number[], delay: number, dur: number, vel = 0.7) {

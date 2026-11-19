@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { live, recorder, startRecording, stopRecording, stopAudition, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
+  import { live, recorder, setBars, startRecording, stopRecording, stopAudition, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
   import { midiName } from '../theory/pitch';
@@ -120,7 +120,18 @@
             {#each [48, 53, 55, 57, 60, 62, 64] as n}<option value={String(n)}>at {midiName(n)}</option>{/each}
           </select>
         </label>
-        <label>Tempo <span class="row tight"><input type="range" min="50" max="160" bind:value={ui.tempo} onchange={() => persist()} /> {ui.tempo}</span></label>
+        <label>Tempo <span class="row tight"><input type="range" min="50" max="160" bind:value={ui.tempo} onchange={() => { persist(); if (ui.bars === 'metronome') setBars('metronome'); }} /> {ui.tempo}</span></label>
+        <label title="Bars come from your playing (estimated), or from a metronome (exact)">Bars
+          <span class="row tight">
+            <select value={ui.bars === 'metronome' ? 'metronome' : 'auto'} onchange={(e) => setBars(e.currentTarget.value as 'auto' | 'metronome')}>
+              <option value="auto">From my playing</option><option value="metronome">Metronome</option>
+            </select>
+            <select bind:value={ui.meter} onchange={() => { persist(); if (ui.bars !== 'auto') setBars(ui.bars); }}>
+              <option value={3}>3/4</option><option value={4}>4/4</option><option value={6}>6/8</option>
+            </select>
+          </span>
+        </label>
+        {#if ui.bars === 'metronome'}<label>Click <input type="checkbox" bind:checked={ui.click} onchange={() => persist()} /></label>{/if}
         <p class="small muted">Piano colours: <b style="color:var(--harmony)">harmony</b> · <b style="color:var(--melody)">melody</b> · <b style="color:var(--audition)">suggestion</b> · <b style="color:var(--guide)">practice target</b></p>
       </div>
     </details>

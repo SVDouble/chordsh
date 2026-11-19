@@ -1,4 +1,4 @@
-import { session, synth, ui } from './store.svelte';
+import { session, setBars, synth, ui } from './store.svelte';
 
 // [left hand + right hand chord, melody notes] per bar.
 // C major ii–V–I, a secondary dominant, then Fm7 (borrowed iv) pivots into E♭ major.
@@ -30,7 +30,8 @@ export function stopDemo() {
 /** Feed the progression through the engine (as if played) and the synth. */
 export function runDemo(bpm = 96, onEnd: () => void = () => {}) {
   stopDemo();
-  const bar = (60 / bpm) * 2 * 1000;
+  const bar = (60 / bpm) * 2 * 1000; // two chords per 4/4 bar
+  setBars('file', bpm, 4, performance.now());
   const at = (ms: number, f: () => void) => timers.push(setTimeout(f, ms));
   BARS.forEach(([chord, mel], i) => {
     const t = i * bar;

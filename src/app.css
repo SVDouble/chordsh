@@ -257,3 +257,28 @@ button.icon.dim { opacity: 0.55; }
 .rec-note { width: 28ch; background: var(--card-2); border: 1px solid var(--D); border-radius: 8px; padding: 6px 10px; }
 .rec-stop { border-color: var(--D); color: var(--D); font-weight: 700; }
 .rec-msg { color: var(--T); white-space: nowrap; }
+
+/* progression in bars */
+.tempo { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+.theories { display: flex; align-items: center; gap: 4px; flex: none; }
+.theory { min-height: 0; padding: 1px 8px; font-size: 12px; border-radius: 999px; color: var(--muted); }
+.theory.on { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--card-2)); }
+.hbars { display: flex; gap: 0; align-items: stretch; padding-bottom: 2px; }
+.hbar { flex: none; width: 170px; border-left: 2px solid var(--line); padding: 0 5px 2px; display: flex; flex-direction: column; gap: 3px; }
+.hbar.current { background: color-mix(in srgb, var(--accent) 7%, transparent); border-left-color: var(--accent); }
+.hbar-top { display: flex; gap: 6px; align-items: baseline; min-height: 15px; font-size: 11px; }
+.barno { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar-key { color: var(--guide); font-weight: 700; white-space: nowrap; }
+.hbar-cells { display: flex; gap: 3px; min-height: 52px; }
+.hcell { min-width: 0; padding: 3px 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 4px solid var(--X); overflow: hidden; }
+.hcell .c-name { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.hcell .c-roman { font-size: 13px; white-space: nowrap; }
+.hcell.f-T { border-top-color: var(--T); background: color-mix(in srgb, var(--T) 9%, var(--card-2)); }
+.hcell.f-PD { border-top-color: var(--PD); background: color-mix(in srgb, var(--PD) 9%, var(--card-2)); }
+.hcell.f-D { border-top-color: var(--D); background: color-mix(in srgb, var(--D) 9%, var(--card-2)); }
+.hcell:not(.k-diatonic) .c-roman { color: var(--audition); }
+.hcell.cont { opacity: 0.45; }
+.hcell.tentative, .chip.tentative { border-style: dashed; }
+.revised { animation: revised 2.5s ease-out; }
+@keyframes revised { 0% { box-shadow: 0 0 0 3px var(--audition); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.bar-tags { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 2px solid var(--D); padding-top: 1px; }

@@ -6,7 +6,7 @@ import { keyShort } from '../src/theory/scales';
 
 let s: Session;
 let t = 1000;
-beforeEach(() => { vi.useFakeTimers(); s = new Session(); t = 1000; });
+beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] }); vi.advanceTimersByTime(1000); s = new Session(); t = 1000; });
 afterEach(() => vi.useRealTimers());
 
 /** Play a block chord (LH bass + RH chord) for one beat, with an optional melody note. */

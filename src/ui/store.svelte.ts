@@ -1,7 +1,7 @@
 import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
-import type { MidiEvent } from '../io/midifile';
+import type { Piece } from '../library/pieces';
 import { Recorder, saveRecording } from '../io/recorder';
 
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
@@ -29,10 +29,10 @@ export const ui = $state({
   playingStep: -1,
   /** User charts, saved in the browser. */
   charts: (saved.charts ?? []) as { title: string; text: string }[],
-  filePlaying: false,
-  demo: false,
+  /** Title of the library piece currently playing. */
+  nowPlaying: null as string | null,
   /** Right-hand panel: song chart or key-change routes. */
-  tab: 'song' as 'song' | 'route',
+  tab: 'library' as 'library' | 'song' | 'route',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
   monitor: (saved.monitor ?? true) as boolean,
   audioBlocked: true,
@@ -108,32 +108,31 @@ export function stopAudition() {
   ui.playingStep = -1;
 }
 
-let fileTimers: ReturnType<typeof setTimeout>[] = [];
+let pieceTimers: ReturnType<typeof setTimeout>[] = [];
 
-/** Replay a MIDI file through the engine (as if you played it) and the synth. */
-export function playMidiFile(events: MidiEvent[], meta?: { bpm: number; beatsPerBar: number }) {
-  stopMidiFile();
-  const lead = 300;
-  if (meta) setBars('file', meta.bpm, meta.beatsPerBar, performance.now() + lead);
-  for (const e of events) {
-    const at = (f: () => void) => fileTimers.push(setTimeout(f, lead + e.t));
-    if (e.type === 'on') at(() => live.noteOn(e.note, e.vel));
-    else if (e.type === 'off') at(() => live.noteOff(e.note));
-    else at(() => live.pedal(e.vel >= 64));
+/** Play any library piece into the app, exactly as if you played it (analysis, sound, recording). */
+export function playPiece(p: Piece) {
+  stopPiece();
+  const lead = 300, start = performance.now() + lead;
+  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start);
+  for (const [t, d, note, vel] of p.notes) {
+    pieceTimers.push(setTimeout(() => live.noteOn(note, vel), lead + t));
+    pieceTimers.push(setTimeout(() => live.noteOff(note), lead + t + Math.max(20, d)));
   }
-  ui.filePlaying = true;
-  fileTimers.push(setTimeout(() => (ui.filePlaying = false), lead + (events[events.length - 1]?.t ?? 0) + 200));
+  ui.nowPlaying = p.title;
+  const end = Math.max(0, ...p.notes.map(([t, d]) => t + d));
+  pieceTimers.push(setTimeout(() => (ui.nowPlaying = null), lead + end + 200));
 }
 
-export function stopMidiFile() {
-  fileTimers.forEach(clearTimeout);
-  fileTimers = [];
-  synth.stop();
-  ui.filePlaying = false;
+export function stopPiece() {
+  pieceTimers.forEach(clearTimeout);
+  pieceTimers = [];
+  for (const n of [...session.seg.held.keys()]) live.noteOff(n);
+  ui.nowPlaying = null;
 }
 
 export function startRecording() {
-  recorder.start({ style: session.style, split: session.seg.splitMode, keyLock: session.keyLock, monitor: ui.monitor, inputs: midi.devices, userAgent: navigator.userAgent });
+  recorder.start({ style: session.style, split: session.seg.splitMode, keyLock: session.keyLock, monitor: ui.monitor, bars: ui.bars, bpm: ui.tempo, meter: ui.meter, inputs: midi.devices, userAgent: navigator.userAgent });
   session.trace = (e) => recorder.engine(e);
   ui.recording = true;
   ui.recMsg = '';

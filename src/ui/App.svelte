@@ -4,7 +4,6 @@
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong, keyShort } from '../theory/scales';
   import { midiName } from '../theory/pitch';
-  import { toggleDemo } from './demo';
   import NowPlaying from './NowPlaying.svelte';
   import KeyWheel from './KeyWheel.svelte';
   import History from './History.svelte';
@@ -12,6 +11,7 @@
   import Route from './Route.svelte';
   import Piano from './Piano.svelte';
   import Song from './Song.svelte';
+  import Library from './Library.svelte';
 
   let lock = $state('auto');
   let recClock = $state('0:00');
@@ -87,7 +87,6 @@
         <option value="jazz">Jazz (7ths)</option><option value="triads">Triads</option>
       </select>
     </label>
-    <button class:active={ui.demo} onclick={toggleDemo}>{ui.demo ? '■ Stop' : '▶ Demo'}</button>
     <button class="icon" class:dim={!ui.monitor} onclick={toggleSound} title={ui.monitor ? 'Sound on — you hear what you play (click to mute)' : 'Sound off (click to hear what you play)'}>{ui.monitor ? '🔊' : '🔇'}</button>
     <button class="icon" onclick={() => { ui.theme = ui.theme === 'dark' ? 'light' : 'dark'; persist(); }} title="Switch light / dark">{ui.theme === 'dark' ? '☀' : '☾'}</button>
     <details class="settings">
@@ -145,11 +144,12 @@
     <section class="pane centre"><KeyWheel /></section>
     <section class="pane right">
       <nav class="tabs">
+        <button class:on={ui.tab === 'library'} onclick={() => (ui.tab = 'library')}>Library</button>
         <button class:on={ui.tab === 'song'} onclick={() => (ui.tab = 'song')}>Song{m.song ? `: ${m.song}` : ''}</button>
         <button class:on={ui.tab === 'route'} onclick={() => (ui.tab = 'route')}>Change key{m.target ? ` → ${keyShort(m.target)}` : ''}</button>
       </nav>
       <div class="tab-body">
-        {#if ui.tab === 'song'}<Song />{:else}<Route />{/if}
+        {#if ui.tab === 'library'}<Library />{:else if ui.tab === 'song'}<Song />{:else}<Route />{/if}
       </div>
     </section>
     <section class="pane bottom"><History /></section>

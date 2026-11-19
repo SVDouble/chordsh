@@ -1,6 +1,7 @@
 <script lang="ts">
   import { midi, session, ui } from './store.svelte';
-  import { toggleDemo } from './demo';
+  import { playPiece, stopPiece } from './store.svelte';
+  import { BUILT_IN } from '../library/pieces';
   import { chordName, inversionLabel, toneNames } from '../theory/chords';
   import { SCALE_LABEL, keyLong } from '../theory/scales';
   import { roleClass } from './colours';
@@ -31,7 +32,8 @@
       {#if v.devices.length}<b>{v.devices.join(', ')}</b> is connected.
       {:else}No MIDI yet? Computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd>…<kbd>;</kbd> play notes (<kbd>Z</kbd>/<kbd>X</kbd> octave).{/if}
     </p>
-    <button class="big-btn" onclick={toggleDemo}>{ui.demo ? '■ Stop demo' : '▶ Watch a demo'}</button>
+    <button class="big-btn" onclick={() => (ui.nowPlaying ? stopPiece() : playPiece(BUILT_IN[0]))}>{ui.nowPlaying ? '■ Stop' : '▶ Play the demo'}</button>
+    <p class="small muted">More in the <b>Library</b> tab: your recordings, MIDI files and annotated pieces.</p>
   {:else}
     <div class="now-top">
       <span class="big">{v.name}</span>

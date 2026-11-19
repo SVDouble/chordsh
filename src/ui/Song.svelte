@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { audition, persist, playMidiFile, session, stopMidiFile, ui } from './store.svelte';
+  import { audition, persist, session, ui } from './store.svelte';
   import { EXAMPLES, parseChart } from '../engine/chart';
   import { reharmHints } from '../engine/reharm';
-  import { midiFileMeta, parseMidiFile } from '../io/midifile';
   import { type Chord, toneNames } from '../theory/chords';
   import { keyLong } from '../theory/scales';
   import { voiceChord } from '../theory/voicing';
@@ -12,7 +11,6 @@
   let title = $state('');
   let text = $state('');
   let selected = $state<number | null>(null);
-  let fileError = $state('');
 
   const library = $derived([...EXAMPLES, ...ui.charts]);
   const draft = $derived(editing ? parseChart(text, title) : null);
@@ -46,18 +44,7 @@
   }
   /** Each chord gets its share of the bar (a bar of 4 beats split between its chords). */
   const chartBeats = (cells: { bar: number }[]) => cells.map((c) => ui.meter / cells.filter((x) => x.bar === c.bar).length);
-  async function openFile(e: Event) {
-    const file = (e.currentTarget as HTMLInputElement).files?.[0];
-    if (!file) return;
-    try {
-      fileError = '';
-      session.clear();
-      const buf = await file.arrayBuffer();
-      playMidiFile(parseMidiFile(buf), midiFileMeta(buf));
-    } catch (err) {
-      fileError = (err as Error).message;
-    }
-  }
+
 
   const v = $derived.by(() => {
     ui.tick;
@@ -97,12 +84,7 @@
     </select>
     <button onclick={() => { title = 'New song'; text = ''; editing = true; }}>New</button>
     <button disabled={!session.chords.length} onclick={() => edit(true)} title="Turn the progression you played into a chart">From playing</button>
-    <label class="filebtn" title="Analyse a recording: it is replayed through the engine">
-      {ui.filePlaying ? 'Playing…' : 'MIDI file'}<input type="file" accept=".mid,.midi" onchange={openFile} />
-    </label>
-    {#if ui.filePlaying}<button onclick={stopMidiFile}>■</button>{/if}
   </div>
-  {#if fileError}<p class="warn small">{fileError}</p>{/if}
 
   {#if editing}
     <div class="editor">

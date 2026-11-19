@@ -58,7 +58,7 @@
     return {
       barView, pats, theories, viewing: session.viewTheory,
       chips: recent.map((h) => (h.type === 'chord' ? { ...h, revised: fresh(h), label: '' } : { ...h, label: (h.from ? '→ ' : '') + keyLong(h.key) })),
-      tempo: tempo.bpm ? `♩ ${tempo.fixed ? '' : tempo.confidence < 0.5 ? '≈' : ''}${tempo.bpm} · ${tempo.beatsPerBar}/4` : '',
+      tempo: tempo.bpm ? `♩ ${tempo.fixed ? '' : tempo.confidence < 0.5 ? '≈' : ''}${tempo.bpm} · ${tempo.beatsPerBar} beats/bar` : '',
       tempoTitle: tempo.fixed ? 'Fixed tempo (metronome / MIDI file) — bars are exact' : `Tempo and bars estimated from your playing (confidence ${Math.round(tempo.confidence * 100)}%) — they firm up as you keep a steady pulse`,
       melody: session.melody.slice(-24).map((m) => ({ ...m })),
       empty: !chords.length,

@@ -50,7 +50,7 @@ export class Recorder {
   }
 }
 
-/** Save to the project's recordings/ folder via the dev server; fall back to a download. */
+/** Save to the project's local/recordings/ folder via the dev server; fall back to a download. */
 export async function saveRecording(rec: Recording): Promise<string> {
   const body = JSON.stringify(rec);
   try {

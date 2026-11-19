@@ -19,6 +19,13 @@ export interface SequenceStep {
   key?: Key;
 }
 
+export interface KeyRegion {
+  id: string;
+  start: number;
+  key: Key | null;
+  label?: string;
+}
+
 export interface Sequence {
   id: string;
   title: string;
@@ -26,6 +33,7 @@ export interface Sequence {
   meter: number;
   key: Key | null;
   steps: SequenceStep[];
+  regions?: KeyRegion[];
 }
 
 export interface ChordInput {
@@ -43,6 +51,20 @@ export function emptySequence(
   settings: EditorSettings = DEFAULT_SETTINGS.editor,
 ): Sequence {
   return { id, title, bpm: settings.newTempo, meter: settings.newMeter, key: { tonic: 0, mode: 'major' }, steps: [] };
+}
+
+export function sequenceRegions(sequence: Sequence): KeyRegion[] {
+  if (sequence.regions?.length) return sequence.regions;
+  const regions: KeyRegion[] = [{ id: `${sequence.id}:key:0`, start: 0, key: sequence.key }];
+  for (const step of sequence.steps)
+    if (step.key && JSON.stringify(step.key) !== JSON.stringify(regions.at(-1)!.key))
+      if (regions.at(-1)!.start === step.start) regions[regions.length - 1] = { ...regions.at(-1)!, key: step.key };
+      else regions.push({ id: `${sequence.id}:key:${step.start}`, start: step.start, key: step.key });
+  return regions;
+}
+
+export function sequenceKeyAt(sequence: Sequence, beat: number): Key | null {
+  return sequenceRegions(sequence).findLast((r) => r.start <= beat)?.key ?? null;
 }
 
 function step(
@@ -98,6 +120,7 @@ export class SequenceEditor {
   constructor(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor) {
     this.options = editorSchema.parse(settings);
     this.value = structuredClone(sequence);
+    this.value.regions = structuredClone(sequenceRegions(sequence));
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
       const start = s.start ?? end;
@@ -116,6 +139,15 @@ export class SequenceEditor {
   }
 
   private commit(next: Sequence) {
+    if (next.regions === this.value.regions)
+      next.regions = next.regions
+        ?.map((r) => {
+          if (r.start === 0) return r;
+          const anchor = this.value.steps.findLast((s) => s.start <= r.start);
+          const moved = anchor && next.steps.find((s) => s.id === anchor.id);
+          return moved && anchor ? { ...r, start: moved.start + r.start - anchor.start } : r;
+        })
+        .sort((a, b) => a.start - b.start);
     this.past.push(this.value);
     if (this.past.length > this.settings.undoLimit) this.past.splice(0, this.past.length - this.settings.undoLimit);
     this.value = next;
@@ -137,6 +169,7 @@ export class SequenceEditor {
         !['major', 'minor'].includes(next.key.mode))
     )
       throw new Error('Invalid sequence key.');
+    if ('key' in patch) next.regions = [{ id: `${next.id}:key:0`, start: 0, key: next.key }];
     this.commit(next);
   }
 
@@ -165,10 +198,25 @@ export class SequenceEditor {
       if (removeId) this.commit({ ...this.value, steps: remaining });
       return null;
     }
-    this.commit({
+    const next = {
       ...this.value,
       steps: this.ripple([...before, ...added, ...remaining.filter((s) => s.start >= at)]),
+      regions: structuredClone(this.value.regions ?? []),
+    };
+    // Existing region boundaries anchored to later chords follow ripple edits.
+    next.regions = next.regions.map((r) => {
+      if (r.start === 0) return r;
+      const anchor = this.value.steps.findLast((s) => s.start <= r.start);
+      const moved = anchor && next.steps.find((s) => s.id === anchor.id);
+      return moved && anchor ? { ...r, start: moved.start + r.start - anchor.start } : r;
     });
+    for (const s of added)
+      if (s.key && JSON.stringify(sequenceKeyAt(next, s.start)) !== JSON.stringify(s.key))
+        next.regions = [
+          ...next.regions.filter((r) => r.start !== s.start),
+          { id: crypto.randomUUID(), start: s.start, key: s.key },
+        ].sort((a, b) => a.start - b.start);
+    this.commit(next);
     return added[added.length - 1].id;
   }
 
@@ -189,6 +237,41 @@ export class SequenceEditor {
   replaceWith(id: string, inputs: ChordInput[]): string | null {
     const old = this.value.steps[this.index(id)];
     return this.place(inputs, old.start, id);
+  }
+
+  setRegion(start: number, key: Key | null, label = '') {
+    if (!Number.isFinite(start) || start < 0) throw new Error('Choose a key-region position at or after beat zero.');
+    if (
+      key &&
+      (!Number.isInteger(key.tonic) || key.tonic < 0 || key.tonic > 11 || !['major', 'minor'].includes(key.mode))
+    )
+      throw new Error('Choose a valid key.');
+    const existing = this.value.regions?.find((r) => r.start === start);
+    const region = {
+      id: existing?.id ?? crypto.randomUUID(),
+      start,
+      key: key ? { ...key } : null,
+      ...(label.trim() ? { label: label.trim() } : {}),
+    };
+    this.commit({
+      ...this.value,
+      key: start === 0 ? key : this.value.key,
+      regions: [...(this.value.regions ?? []).filter((r) => r.start !== start), region].sort(
+        (a, b) => a.start - b.start,
+      ),
+    });
+  }
+
+  removeRegion(id: string) {
+    const region = this.value.regions?.find((r) => r.id === id);
+    if (!region || region.start === 0)
+      throw new Error('The opening key region cannot be removed; choose Auto instead.');
+    this.commit({ ...this.value, regions: this.value.regions!.filter((r) => r.id !== id) });
+  }
+
+  clear() {
+    if (this.value.steps.length || (this.value.regions?.length ?? 0) > 1)
+      this.commit({ ...this.value, steps: [], regions: this.value.regions?.filter((r) => r.start === 0) });
   }
 
   remove(id: string) {
@@ -255,7 +338,15 @@ export class SequenceEditor {
         symbol: chordName({ ...c, root: mod12(c.root + semitones), bass: mod12(c.bass + semitones) }, key),
       };
     });
-    this.commit({ ...this.value, key, steps });
+    this.commit({
+      ...this.value,
+      key,
+      steps,
+      regions: this.value.regions?.map((r) => ({
+        ...r,
+        key: r.key ? { ...r.key, tonic: mod12(r.key.tonic + semitones) } : null,
+      })),
+    });
   }
 
   undo() {
@@ -318,7 +409,7 @@ export function sequenceChart(sequence: Sequence): Chart {
     sequence.key ?? undefined,
   );
   chart.chords.forEach((c, i) => {
-    const key = sequence.steps[i].key ?? chart.key;
+    const key = sequenceKeyAt(sequence, sequence.steps[i].start) ?? chart.key;
     if (key) c.roman = analyzeRoman(c.chord, key, chart.chords[i + 1]?.chord);
   });
   return chart;

@@ -348,6 +348,14 @@ export const analysisSchema = z.object({
 });
 
 export const editorSchema = z.object({
+  pianoKeyWidth: integer(
+    20,
+    12,
+    40,
+    'Piano key width',
+    'Minimum white-key width. Narrow screens scroll the piano so notes and role labels stay readable.',
+    'px',
+  ),
   newTempo: number(100, 4, 1000, 'New song tempo', 'Initial tempo of a new sequence.', 'BPM', 1),
   newMeter: integer(4, 1, 12, 'New song meter', 'Quarter-note beats per bar in a new sequence.', 'beats'),
   snapBeats: number(0.25, 0.015625, 4, 'Timeline snap', 'Beat spacing for dragging and resizing chords.', 'beats'),

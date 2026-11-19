@@ -1,9 +1,66 @@
 import { describe, expect, it } from 'vitest';
-import { emptySequence, SequenceEditor, sequenceFromChart, sequencePiece } from '../src/engine/sequence';
+import {
+  emptySequence,
+  SequenceEditor,
+  sequenceFromChart,
+  sequencePiece,
+  sequenceKeyAt,
+  sequenceChart,
+} from '../src/engine/sequence';
 import { writeMidi } from '../src/io/midiexport';
 import { midiFileMeta, parseMidiFile } from '../src/io/midifile';
 
 describe('composition editing', () => {
+  it('keeps explicit key regions and analyses subsequent chords in the local key', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C | D7 | G |', 'Modulation'));
+    editor.update({ key: { tonic: 0, mode: 'major' } });
+    editor.setRegion(4, { tonic: 7, mode: 'major' }, 'Bridge');
+    expect(sequenceKeyAt(editor.document, 3)).toEqual({ tonic: 0, mode: 'major' });
+    expect(sequenceKeyAt(editor.document, 8)).toEqual({ tonic: 7, mode: 'major' });
+    expect(sequenceChart(editor.document).chords[1].roman?.numeral).toBe('V7');
+    const before = editor.document;
+    editor.removeRegion(before.regions![1].id);
+    expect(sequenceKeyAt(editor.document, 8)).toEqual({ tonic: 0, mode: 'major' });
+    editor.undo();
+    expect(editor.document).toEqual(before);
+    editor.transpose(2);
+    expect(sequenceKeyAt(editor.document, 8)).toEqual({ tonic: 9, mode: 'major' });
+    expect(editor.document.regions![1].label).toBe('Bridge');
+  });
+
+  it('moves later key boundaries with inserted or resized chords while keeping the opening region at zero', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C | D7 | G |', 'Ripple'));
+    editor.setRegion(4, { tonic: 7, mode: 'major' });
+    editor.place([{ symbol: 'Am', beats: 2 }], 0);
+    expect(editor.document.regions!.map((r) => r.start)).toEqual([0, 6]);
+    editor.replace(editor.document.steps[0].id, { symbol: 'Am', beats: 4 });
+    expect(editor.document.regions!.map((r) => r.start)).toEqual([0, 8]);
+  });
+
+  it('retains a key change included with an inserted suggestion as part of the same undo action', () => {
+    const editor = new SequenceEditor(emptySequence());
+    editor.insert([{ symbol: 'C' }]);
+    const before = editor.document;
+    editor.insert([{ symbol: 'D7' }, { symbol: 'G', key: { tonic: 7, mode: 'major' } }]);
+    expect(sequenceKeyAt(editor.document, 8)).toEqual({ tonic: 7, mode: 'major' });
+    editor.undo();
+    expect(editor.document).toEqual(before);
+    expect(() => editor.setRegion(-1, null)).toThrow();
+    expect(editor.document).toEqual(before);
+  });
+
+  it('clears a song in one undoable edit while preserving its tempo, meter and key', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C | Dm7 G7 |', 'Reset'));
+    editor.update({ bpm: 132, meter: 3 });
+    const before = editor.document;
+    editor.clear();
+    expect(editor.document).toEqual({ ...before, steps: [] });
+    editor.undo();
+    expect(editor.document).toEqual(before);
+    editor.redo();
+    expect(editor.document.steps).toEqual([]);
+  });
+
   it('places chords in empty timeline spots and preserves gaps in playback', () => {
     const editor = new SequenceEditor(emptySequence());
     editor.place([{ symbol: 'C', beats: 2 }], 0);

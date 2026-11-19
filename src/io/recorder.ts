@@ -88,7 +88,7 @@ export async function saveRecording(rec: Recording): Promise<string> {
   }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
-  a.download = `musify-session-${rec.started.replace(/[:.]/g, '-')}.json`;
+  a.download = `chordsh-session-${rec.started.replace(/[:.]/g, '-')}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
   return `${a.download} (downloaded)`;

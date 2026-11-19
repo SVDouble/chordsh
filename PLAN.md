@@ -1,9 +1,9 @@
-# Musify — plan
+# chord.sh — plan
 
-A browser app that listens to a MIDI keyboard, names what you play, explains it in key-relative terms
-(I–ii–V, secondary dominants, borrowed chords…), and coaches you on where to go next — including into other
-keys. Built for a player who "vibes" rather than reads: matching is forgiving, coaching is about the big
-picture.
+A composition assistant for developing music: play with chords, build editable timelines, listen to
+alternatives and add suggestions, then use your DAW's instruments and export MIDI. The browser editor
+provides the current workflow; an OS-independent core with native MIDI plug-in wrappers is the delivery
+direction. Live MIDI analysis remains forgiving, key-relative and focused on the musical big picture.
 
 Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md),
 [benchmark](docs/benchmark.md), [research](docs/research.md).
@@ -44,7 +44,16 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
     and performance seek; sound unlock on the sound icon; PaneForge resizing, saved layouts and panel
     visibility, including song/progression focus. Where next keeps its tabs.
 
+11. **Composition workspace** — live beat timeline with click-to-add/edit, drag/resize, rests, voicings,
+    undo/redo, transpose and chart input; icon suggestion insertion and reharmonisation replacement.
+    Current-song switching, MIDI export and DAW MIDI routing share the same sequence document.
+12. **chord.sh** — renamed interface/package/docs, retaining legacy songs and settings. Editor, Live
+    and Library remain separate visible views; transport uses universal icons.
+
 ## Next
+
+- **Native host delivery** — cross-platform core with VST3/AU MIDI wrappers, host transport/state
+  synchronization and a tested host matrix; [architecture](docs/daw.md).
 
 - **Accuracy** (guided by the benchmark error breakdown):
   - boundary errors (37–66 % of chord misses): beat-aware segmentation, or a segmental / semi-Markov model;

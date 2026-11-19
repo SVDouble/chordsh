@@ -1,22 +1,24 @@
 <script lang="ts">
   import { audition, session, ui } from './store.svelte';
-  import { findPivots } from '../engine/coach';
+  import { findPivots, suggestPaths } from '../engine/coach';
+  import { acceptPath, compositionContext } from './composition.svelte';
   import { commonTones, fifthsDistance, keyLong, keyShort } from '../theory/scales';
 
   const v = $derived.by(() => {
     void ui.tick; // re-run when the engine changes
-    const from = session.activeKey,
+    const context = compositionContext();
+    const from = context.key,
       to = session.target;
     const p = session.practice;
     return {
       from,
       to,
-      paths: session.paths.map((x) => ({ ...x })),
+      paths: from && to ? suggestPaths(from, to, context.last, context.voicing, session.style) : [],
       pivots: from && to ? findPivots(from, to, session.style).slice(0, 4) : [],
       info:
         from && to ? `${fifthsDistance(from, to)} steps on the circle · ${commonTones(from, to)}/7 notes shared` : '',
       practice: p ? { ...p, steps: p.path.steps } : null,
-      likely: session.reach
+      likely: context.reach
         .filter((r) => r.relation !== 'home')
         .sort((a, b) => b.likelihood - a.likelihood)
         .slice(0, 5),
@@ -88,13 +90,24 @@
           <span class="right row tight">
             <button
               type="button"
+              aria-label={`Preview ${path.technique}`}
+              title={`Preview ${path.technique}`}
               onclick={() =>
                 audition(
                   path.steps.map((s) => s.voicing),
                   path.id,
                 )}
             >
-              ▶ Play
+              ▶
+            </button>
+            <button
+              type="button"
+              class="icon"
+              aria-label={`Add ${path.technique} to sequence`}
+              title="Add transition to sequence"
+              onclick={() => acceptPath(path)}
+            >
+              ＋
             </button>
             <button type="button" onclick={() => session.startPractice(path)}>Practise</button>
           </span>

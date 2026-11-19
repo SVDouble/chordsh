@@ -2,6 +2,7 @@
   import { audition, session, ui } from './store.svelte';
   import { keyIndex, keyLong } from '../theory/scales';
   import type { ChordEntry } from '../engine/session';
+  import { captureProgression } from './composition.svelte';
 
   let scroller: HTMLDivElement;
   const MAX_BARS = 24;
@@ -114,6 +115,7 @@
       Progression
       {#if !v.empty}
         <button type="button" class="link" onclick={() => session.clear()}>clear</button>
+        <button type="button" class="link" onclick={captureProgression}>Edit sequence</button>
       {/if}
     </div>
     {#if v.tempo}

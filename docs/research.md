@@ -1,11 +1,11 @@
 # Research notes
 
-What already exists for each problem Musify tackles, what we borrowed, and what is worth borrowing next.
+What already exists for each problem chord.sh tackles, what we borrowed, and what is worth borrowing next.
 Keep this file updated when we try something new — including what _didn't_ work.
 
 ## 1. Harmonic analysis of symbolic music (chords + keys)
 
-**Where Musify stands.** The analyser (`src/engine/harmonizer.ts`) is a hidden Markov model over joint
+**Where chord.sh stands.** The analyser (`src/engine/harmonizer.ts`) is a hidden Markov model over joint
 (key, chord) states solved with Viterbi on onset segments — the classical approach in the literature:
 
 - Key-specific HMMs with Viterbi decoding of chord sequences, trained from symbolic harmonic analysis

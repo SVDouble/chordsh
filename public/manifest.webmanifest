@@ -1,7 +1,7 @@
 {
-  "name": "Musify — harmony companion",
-  "short_name": "Musify",
-  "description": "Plays along with your MIDI keyboard: names chords, explains them in the key, suggests where to go next.",
+  "name": "chord.sh — chord workspace",
+  "short_name": "chord.sh",
+  "description": "Build chord timelines, explore harmonic suggestions and export MIDI to your DAW.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d0f13",

@@ -7,7 +7,7 @@ import path from 'node:path';
 /** Dev-only endpoint: POST /__recordings saves a session recording to ./local/recordings for analysis. */
 function recordings(): Plugin {
   return {
-    name: 'musify-recordings',
+    name: 'chordsh-recordings',
     configureServer(server) {
       server.middlewares.use('/__recordings', (req, res) => {
         if (req.method !== 'POST') {
@@ -45,7 +45,7 @@ const ls = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : []);
 function library(): Plugin {
   const root = path.resolve('local');
   return {
-    name: 'musify-library',
+    name: 'chordsh-library',
     configureServer(server) {
       server.middlewares.use('/__library', (req, res) => {
         const url = new URL(req.url ?? '/', 'http://x');

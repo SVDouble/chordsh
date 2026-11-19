@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <title>Musify piano</title>
+  <title>chord.sh piano</title>
   <rect width="512" height="512" rx="96" fill="#161920" />
   <g fill="#f3f4f6">
     <rect x="64" y="160" width="76" height="260" rx="10" />

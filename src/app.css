@@ -520,6 +520,339 @@ select {
 .move.playing {
   border-color: var(--audition);
 }
+.move-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+}
+.accept-move {
+  margin-bottom: 5px;
+  padding: 6px 9px;
+  color: var(--accent);
+}
+.source-picker select {
+  width: clamp(140px, 15vw, 240px);
+  max-width: 240px;
+}
+.record-toggle {
+  color: var(--D);
+}
+.record-toggle.recording {
+  background: color-mix(in srgb, var(--D) 18%, var(--card));
+}
+.sequence-heading,
+.sequence-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.sequence-heading {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sequence-title {
+  flex: 1;
+  min-width: 140px;
+  width: 200px;
+  border: 0;
+  border-radius: 5px;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+.sequence-editor input:not(.sequence-title):not([type="checkbox"]) {
+  background: var(--card-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  min-height: 34px;
+  padding: 5px 8px;
+}
+.sequence-meta {
+  font-size: 13px;
+}
+.sequence-meta label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sequence-meta input {
+  width: 64px;
+}
+.sequence-meta select {
+  max-width: 135px;
+}
+.timeline-scroll {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-top: 14px;
+  scrollbar-width: thin;
+}
+.chord-timeline {
+  position: relative;
+  height: 164px;
+  background: var(--card-2);
+}
+.timeline-ruler,
+.timeline-slot {
+  position: absolute;
+  border-radius: 0;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+  background: transparent;
+  padding: 0;
+}
+.timeline-ruler {
+  top: 0;
+  height: 28px;
+  min-height: 0;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.timeline-slot {
+  top: 28px;
+  bottom: 0;
+  min-height: 0;
+  color: var(--muted);
+}
+.timeline-slot span {
+  opacity: 0;
+}
+.timeline-slot:hover span,
+.timeline-slot:focus-visible span {
+  opacity: 1;
+}
+.timeline-slot:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.timeline-ruler.bar-start,
+.timeline-slot.bar-start {
+  border-left: 2px solid var(--line);
+}
+.timeline-clip {
+  position: absolute;
+  top: 49px;
+  height: 86px;
+  z-index: 2;
+  border-radius: 8px;
+}
+.clip-body {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 14px 3px 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  border-top: 3px solid var(--X);
+  background: var(--card);
+}
+.clip-body b {
+  font-size: 20px;
+  white-space: nowrap;
+}
+.clip-body.f-T {
+  border-top-color: var(--T);
+}
+.clip-body.f-PD {
+  border-top-color: var(--PD);
+}
+.clip-body.f-D {
+  border-top-color: var(--D);
+}
+.timeline-clip.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.timeline-clip.playing .clip-body {
+  background: color-mix(in srgb, var(--audition) 20%, var(--card));
+  border-color: var(--audition);
+}
+.clip-drag {
+  position: absolute;
+  top: 0;
+  left: 3px;
+  right: 8px;
+  min-height: 16px;
+  height: 16px;
+  line-height: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: grab;
+  color: var(--muted);
+  opacity: 0;
+  touch-action: none;
+}
+.timeline-clip:hover .clip-drag,
+.timeline-clip.selected .clip-drag {
+  opacity: 0.75;
+}
+.clip-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  min-height: 0;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  background: transparent;
+  padding: 0;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.clip-resize:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.timeline-playhead,
+.timeline-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 5;
+  pointer-events: none;
+  background: var(--D);
+}
+.timeline-cursor {
+  background: var(--accent);
+  opacity: 0.55;
+}
+.timeline-playhead::before,
+.timeline-cursor::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -4px;
+  border: 5px solid transparent;
+  border-top-color: currentColor;
+  color: var(--D);
+}
+.timeline-cursor::before {
+  color: var(--accent);
+}
+.timeline-caption {
+  margin: 7px 0;
+  font-size: 12px;
+}
+.timeline-zoom button {
+  min-height: 30px;
+  width: 30px;
+  padding: 0;
+}
+.chord-popover {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 12px 0;
+  background: var(--card-2);
+}
+.chord-popover-main {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.chord-popover-main > input {
+  flex: 1;
+  min-width: 60px;
+  width: 150px;
+  font-size: 20px;
+}
+.duration-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  margin: 10px 0 4px;
+}
+.duration-choices button {
+  min-height: 28px;
+  padding: 0 9px;
+}
+.duration-choices button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.duration-choices input {
+  width: 65px;
+}
+.timeline-ideas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0;
+}
+.idea-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card-2);
+  max-width: 100%;
+  font-size: 13px;
+}
+.idea-chip > span {
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.idea-chip button.icon {
+  min-height: 26px;
+  height: 26px;
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
+  font-size: 13px;
+}
+.voicing-editor {
+  margin-bottom: 16px;
+}
+.voicing-editor summary,
+.sequence-tools summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+.voicing-editor label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.voicing-editor input {
+  width: 160px;
+}
+.voicing-editor input[type="number"] {
+  width: 64px;
+}
+.sequence-tools {
+  margin: 18px 0;
+}
+.sequence-tools textarea {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.sequence-tools > label {
+  display: block;
+  margin: 8px 0;
+}
 .m-name {
   font-weight: 750;
   font-size: 19px;

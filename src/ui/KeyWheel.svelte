@@ -2,6 +2,7 @@
   import { session, ui } from './store.svelte';
   import { type Key, SCALE_LABEL, keyEq, keyIndex, keyLong, keyShort } from '../theory/scales';
   import type { KeyReach } from '../engine/coach';
+  import { compositionContext } from './composition.svelte';
 
   // Circle of fifths: majors outside, relative minors inside.
   const nodes = Array.from({ length: 12 }, (_, i) => {
@@ -43,16 +44,19 @@
 
   const v = $derived.by(() => {
     void ui.tick; // re-run when the engine changes
-    const k = session.activeKey;
+    const context = compositionContext();
+    const k = context.key;
     return {
-      reach: new Map(session.reach.map((r) => [keyIndex(r.key), r])),
-      maxL: Math.max(0.05, ...session.reach.filter((r) => r.relation !== 'home').map((r) => r.likelihood)),
+      reach: new Map(context.reach.map((r) => [keyIndex(r.key), r])),
+      maxL: Math.max(0.05, ...context.reach.filter((r) => r.relation !== 'home').map((r) => r.likelihood)),
       current: k,
       target: session.target,
       label: k ? keyLong(k) : 'listening…',
-      sub: k
-        ? `${Math.round(session.keyProbs[keyIndex(k)] * 100)}% sure${session.keyLock ? ' · locked' : ''}`
-        : 'play a few chords',
+      sub: ui.sourceId.startsWith('sequence:')
+        ? 'Sequence context'
+        : k
+          ? `${Math.round(session.keyProbs[keyIndex(k)] * 100)}% sure${session.keyLock ? ' · locked' : ''}`
+          : 'play a few chords',
       flavour: session.flavour ? SCALE_LABEL[session.flavour] : '',
     };
   });
@@ -62,7 +66,7 @@
     return a && b && a !== b ? `M${a.x},${a.y} Q0,0 ${b.x},${b.y}` : '';
   });
   function pick(k: Key) {
-    const off = keyEq(k, session.target) || keyEq(k, session.activeKey);
+    const off = keyEq(k, session.target) || keyEq(k, compositionContext().key);
     session.setTarget(off ? null : k);
     if (!off) ui.nextTab = 'key';
   }

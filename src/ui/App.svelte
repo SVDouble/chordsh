@@ -1,6 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { live, setBars, stopPlayback, midi, persist, savedSettings, session, synth, ui } from './store.svelte';
+  import {
+    live,
+    setBars,
+    stopPlayback,
+    stopRecording,
+    midi,
+    persist,
+    savedSettings,
+    session,
+    synth,
+    ui,
+  } from './store.svelte';
+  import { editSequence } from './composition.svelte';
   import { attachQwerty } from '../io/qwerty';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { midiName } from '../theory/pitch';
@@ -17,6 +29,7 @@
   let unlockRequested = false;
   function toggleSound() {
     ui.monitor = unlockRequested || ui.audioBlocked ? true : !ui.monitor;
+    synth.setMuted(!ui.monitor);
     unlockRequested = false;
     persist();
     synth.unlock();
@@ -58,7 +71,7 @@
 
 <div class="app" style:--topbar-height={`${topbarHeight}px`}>
   <header class="topbar" bind:clientHeight={topbarHeight}>
-    <div class="brand">Musify</div>
+    <div class="brand">chord.sh</div>
     <span
       class="midi-chip"
       class:ok={m.devices.length && !m.errors.length}
@@ -140,6 +153,7 @@
         <label>
           MIDI in
           <select
+            aria-label="MIDI input"
             value={m.inputId}
             onchange={(e) => {
               midi.inputId = e.currentTarget.value;
@@ -157,8 +171,10 @@
           MIDI out
           <span class="row tight">
             <select
+              aria-label="MIDI output"
               value={m.outputId}
               onchange={(e) => {
+                stopPlayback();
                 midi.outputId = e.currentTarget.value;
                 persist();
                 ui.tick++;
@@ -179,10 +195,19 @@
           </span>
         </label>
         <label>
-          Suggestions sound
-          <select bind:value={ui.sound} onchange={() => persist()}>
+          Playback output
+          <select
+            aria-label="Playback output"
+            bind:value={ui.sound}
+            onchange={() => {
+              stopPlayback();
+              ui.monitor = ui.sound === 'synth' || ui.sound === 'both';
+              synth.setMuted(!ui.monitor);
+              persist();
+            }}
+          >
             <option value="synth">Browser synth</option>
-            <option value="midi">MIDI out</option>
+            <option value="midi">DAW / MIDI out</option>
             <option value="both">Both</option>
             <option value="off">Off</option>
           </select>
@@ -263,6 +288,17 @@
   onpointerdown={() => synth.unlock()}
   onkeydown={(e) => {
     synth.unlock();
-    if (e.key === 'Escape') stopPlayback();
+    if (e.key === 'Escape') {
+      stopPlayback();
+      if (ui.recording) void stopRecording();
+    }
+    const typing =
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement;
+    if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      editSequence((s) => (e.shiftKey ? s.redo() : s.undo()));
+    }
   }}
 />

@@ -1,91 +1,86 @@
-# Using Musify
+# Using chord.sh
 
-Musify listens to a MIDI keyboard, names what you play, explains it in the key, and suggests where to go next.
-
-## Getting started
+chord.sh is a chord and sequence workspace. Build a timeline, hear alternatives, add suggestions, and
+send the result to your DAW as MIDI. It also listens to your playing and explains the harmony.
 
 ```sh
 npm install
-npm run dev        # open the printed URL in Chrome or Edge (Web MIDI)
+npm run dev        # Chrome or Edge for Web MIDI
 ```
 
-- Plug in a MIDI keyboard. The chip in the top bar shows it and flashes on every message; if it never
-  flashes, see _MIDI troubleshooting_ in the [README](../README.md).
-- No keyboard? Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5 (`Z`/`X` octave, `Space` pedal),
-  or click the on-screen piano.
-- Sound starts automatically when the browser permits it. Otherwise, click anywhere or press a computer
-  key once (🔊 toggles hearing what you play; ☀/☾ switches theme).
+## Build a song
 
-### Why a click can still be needed
+The **Editor** is a beat timeline. Click an empty spot, type a chord such as `Cmaj7`, and press Enter or
+✓. Click an existing chord to change it. Duration choices and optional voicing/velocity controls appear
+in that chord's popover rather than occupying the main workspace.
 
-The sound icon shows 🔓 while audio is blocked; click it to enable sound. It reflects the actual audio
-engine state, including before the first note. When a browser
-blocks Web Audio autoplay, MIDI messages cannot count as a page gesture: one click, tap or computer key
-press is still needed. The app unlocks audio on any of these interactions, and preserves a held first note
-while audio resumes. Chrome may allow autoplay after sufficient use of the site; its
-[autoplay policy](https://developer.chrome.com/blog/autoplay/) describes the browser-controlled exceptions.
-Installing the app is not a guaranteed way to remove the prompt.
+- Drag a chord by its top handle to move it; drag its right edge to change its length. Edges snap to
+  quarter-beat increments. Empty spaces are rests. Overlapping later material moves forward.
+- Use the popover's ▶ to hear the current edit, ⧉ to duplicate it, or ⌫ to remove it.
+- Undo/redo are in the heading; Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields. Edits made
+  while a song plays refresh playback at the current musical position.
+- Tempo, meter and key are above the timeline. Zoom changes how many beats fit on screen.
+- **Song tools** contains transposition, chord-chart paste (`| Dm7 G7 | Cmaj7 |`), capture **From playing**,
+  deletion and the piano guide. Capturing makes an editable song from the analysed progression.
 
-## The screen
+Songs save automatically. Existing songs/settings from the old Musify storage are read and migrated
+when saved under chord.sh. The name is styled **chord.sh**.
 
-| area            | what it shows                                                                                                                      |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Now playing** | the chord you're holding (name, inversion, tones coloured by role), its numeral and function in the key, a one-line explanation    |
-| **Where next**  | Next chord suggests playable moves; Change key shows destinations and routes to hear or practise                                   |
-| **Tonal map**   | circle of fifths; colour = how likely you're heading to each key; ring = how close it is; click a key to plan a route              |
-| **Library**     | performances and chord charts together: play a demo, recording or MIDI file; open or create a chart and play along with feedback   |
-| **Progression** | the default main panel: your chords, functions, cadences, key changes and pivots — bars when there's a pulse, otherwise a sequence |
-| **Piano**       | what's sounding: harmony blue, melody amber, suggestions violet, practice targets green                                            |
+## Playback and switching songs
 
-### Playback and panels
+The top bar uses ▶, ■ and ● with tooltips and accessible labels. The song selector shows the current
+song or performance and lets you switch it. Switching while playing starts the new selection; selecting
+while stopped prepares it. The seek slider and moving timeline playhead show the current position.
 
-The top bar has **Play**, **Stop** and **Rec**. Play hears the open chart, or plays the selected performance
-(the demo initially). Stop and **Escape** cancel performances, previews and the metronome, release held
-sound and clear queued MIDI output. Recording has its own **Save recording** action.
+■ and Escape stop playback, previews, the metronome and any active recording. Clicking the active ●
+again saves a recording without stopping playback. Stop cancels queued MIDI and releases held/sustained
+notes. Seeking restarts analysis at that position, including held notes and the current pedal state.
 
-Performances have a seek slider and elapsed/total time. Seeking restarts analysis at that position,
-including notes already sounding there. Stopping returns the playhead to the beginning. Chart previews
-can be stopped but do not use the performance seek slider.
+The sound icon shows 🔓 when browser audio needs a gesture. Click it, or interact with the page, to
+unlock. MIDI input cannot satisfy the browser's gesture requirement; see
+[Chrome's autoplay policy](https://developer.chrome.com/blog/autoplay/).
 
-Use **Panels** to show or hide Now playing, Where next, the tonal map and the piano. **Song** focus gives
-the main space to the Library's chart view; **Progression** focus gives it to the analysis. Drag the
-dividers to resize panels, or focus a divider and use arrow keys. Panel visibility and sizes are saved
-in the browser. On narrow screens panels stack vertically.
+## Suggestions
 
-### Colours
+**Where next** keeps its **Next chord** and **Change key** views. Suggestions follow the selected chord
+or insertion point in the editor, and follow live analysis when a performance is selected.
 
-- Function: **tonic** green, **predominant** amber, **dominant** red, **chromatic** violet.
-- Chord tones: root plain, **3rd & 7th** blue (guide tones), 5th dimmed, **tensions** amber, **altered** red.
+- Click a chord suggestion to preview it; **＋** adds it at the timeline cursor.
+- Choose a key on the map or a destination in Change key. ▶ previews a route; **＋** inserts all its
+  chords as one undoable edit. The destination key is retained for subsequent suggestions.
+- Selecting a chord also exposes compact **Try instead** ideas. ▶ previews; **✓** replaces the selected
+  chord with that alternative, sharing its duration across the new chords.
+- **Practise** still waits for you to play each chord of a route; inversions and voicings are accepted.
 
-### Hindsight and theories
+Previewing never commits a suggestion. Adding, replacing, moving and resizing are undoable.
 
-The progression is the analyser's _current best explanation_ of everything you played. When later music
-explains earlier chords better ("that E♭ was the V of A♭"), they are re-labelled and flash **↻**. The
-**theories** chips next to the title are competing explanations (e.g. "C major" vs "A minor (1 key
-change)") with probabilities; click one to see the progression the way that theory reads it.
+## Library, live analysis and panels
 
-**Clear** starts a fresh progression, discarding pending analysis and notes from the previous one.
-Your chart, chord style and key-lock settings stay selected.
+**Library** remains a visible tab: saved songs, examples, the demo, recordings, MIDI-file import and
+annotated benchmark performances. **Editor** works on the current song. **Live** shows the analysed
+progression, key theories and hindsight revisions (↻). **Edit sequence** brings that progression into
+the editor. Clear resets pending notes and analysis without deleting the song.
 
-### Bars and tempo
+Use **Panels** to hide optional panels or choose Song/Progression focus. Drag panel dividers to resize;
+arrow keys also resize a focused divider. Layouts are remembered, and narrow screens stack vertically.
 
-Bars are relative to a pulse. When you play freely, the progression stays a sequence. With a steady pulse
-it switches to bars (`♩≈96` while uncertain). For exact bars choose ⚙ → **Bars: Metronome** (with an
-optional click); library pieces and MIDI files bring their own tempo.
+Function colours: tonic green, predominant amber, dominant red, chromatic violet. The piano shows
+harmony blue, melody amber, previews violet and practice targets green.
 
-## Recording a session
+Bars in Live depend on a confident pulse; free playing stays a sequence. For exact bars choose
+Settings → Bars → Metronome. Library files with tempo bring their own grid.
 
-**● Rec** records your MIDI and every decision the engine makes; type what you _meant_ to play in the note
-field, then **■ Save recording**. Files go to `local/recordings/` (git-ignored) and appear in the Library.
-`npm run replay` (or `REC=local/recordings/x.json npm run replay`) replays one through the engine and prints
-a timeline — useful for reporting "it got this wrong".
+## MIDI and recording
 
-## Practising
+**⇩** exports the selected song/performance as a `.mid` file; the editor also has its own export icon.
+Notes, voicings, gaps, durations, velocities and sustain can then play through a DAW instrument. For
+live routing, choose **Settings → MIDI out** and **Playback output → DAW / MIDI out**. See
+[DAW integration](daw.md) for the current connection and native plug-in direction.
 
-- **Where next → Change key → Practise**: the app waits for each chord of a route; any voicing counts; missing chord tones are listed.
-- **Library → Chord charts**: chords turn green (exact / close enough), violet (a valid substitute) or red; _From playing_ turns your session into a chart.
+● records MIDI plus analysis. An optional note describes what you meant to play. Saved sessions go to
+`local/recordings/` and appear in Library. `npm run replay` replays the newest recording, or use
+`REC=local/recordings/x.json npm run replay` for a specific file.
 
-## Settings (⚙)
-
-MIDI in/out (Midi Through is ignored), suggestion sound (browser synth or MIDI out), hand split, tempo,
-bars source and meter, metronome click.
+Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5, Z/X change octave and Space is sustain.
+Typing in an input does not play notes. Settings also contains MIDI input, monitoring, hand split,
+metronome, meter and analysis key/style controls.

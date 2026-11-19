@@ -2,6 +2,8 @@
   import { audition, session, ui } from './store.svelte';
   import { keyShort } from '../theory/scales';
   import Route from './Route.svelte';
+  import { acceptChords, compositionContext } from './composition.svelte';
+  import { suggestNext } from '../engine/coach';
 
   const target = $derived.by(() => {
     void ui.tick;
@@ -10,7 +12,9 @@
 
   const moves = $derived.by(() => {
     void ui.tick; // re-run when the engine changes
-    return session.next.map((m) => ({ ...m, id: `next:${m.name}` }));
+    const context = compositionContext();
+    const suggestions = context.key ? suggestNext(context.key, context.last, session.style, context.voicing) : [];
+    return suggestions.map((m) => ({ ...m, id: `next:${m.name}` }));
   });
 </script>
 
@@ -30,23 +34,34 @@
         <p class="muted small">Suggestions appear once a key is established.</p>
       {/if}
       {#each moves as m (m.id)}
-        <button
-          type="button"
-          class="move f-{m.func}"
-          class:playing={ui.playingId === m.id}
-          onclick={() => audition([m.voicing], m.id)}
-          title={m.why}
-        >
-          <span class="m-name">{m.name}</span>
-          <span class="m-roman">{m.roman}</span>
-          <span class="m-why">
-            {#if m.tag}
-              <em class="tag">{m.tag}</em>
-            {/if}
-            {m.why}
-          </span>
-          <span class="m-bar" style="--p:{m.prob}"></span>
-        </button>
+        <div class="move-row">
+          <button
+            type="button"
+            class="move f-{m.func}"
+            class:playing={ui.playingId === m.id}
+            onclick={() => audition([m.voicing], m.id)}
+            title={m.why}
+          >
+            <span class="m-name">{m.name}</span>
+            <span class="m-roman">{m.roman}</span>
+            <span class="m-why">
+              {#if m.tag}
+                <em class="tag">{m.tag}</em>
+              {/if}
+              {m.why}
+            </span>
+            <span class="m-bar" style="--p:{m.prob}"></span>
+          </button>
+          <button
+            type="button"
+            class="accept-move"
+            title={`Add ${m.name} to the sequence`}
+            aria-label={`Add ${m.name} to sequence`}
+            onclick={() => acceptChords([{ symbol: m.name, notes: m.voicing }])}
+          >
+            ＋
+          </button>
+        </div>
       {/each}
     {/if}
   </div>

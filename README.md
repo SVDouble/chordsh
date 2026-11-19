@@ -1,8 +1,9 @@
-# Musify
+# chord.sh
 
-A harmony companion for the piano: plug in a MIDI keyboard and see what you play, what it means in the
-key, and where you could take it next. The analysis keeps competing explanations alive and revises earlier
-readings with hindsight, and it is measured against expert-annotated music.
+A MIDI composition workspace: build chord timelines, explore suggestions, edit voicings, and export
+music to your DAW. Click empty beats to add chords, drag and resize blocks, preview alternatives, and
+add them with one icon. A MIDI keyboard can also feed live harmonic analysis with competing key
+explanations and hindsight revisions.
 
 ```sh
 npm install
@@ -19,7 +20,8 @@ annotated piece.
 ## Documentation
 
 - [Using the app](docs/app.md) — screen, colours, hindsight & theories, bars, recording, practising
-- [Engine](docs/engine.md) — how the analysis works
+- [Engine](docs/engine.md) — composition model and harmonic analysis
+- [DAW integration](docs/daw.md) — MIDI output/export and native plug-in architecture
 - [Benchmark](docs/benchmark.md) — corpora, metrics, results; [latest numbers](benchmarks/LATEST.md)
 - [Research notes](docs/research.md) — related work, sources, experiment log
 - [Plan](PLAN.md) — roadmap
@@ -41,7 +43,7 @@ Biome's full Svelte support is experimental and enabled in `biome.json`; the pro
 the formatted components. Dependencies, generated builds, local data and benchmark history are excluded.
 
 The workspace uses [PaneForge](https://paneforge.com/docs/getting-started) for resizing, keyboard-accessible
-dividers and saved layouts. Use **Panels** for chart/progression focus or to hide individual panels.
+dividers and saved layouts. Use **Panels** for song/progression focus or to hide individual panels.
 
 Everything local and uncommitted (datasets, recordings, caches) lives under `local/`.
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/).

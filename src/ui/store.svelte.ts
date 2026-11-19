@@ -2,8 +2,8 @@ import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
 import { BUILT_IN, type Piece } from '../library/pieces';
-import { voiceChord } from '../theory/voicing';
 import { Recorder, saveRecording } from '../io/recorder';
+import { writeMidi } from '../io/midiexport';
 
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
 export const session = new Session();
@@ -11,28 +11,35 @@ export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
 export const live = {
-  noteOn: (n: number, v: number, t = performance.now()) => {
+  noteOn: (n: number, v: number, t = performance.now(), monitor = ui.monitor, forward = true) => {
     recorder.input('on', n, v, t);
     session.noteOn(n, v, t);
-    if (ui.monitor) synth.noteOn(n, v);
+    if (monitor) synth.noteOn(n, v);
+    if (forward && (ui.sound === 'midi' || ui.sound === 'both') && outputReady()) midi.message([0x90, n, v]);
   },
-  noteOff: (n: number, t = performance.now()) => {
+  noteOff: (n: number, t = performance.now(), forward = true) => {
     recorder.input('off', n, 0, t);
     session.noteOff(n, t);
     synth.noteOff(n);
+    if (forward && (ui.sound === 'midi' || ui.sound === 'both')) midi.message([0x80, n, 0]);
   },
-  pedal: (on: boolean, t = performance.now()) => {
+  pedal: (on: boolean, t = performance.now(), forward = true) => {
     recorder.input('pedal', 0, on ? 127 : 0, t);
     session.pedal(on, t);
     synth.setPedal(on);
+    if (forward && (ui.sound === 'midi' || ui.sound === 'both')) midi.control(64, on ? 127 : 0);
   },
 };
-export const midi = new Midi(live);
+export const midi = new Midi({
+  noteOn: (n, v, t) => live.noteOn(n, v, t, ui.monitor, false),
+  noteOff: (n, t) => live.noteOff(n, t, false),
+  pedal: (on, t) => live.pedal(on, t, false),
+});
 midi.onRaw = (d, port, t) => recorder.midi(d, port, t);
 
 const saved = (() => {
   try {
-    return JSON.parse(localStorage.getItem('musify') ?? '{}');
+    return JSON.parse(localStorage.getItem('chordsh') ?? localStorage.getItem('musify') ?? '{}');
   } catch {
     return {};
   }
@@ -56,6 +63,9 @@ export const ui = $state({
   playbackPosition: 0,
   playbackDuration: 0,
   loadedTitle: '',
+  sourceId: 'piece:demo',
+  performanceChoices: BUILT_IN.map((p) => ({ id: p.id, title: p.title })),
+  playbackError: '',
   panels: {
     now: saved.panels?.now ?? true,
     next: saved.panels?.next ?? true,
@@ -63,7 +73,7 @@ export const ui = $state({
     piano: saved.panels?.piano ?? true,
   },
   /** Main panel: the live progression, a song chart, or the library. */
-  tab: 'progression' as 'progression' | 'library',
+  tab: 'editor' as 'editor' | 'progression' | 'library',
   /** Chord suggestions and key-change routes share Where next. */
   nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
@@ -80,6 +90,7 @@ export const ui = $state({
 });
 synth.onState = () => (ui.audioBlocked = synth.blocked);
 synth.init(); // show the browser's actual audio state before the first note
+synth.setMuted(!ui.monitor);
 
 let queued = false;
 const bump = () => {
@@ -112,7 +123,7 @@ export function persist(extra: Record<string, unknown> = {}) {
     extra,
   );
   try {
-    localStorage.setItem('musify', JSON.stringify(saved));
+    localStorage.setItem('chordsh', JSON.stringify(saved));
   } catch {
     /* private mode */
   }
@@ -121,8 +132,18 @@ export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: strin
 
 let timers: ReturnType<typeof setTimeout>[] = [];
 
+function outputReady() {
+  if (ui.sound === 'midi' && (!midi.outputId || !midi.outputs.some((p) => p.id === midi.outputId))) {
+    ui.playbackError = 'Choose a MIDI output in Settings to play through your DAW.';
+    return false;
+  }
+  ui.playbackError = '';
+  return true;
+}
+
 /** Play a sequence of voicings through the synth and/or MIDI out, highlighting each step. */
 export function audition(seq: number[][], id = '', beats: number | number[] = 2, label = 'Chord preview') {
+  if (!outputReady()) return;
   ui.playbackRequest++;
   ui.loading = false;
   stopPiece();
@@ -187,8 +208,68 @@ export function stopAudition() {
 let pieceTimers: ReturnType<typeof setTimeout>[] = [];
 const pieceNotes = new Set<number>();
 let selectedPiece = BUILT_IN[0];
+const performanceLoaders = new Map<string, () => Promise<Piece>>(BUILT_IN.map((p) => [p.id, async () => p]));
 let playbackStarted = 0;
 let playbackOffset = 0;
+
+export function registerPerformance(id: string, title: string, load: () => Promise<Piece>) {
+  performanceLoaders.set(id, load);
+  const existing = ui.performanceChoices.find((p) => p.id === id);
+  if (!existing) ui.performanceChoices = [...ui.performanceChoices, { id, title }];
+  else if (existing.title !== title) existing.title = title;
+}
+
+export function preparePiece(piece: Piece) {
+  selectedPiece = piece;
+  ui.sourceId = `${piece.source === 'sequence' ? 'sequence' : 'piece'}:${piece.id}`;
+  ui.loadedTitle = piece.title;
+  ui.playbackDuration =
+    piece.durationMs ??
+    (piece.pedal ?? []).reduce(
+      (end, [at]) => Math.max(end, at),
+      piece.notes.reduce((end, [t, d]) => Math.max(end, t + d), 0),
+    );
+  ui.playbackPosition = 0;
+  ui.playbackError = '';
+  if (piece.source !== 'sequence') registerPerformance(piece.id, piece.title, async () => piece);
+}
+
+export async function choosePerformance(id: string, autoplay = false) {
+  const load = performanceLoaders.get(id);
+  if (!load) return;
+  stopPlayback();
+  const request = ui.playbackRequest;
+  ui.loading = true;
+  ui.playbackError = '';
+  try {
+    const piece = await load();
+    if (request !== ui.playbackRequest) return;
+    preparePiece(piece);
+    session.loadSong(null);
+    if (autoplay) playPiece(piece);
+    ui.tab = 'progression';
+  } catch (error) {
+    if (request === ui.playbackRequest) ui.playbackError = (error as Error).message;
+  } finally {
+    if (request === ui.playbackRequest) ui.loading = false;
+  }
+}
+
+export function downloadMidi(piece: Piece = selectedPiece) {
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    bytes = writeMidi(piece);
+  } catch (error) {
+    ui.playbackError = (error as Error).message;
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${piece.title.replace(/[^\p{L}\p{N}_ -]/gu, '').trim() || 'sequence'}.mid`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function updatePlaybackClock() {
   if (ui.nowPlaying)
@@ -200,16 +281,13 @@ export function updatePlaybackClock() {
 
 /** Play the selected chart or performance from the global transport. */
 export function playSelection() {
-  const chart = session.song?.chart;
-  if (chart) {
-    let previous = session.lastVoicing;
-    audition(
-      chart.chords.map((c) => (previous = voiceChord(c.chord, previous))),
-      'chart',
-      chart.chords.map((c) => ui.meter / chart.chords.filter((x) => x.bar === c.bar).length),
-      chart.title,
-    );
-  } else playPiece(selectedPiece, ui.playbackPosition >= ui.playbackDuration ? 0 : ui.playbackPosition);
+  if (!selectedPiece.notes.length || !outputReady()) return;
+  playPiece(selectedPiece, ui.playbackPosition >= ui.playbackDuration ? 0 : ui.playbackPosition);
+}
+
+/** Refresh a running arrangement without returning its playhead to the beginning. */
+export function resumePlayback(at: number) {
+  if (at < ui.playbackDuration && selectedPiece.notes.length && outputReady()) playPiece(selectedPiece, at, 40);
 }
 
 export function seekPlayback(at: number) {
@@ -219,35 +297,45 @@ export function seekPlayback(at: number) {
 }
 
 /** Play any library piece into the app, exactly as if you played it (analysis, sound, recording). */
-export function playPiece(p: Piece, from = 0) {
+export function playPiece(p: Piece, from = 0, lead = 300) {
   stopPlayback();
   session.clear();
-  session.loadSong(null);
-  selectedPiece = p;
-  ui.loadedTitle = p.title;
-  ui.playbackDuration = p.notes.reduce((end, [t, d]) => Math.max(end, t + d), 0);
+  if (p.source !== 'sequence') session.loadSong(null);
+  preparePiece(p);
   playbackOffset = Math.max(0, Math.min(ui.playbackDuration, from));
   ui.playbackPosition = playbackOffset;
-  const lead = 300,
-    start = performance.now() + lead;
+  const start = performance.now() + lead;
   playbackStarted = start;
   setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start - playbackOffset);
+  const initialPedal = p.pedal?.findLast(([at]) => at <= playbackOffset)?.[1] ?? false;
+  if (initialPedal) {
+    pieceTimers.push(setTimeout(() => live.pedal(true, performance.now(), false), lead));
+    if (ui.sound === 'midi' || ui.sound === 'both') midi.control(64, 127, start);
+  }
+  for (const [at, on] of p.pedal ?? [])
+    if (at > playbackOffset) {
+      pieceTimers.push(setTimeout(() => live.pedal(on, performance.now(), false), lead + at - playbackOffset));
+      if (ui.sound === 'midi' || ui.sound === 'both') midi.control(64, on ? 127 : 0, start + at - playbackOffset);
+    }
   for (const [t, d, note, vel] of p.notes) {
     if (t + d <= playbackOffset) continue;
     pieceTimers.push(
       setTimeout(
         () => {
           pieceNotes.add(note);
-          live.noteOn(note, vel);
+          live.noteOn(note, vel, performance.now(), false, false);
+          if (ui.sound === 'synth' || ui.sound === 'both') synth.noteOn(note, vel);
         },
         lead + Math.max(0, t - playbackOffset),
       ),
     );
+    if (ui.sound === 'midi' || ui.sound === 'both')
+      midi.send([note], start + Math.max(0, t - playbackOffset), t + d - Math.max(t, playbackOffset), vel);
     pieceTimers.push(
       setTimeout(
         () => {
           pieceNotes.delete(note);
-          live.noteOff(note);
+          live.noteOff(note, performance.now(), false);
         },
         lead + t + Math.max(20, d) - playbackOffset,
       ),
@@ -261,8 +349,8 @@ export function stopPiece() {
   updatePlaybackClock();
   pieceTimers.forEach(clearTimeout);
   pieceTimers = [];
-  if (pieceNotes.size) live.pedal(false);
-  for (const n of pieceNotes) live.noteOff(n);
+  live.pedal(false);
+  for (const n of pieceNotes) live.noteOff(n, performance.now(), false);
   pieceNotes.clear();
   ui.nowPlaying = null;
   if (ui.bars === 'file') setBars('auto');

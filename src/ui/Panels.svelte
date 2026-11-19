@@ -6,7 +6,7 @@
     ui.panels.next = focus === 'all';
     ui.panels.map = focus === 'all';
     ui.panels.piano = true;
-    if (focus === 'song') ui.tab = 'library';
+    if (focus === 'song') ui.tab = 'editor';
     if (focus === 'progression') ui.tab = 'progression';
     persist();
   }

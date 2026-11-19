@@ -153,3 +153,4 @@ and @3 62.3% → 68.5%; all note-recognition metrics are unchanged. See [results
 
 Voicing validation: 139 tests and production build; desktop/mobile browser checks verify noncommitting
 previews, save/undo/redo, MIDI-export pitches, rootless triads and explained drop-2 constraints.
+The final 684-piece recognition regression at `99b5d96` exactly matches the preceding run.

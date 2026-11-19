@@ -211,6 +211,7 @@ quality and 1.9894 with two-chord context. These are forecasts from annotated co
 triads when comparing Ideas; they do not establish better chord recognition or seventh/extension
 prediction. The existing test-split reuse caveat above remains relevant.
 
-Both prediction and recognition reports identify source commit `77ac9ad`. The complete recognition
-regression matches every preceding per-corpus chord/key, beat/bar and error-breakdown value exactly;
-the harmonic objective remains 1.7407. Prediction settings apply without replacing the harmonizer.
+The prediction report identifies source commit `77ac9ad`. Full recognition regressions at `77ac9ad`
+and, after adding the voicing coach, `99b5d96` match every preceding per-corpus chord/key, beat/bar
+and error-breakdown value exactly; the harmonic objective remains 1.7407. Prediction settings apply
+without replacing the harmonizer.

@@ -92,13 +92,14 @@ The model is trained offline and runs in the browser without a network request o
 **Session clearing.** `Session.clear()` resets the open segment and held/sustained analysis notes as
 well as the committed harmonizer path. It also cancels queued onset groups, delayed chord strikes and
 analysis refreshes, so cleared music cannot reappear or advance a song later. Chord style, manual hand
-split, key lock and loaded chart remain available for the next notes.
+split, key lock and loaded chart remain available for the next notes. Beat/onset/accent evidence is
+also reset, so a new performance cannot inherit the previous performance's pulse.
 
 ## Bars (BeatTracker)
 
 Tempo by autocorrelation of an onset envelope (8 s window, prior around 100 bpm), phase by beat-position
 energy, then bars by a Viterbi over beat-in-bar positions where downbeats earn _accents_ (new bass note,
-fresh harmony) and 3 vs 4 beats per bar is chosen by contrast. Bars are **relative**: they are only shown
+fresh harmony) and the configured meter candidates (3 vs 4 by default) are chosen by contrast. Bars are **relative**: they are only shown
 when the pulse is confident, or when a metronome / MIDI file / library piece fixes the tempo.
 
 ## Theory modules
@@ -124,3 +125,12 @@ key), `chart.ts` (chart parsing + analysis), `song.ts` (forgiving play-along com
 See the error breakdown in [benchmark.md](benchmark.md) and the candidates in [research.md](research.md):
 boundary errors (→ segmental model, beat-aware segments), tonicization vs modulation, non-chord-tone
 weighting, a vocabulary/grammar layer for patterns and figurations.
+
+## Configuration
+
+[`config/settings.ts`](../src/config/settings.ts) owns defaults and validated tuning controls for the
+engine, editor and application. The UI generates fields from the same Zod schema. `Session` accepts a
+configuration; `configure()` validates before clearing live state and rebuilding cached HMM costs.
+Beat periods are derived from user-facing BPM bounds, and beat/bar timing and accent parameters are
+injected into their trackers. `Segmenter`, `SegmentBuilder` and the modal-colour detector also receive
+configured timing/evidence parameters. See [settings](settings.md) for limits and tradeoffs.

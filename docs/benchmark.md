@@ -26,7 +26,7 @@ new model against the fixed-cost HMM, use `P_transitionWeight=0 SPLIT=test npm r
 
 Use `P_<name>=value` (or `P_prior_<name>=value`) to compare parameters without editing the engine, for
 example `P_chordChange=0.81 SPLIT=test npm run benchmark`. Recorded runs include the parameter values;
-new reports also mark changes to benchmark source files and show the command for the recorded split.
+new reports also mark changes to shared configuration and benchmark source files and show the command for the recorded split.
 
 ## Corpora
 

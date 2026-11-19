@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../src/config/settings';
 /** Play a piece into the analyser as if live, and score live + hindsight readings against the truth. */
 import { DEFAULT_PARAMS, Harmonizer, type HarmonizerParams, SegmentBuilder } from '../../src/engine/harmonizer';
 import { AccentDetector, BeatTracker } from '../../src/engine/beats';
@@ -217,7 +218,7 @@ export function evaluateBars(piece: Piece): { barF: number; beatF: number; bpm: 
   };
   for (const e of piece.events) {
     if (e.kind !== 'on') continue;
-    if (e.t - groupT > 30) {
+    if (e.t - groupT > DEFAULT_SETTINGS.beats.onsetGroupMs) {
       flush();
       groupT = e.t;
     }

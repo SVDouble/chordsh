@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS, type SegmentationSettings } from '../config/settings';
 import { mod12 } from '../theory/pitch';
 
 /**
@@ -21,10 +22,6 @@ export interface SegmenterEvents {
 
 export type SplitMode = 'auto' | 'off' | number;
 
-const GROUP_MS = 70;
-const ROLL_MS = 220;
-const RELEASE_MEMORY_MS = 1200;
-
 export class Segmenter {
   readonly held = new Map<number, { t: number; vel: number }>();
   readonly sustained = new Set<number>();
@@ -45,6 +42,7 @@ export class Segmenter {
     private ev: SegmenterEvents,
     /** Chord-quality score for a note set (higher = more sensible), used for broken chords. */
     private score: (notes: number[]) => number | null = () => 0,
+    readonly settings: SegmentationSettings = DEFAULT_SETTINGS.segmentation,
   ) {}
 
   get split(): number | null {
@@ -56,9 +54,9 @@ export class Segmenter {
     this.sustained.delete(note);
     this.pending.push({ note, vel, t });
     this.onsets.push(note);
-    if (this.onsets.length > 48) this.onsets.shift();
+    if (this.onsets.length > this.settings.splitHistory) this.onsets.shift();
     this.updateSplit();
-    this.timer ??= setTimeout(() => this.flush(), GROUP_MS);
+    this.timer ??= setTimeout(() => this.flush(), this.settings.groupMs);
   }
 
   noteOff(note: number, t: number) {
@@ -107,7 +105,11 @@ export class Segmenter {
         gap = xs[i] - xs[i - 1];
         at = i;
       }
-    const ok = xs.length >= 8 && gap >= 5 && at >= 3 && xs.length - at >= 3;
+    const ok =
+      xs.length >= this.settings.splitMinNotes &&
+      gap >= this.settings.splitGap &&
+      at >= this.settings.splitSideNotes &&
+      xs.length - at >= this.settings.splitSideNotes;
     this.autoSplit = ok ? Math.round((xs[at - 1] + xs[at]) / 2) + 1 : null;
   }
 
@@ -118,11 +120,11 @@ export class Segmenter {
     if (!group.length) return;
     const t = group[group.length - 1].t;
     for (const [n, h] of this.harmony)
-      if (h.released !== null && t - h.released > RELEASE_MEMORY_MS) this.harmony.delete(n);
+      if (h.released !== null && t - h.released > this.settings.releaseMemoryMs) this.harmony.delete(n);
 
     // A held chord anchors the harmony: its top note acts as the hand split.
     const anchor = [...this.harmony.keys()].filter(this.sounding);
-    const anchored = anchor.length >= 2 && t - this.lastStrike.t > ROLL_MS;
+    const anchored = anchor.length >= 2 && t - this.lastStrike.t > this.settings.rollMs;
     const split = this.split ?? (anchored ? Math.max(...anchor) + 1 : null);
     const low = split === null ? [] : group.filter((g) => g.note < split);
     const high = split === null ? group : group.filter((g) => g.note >= split);
@@ -136,9 +138,9 @@ export class Segmenter {
       high.forEach((g) => this.emitMelody(g)); // double-stop / fast run over a held chord
     } else if (high.length === 1) {
       const g = high[0];
-      const rolled = [...this.held].filter(([, h]) => g.t - h.t <= ROLL_MS).map(([n]) => n);
+      const rolled = [...this.held].filter(([, h]) => g.t - h.t <= this.settings.rollMs).map(([n]) => n);
       const joins =
-        g.t - this.lastStrike.t <= ROLL_MS &&
+        g.t - this.lastStrike.t <= this.settings.rollMs &&
         (split === null || this.lastStrike.high) &&
         [...this.harmony.keys()].some((n) => this.held.has(n));
       if (joins) harmonic.push(g.note);
@@ -174,7 +176,7 @@ export class Segmenter {
       if (accumulate && cur.length >= 2) {
         const before = this.score(cur),
           after = this.score([...cur, n]);
-        accumulate = after !== null && (before === null || after >= before - 0.6);
+        accumulate = after !== null && (before === null || after >= before - this.settings.scoreTolerance);
       }
       if (!accumulate) for (const x of cur) if (!this.sounding(x)) this.harmony.delete(x);
     }

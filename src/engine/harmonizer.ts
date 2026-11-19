@@ -13,43 +13,8 @@ import { TRANSITIONS } from './transitions';
  * the V of A♭ after all"), and the best path per key gives competing theories.
  */
 
-export interface HarmonizerParams {
-  chordChange: number;
-  /** Strength of learned root transitions in the current key; 0 = fixed change cost. */
-  transitionWeight: number;
-  keyChange: number;
-  extraNote: number;
-  missingTone: number;
-  prior: { diatonic: number; secondary: number; borrowed: number; other: number; tonic: number; dominant: number };
-  keyFit: number;
-  bassRoot: number;
-  bassInChord: number;
-  bassOutside: number;
-  heldDecayMs: number;
-  durExp: number;
-  /** How quickly a tone's salience counts as fully present. */
-  saturation: number;
-  /** 0 = every note in a segment counts fully; 1 = weight by the share of the segment it sounded (short passing notes count less). */
-  durationWeight: number;
-}
-
-/** Tuned with `npm run tune` on the benchmark's tune split (5 corpora); checked on the test split. */
-export const DEFAULT_PARAMS: HarmonizerParams = {
-  chordChange: 0.61,
-  transitionWeight: 0.125,
-  keyChange: 3.6,
-  extraNote: 0.6,
-  missingTone: 0.2,
-  prior: { diatonic: 0, secondary: -0.065, borrowed: -0.25, other: -0.74, tonic: 0.43, dominant: 0.44 },
-  keyFit: 0.47,
-  bassRoot: 0.3,
-  bassInChord: 0.02,
-  bassOutside: -0.04,
-  heldDecayMs: 2460,
-  durExp: 0.8,
-  saturation: 1.5,
-  durationWeight: 0,
-};
+import { DEFAULT_PARAMS, DEFAULT_SETTINGS, type HarmonizerParams, type SegmentationSettings } from '../config/settings';
+export { DEFAULT_PARAMS, type HarmonizerParams } from '../config/settings';
 
 // Chord vocabulary: tones as [interval, weight]. Weights reflect how defining a tone is.
 const TYPES: { kind: KindName; tones: [number, number][] }[] = [
@@ -235,6 +200,7 @@ export class SegmentBuilder {
   constructor(
     private params: HarmonizerParams,
     private emit: (s: Segment) => void,
+    private timing: SegmentationSettings = DEFAULT_SETTINGS.segmentation,
   ) {}
 
   reset() {
@@ -246,7 +212,7 @@ export class SegmentBuilder {
   }
 
   noteOn(note: number, vel: number, t: number) {
-    if (this.open && t - this.open.t0 > 40) this.close(t); // a new onset group starts a new segment
+    if (this.open && t - this.open.t0 > this.timing.analysisGroupMs) this.close(t); // a new onset group starts a new segment
     this.open ??= { t0: t, onsets: new Map(), present: new Map(this.sounding), released: new Map() };
     this.open.onsets.set(note, vel);
     this.sounding.set(note, { t, vel });
@@ -261,7 +227,7 @@ export class SegmentBuilder {
   }
   /** True while notes sound or are still dying away — the open segment is still growing. */
   active(t: number): boolean {
-    return !!this.open && (this.sounding.size > 0 || t - this.lastRelease < 1500);
+    return !!this.open && (this.sounding.size > 0 || t - this.lastRelease < this.timing.releaseActiveMs);
   }
   setPedal(on: boolean) {
     this.pedal = on;
@@ -282,7 +248,9 @@ export class SegmentBuilder {
   peek(t: number): Segment | null {
     if (!this.open) return null;
     // once everything is released, the segment lasts until the sound has died away
-    const end = this.sounding.size ? t : Math.min(t, Math.max(this.lastRelease, this.open.t0) + 800);
+    const end = this.sounding.size
+      ? t
+      : Math.min(t, Math.max(this.lastRelease, this.open.t0) + this.timing.releaseTailMs);
     return this.segment(this.open, end);
   }
 

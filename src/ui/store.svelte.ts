@@ -1,3 +1,5 @@
+import { restoreSettings, settingsSchema, type Settings } from '../config/settings';
+import { keyFromIndex } from '../theory/scales';
 import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
@@ -5,50 +7,69 @@ import { BUILT_IN, type Piece } from '../library/pieces';
 import { Recorder, saveRecording } from '../io/recorder';
 import { writeMidi } from '../io/midiexport';
 
-/** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
-export const session = new Session();
-export const synth = new Synth();
-/** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
-export const recorder = new Recorder();
-export const live = {
-  noteOn: (n: number, v: number, t = performance.now(), monitor = ui.monitor, forward = true) => {
-    recorder.input('on', n, v, t);
-    session.noteOn(n, v, t);
-    if (monitor) synth.noteOn(n, v);
-    if (forward && (ui.sound === 'midi' || ui.sound === 'both') && outputReady()) midi.message([0x90, n, v]);
-  },
-  noteOff: (n: number, t = performance.now(), forward = true) => {
-    recorder.input('off', n, 0, t);
-    session.noteOff(n, t);
-    synth.noteOff(n);
-    if (forward && (ui.sound === 'midi' || ui.sound === 'both')) midi.message([0x80, n, 0]);
-  },
-  pedal: (on: boolean, t = performance.now(), forward = true) => {
-    recorder.input('pedal', 0, on ? 127 : 0, t);
-    session.pedal(on, t);
-    synth.setPedal(on);
-    if (forward && (ui.sound === 'midi' || ui.sound === 'both')) midi.control(64, on ? 127 : 0);
-  },
-};
-export const midi = new Midi({
-  noteOn: (n, v, t) => live.noteOn(n, v, t, ui.monitor, false),
-  noteOff: (n, t) => live.noteOff(n, t, false),
-  pedal: (on, t) => live.pedal(on, t, false),
-});
-midi.onRaw = (d, port, t) => recorder.midi(d, port, t);
-
 const saved = (() => {
   try {
-    return JSON.parse(localStorage.getItem('chordsh') ?? localStorage.getItem('musify') ?? '{}');
+    const value = JSON.parse(localStorage.getItem('chordsh') ?? localStorage.getItem('musify') ?? '{}');
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : {};
   } catch {
     return {};
   }
 })();
 
+export const savedData = saved;
+
+const restored = restoreSettings(
+  saved.settings ?? {
+    preferences: Object.fromEntries(
+      ['sound', 'tempo', 'monitor', 'theme', 'style', 'input', 'output', 'meter', 'click']
+        .filter((key) => saved[key] !== undefined)
+        .map((key) => [key, saved[key]]),
+    ),
+    panels: saved.panels,
+  },
+);
+export const settings = $state(restored.settings);
+if (saved.settings?.preferences?.theme === undefined && saved.theme === undefined)
+  settings.preferences.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+export const settingsWarnings = restored.warnings;
+
+/** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
+export const session = new Session($state.snapshot(settings));
+export const synth = new Synth();
+/** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
+export const recorder = new Recorder();
+export const live = {
+  noteOn: (n: number, v: number, t = performance.now(), monitor = settings.preferences.monitor, forward = true) => {
+    recorder.input('on', n, v, t);
+    session.noteOn(n, v, t);
+    if (monitor) synth.noteOn(n, v);
+    if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both') && outputReady())
+      midi.message([0x90, n, v]);
+  },
+  noteOff: (n: number, t = performance.now(), forward = true) => {
+    recorder.input('off', n, 0, t);
+    session.noteOff(n, t);
+    synth.noteOff(n);
+    if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both'))
+      midi.message([0x80, n, 0]);
+  },
+  pedal: (on: boolean, t = performance.now(), forward = true) => {
+    recorder.input('pedal', 0, on ? 127 : 0, t);
+    session.pedal(on, t);
+    synth.setPedal(on);
+    if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both'))
+      midi.control(64, on ? 127 : 0);
+  },
+};
+export const midi = new Midi({
+  noteOn: (n, v, t) => live.noteOn(n, v, t, settings.preferences.monitor, false),
+  noteOff: (n, t) => live.noteOff(n, t, false),
+  pedal: (on, t) => live.pedal(on, t, false),
+});
+midi.onRaw = (d, port, t) => recorder.midi(d, port, t);
+
 export const ui = $state({
   tick: 0,
-  sound: (saved.sound ?? 'synth') as 'synth' | 'midi' | 'both' | 'off',
-  tempo: (saved.tempo ?? 80) as number,
   /** Notes currently being auditioned (shown on the piano). */
   playing: null as number[] | null,
   playingId: '',
@@ -66,31 +87,21 @@ export const ui = $state({
   sourceId: 'piece:demo',
   performanceChoices: BUILT_IN.map((p) => ({ id: p.id, title: p.title })),
   playbackError: '',
-  panels: {
-    now: saved.panels?.now ?? true,
-    next: saved.panels?.next ?? true,
-    map: saved.panels?.map ?? true,
-    piano: saved.panels?.piano ?? true,
-  },
   /** Main panel: the live progression, a song chart, or the library. */
   tab: 'editor' as 'editor' | 'progression' | 'library',
   /** Chord suggestions and key-change routes share Where next. */
   nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
-  monitor: (saved.monitor ?? true) as boolean,
   audioBlocked: true,
   recording: false,
   /** Where bars come from: estimated from playing, a metronome, or a MIDI file's tempo. */
   bars: 'auto' as 'auto' | 'metronome' | 'file',
-  meter: (saved.meter ?? 4) as number,
-  click: (saved.click ?? true) as boolean,
-  theme: (saved.theme ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')) as 'light' | 'dark',
   recNote: '',
   recMsg: '',
 });
 synth.onState = () => (ui.audioBlocked = synth.blocked);
 synth.init(); // show the browser's actual audio state before the first note
-synth.setMuted(!ui.monitor);
+synth.setMuted(!settings.preferences.monitor);
 
 let queued = false;
 const bump = () => {
@@ -108,17 +119,8 @@ export function persist(extra: Record<string, unknown> = {}) {
   Object.assign(
     saved,
     {
-      sound: ui.sound,
-      tempo: ui.tempo,
-      style: session.style,
-      input: midi.inputId,
-      output: midi.outputId,
-      monitor: ui.monitor,
-      theme: ui.theme,
-      meter: ui.meter,
-      click: ui.click,
+      settings: $state.snapshot(settings),
       charts: $state.snapshot(ui.charts),
-      panels: $state.snapshot(ui.panels),
     },
     extra,
   );
@@ -128,12 +130,40 @@ export function persist(extra: Record<string, unknown> = {}) {
     /* private mode */
   }
 }
-export const savedSettings = saved as { style?: 'jazz' | 'triads'; input?: string; output?: string };
+/** Validate once and apply atomically. Invalid settings never stop playback or replace working settings. */
+export function applySettings(value: unknown) {
+  const next = settingsSchema.parse(value);
+  const engineChanged = ['beats', 'accents', 'segmentation', 'harmony', 'analysis'].some(
+    (key) => JSON.stringify(next[key as keyof Settings]) !== JSON.stringify(settings[key as keyof Settings]),
+  );
+  const previous = settings.preferences;
+  const routingChanged = previous.sound !== next.preferences.sound || previous.output !== next.preferences.output;
+  const timingChanged =
+    previous.bars !== next.preferences.bars ||
+    previous.tempo !== next.preferences.tempo ||
+    previous.meter !== next.preferences.meter;
+  if (engineChanged || routingChanged || timingChanged) stopPlayback();
+  if (engineChanged) session.configure(next);
+  Object.assign(settings, next);
+  session.setStyle(next.preferences.style);
+  session.seg.splitMode =
+    next.preferences.splitMode === 'fixed' ? next.preferences.splitNote : next.preferences.splitMode;
+  session.setKeyLock(next.preferences.keyLock < 0 ? null : keyFromIndex(next.preferences.keyLock));
+  if (midi.inputId !== next.preferences.input) {
+    midi.inputId = next.preferences.input;
+    midi.refresh();
+  }
+  midi.outputId = next.preferences.output;
+  synth.setMuted(!next.preferences.monitor);
+  if (engineChanged || timingChanged) setBars(next.preferences.bars);
+  ui.tick++;
+  persist();
+}
 
 let timers: ReturnType<typeof setTimeout>[] = [];
 
 function outputReady() {
-  if (ui.sound === 'midi' && (!midi.outputId || !midi.outputs.some((p) => p.id === midi.outputId))) {
+  if (settings.preferences.sound === 'midi' && (!midi.outputId || !midi.outputs.some((p) => p.id === midi.outputId))) {
     ui.playbackError = 'Choose a MIDI output in Settings to play through your DAW.';
     return false;
   }
@@ -149,13 +179,15 @@ export function audition(seq: number[][], id = '', beats: number | number[] = 2,
   stopPiece();
   stopAudition();
   ui.preview = label;
-  const beat = 60 / ui.tempo;
+  const beat = 60 / (selectedPiece.bpm ?? settings.preferences.tempo);
   const t0 = performance.now() + 60;
   let at = 0; // seconds
   seq.forEach((notes, i) => {
     const dur = beat * (Array.isArray(beats) ? (beats[i] ?? 2) : beats);
-    if (ui.sound === 'synth' || ui.sound === 'both') synth.play(notes, 0.06 + at, dur * 0.95);
-    if (ui.sound === 'midi' || ui.sound === 'both') midi.send(notes, t0 + at * 1000, dur * 950);
+    if (settings.preferences.sound === 'synth' || settings.preferences.sound === 'both')
+      synth.play(notes, 0.06 + at, dur * settings.editor.gate);
+    if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
+      midi.send(notes, t0 + at * 1000, dur * settings.editor.gate * 1000);
     timers.push(
       setTimeout(
         () => {
@@ -175,8 +207,8 @@ let metronome: ReturnType<typeof setTimeout> | null = null;
 /** Bars from the metronome (exact), a MIDI file, or estimated from playing. */
 export function setBars(
   mode: 'auto' | 'metronome' | 'file',
-  bpm = ui.tempo,
-  beatsPerBar = ui.meter,
+  bpm = settings.preferences.tempo,
+  beatsPerBar = settings.preferences.meter,
   start = performance.now() + 100,
 ) {
   ui.bars = mode;
@@ -187,7 +219,7 @@ export function setBars(
   const period = 60000 / bpm;
   let i = 0;
   const tick = () => {
-    if (ui.click) synth.click(i % beatsPerBar === 0);
+    if (settings.preferences.click) synth.click(i % beatsPerBar === 0);
     i++;
     metronome = setTimeout(tick, start + i * period - performance.now());
   };
@@ -306,16 +338,17 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
   ui.playbackPosition = playbackOffset;
   const start = performance.now() + lead;
   playbackStarted = start;
-  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? ui.tempo, p.beatsPerBar ?? 4, start - playbackOffset);
+  setBars(p.bpm ? 'file' : 'auto', p.bpm ?? settings.preferences.tempo, p.beatsPerBar ?? 4, start - playbackOffset);
   const initialPedal = p.pedal?.findLast(([at]) => at <= playbackOffset)?.[1] ?? false;
   if (initialPedal) {
     pieceTimers.push(setTimeout(() => live.pedal(true, performance.now(), false), lead));
-    if (ui.sound === 'midi' || ui.sound === 'both') midi.control(64, 127, start);
+    if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both') midi.control(64, 127, start);
   }
   for (const [at, on] of p.pedal ?? [])
     if (at > playbackOffset) {
       pieceTimers.push(setTimeout(() => live.pedal(on, performance.now(), false), lead + at - playbackOffset));
-      if (ui.sound === 'midi' || ui.sound === 'both') midi.control(64, on ? 127 : 0, start + at - playbackOffset);
+      if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
+        midi.control(64, on ? 127 : 0, start + at - playbackOffset);
     }
   for (const [t, d, note, vel] of p.notes) {
     if (t + d <= playbackOffset) continue;
@@ -324,12 +357,12 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
         () => {
           pieceNotes.add(note);
           live.noteOn(note, vel, performance.now(), false, false);
-          if (ui.sound === 'synth' || ui.sound === 'both') synth.noteOn(note, vel);
+          if (settings.preferences.sound === 'synth' || settings.preferences.sound === 'both') synth.noteOn(note, vel);
         },
         lead + Math.max(0, t - playbackOffset),
       ),
     );
-    if (ui.sound === 'midi' || ui.sound === 'both')
+    if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
       midi.send([note], start + Math.max(0, t - playbackOffset), t + d - Math.max(t, playbackOffset), vel);
     pieceTimers.push(
       setTimeout(
@@ -371,13 +404,14 @@ export function stopPlayback() {
 
 export function startRecording() {
   recorder.start({
+    configuration: $state.snapshot(settings),
     style: session.style,
     split: session.seg.splitMode,
     keyLock: session.keyLock,
-    monitor: ui.monitor,
+    monitor: settings.preferences.monitor,
     bars: ui.bars,
-    bpm: ui.tempo,
-    meter: ui.meter,
+    bpm: settings.preferences.tempo,
+    meter: settings.preferences.meter,
     inputs: midi.devices,
     userAgent: navigator.userAgent,
   });

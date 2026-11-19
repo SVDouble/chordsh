@@ -1,0 +1,77 @@
+# Settings
+
+Open **⚙ Settings** for playback, MIDI, appearance, workspace panels, editor defaults and analysis.
+Search by name or purpose. Advanced sections start collapsed. **Apply** validates the whole draft;
+**Cancel**, × and Escape discard it. **Restore defaults** is staged until Apply. Invalid settings leave
+playback and the current configuration intact. Sound, theme and Panels remain convenient shortcuts to
+the same saved values.
+
+Analysis changes stop playback and restart live analysis because cached model scores depend on the
+configuration. Songs, voicings and undo history are retained. Changing a default does not rewrite
+existing songs: song tempo/meter and chord velocities belong to the document. Metronome/preview tempo
+is a separate preference; previews of a selected song use that song's tempo.
+
+## One source of truth
+
+[`src/config/settings.ts`](../src/config/settings.ts) defines defaults, types, validation, labels, help,
+units, control steps and ranges. It uses [Zod](https://zod.dev/) and its public
+[JSON Schema conversion](https://zod.dev/json-schema) to generate form fields. Adding a numeric option
+there gives it a settings control without maintaining a second form definition. Nested harmonic priors
+are included. Cross-field validation lives in the same schema.
+
+The engine receives validated settings through `new Session(settings)` or `session.configure(settings)`;
+it has no Svelte or browser dependency. Standalone trackers and editors use the same defaults. The
+harmonizer's existing `DEFAULT_PARAMS` export remains compatible with benchmark and tuning scripts,
+and now comes from the shared schema.
+
+| Section                  | Controls                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                |
+| Workspace                | visibility of Now playing, Where next, tonal map and piano                                                                               |
+| Editor                   | new-song tempo/meter, timeline snap/length, undo depth, chord velocity and note gate                                                     |
+| Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights |
+| Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                |
+| Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                     |
+| Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                  |
+| Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                         |
+
+## Beat and bar detection
+
+Defaults preserve the previous detector: **10 ms** bins, **8,000 ms** window, **48 to approximately
+158 BPM** detection, **100 BPM** preference and **4,000 ms** of revisable beats. The precise upper default
+is `60000 / 380`, retaining the original 380 ms shortest period. These are starting values, not a fixed
+tempo vocabulary. Set a wider or different BPM range for slow or fast music. Fixed tempo from a song,
+MIDI file or metronome bypasses automatic tempo estimation.
+
+- Smaller bins cost more CPU; longer windows stabilise tempo but adapt more slowly.
+- The window must contain at least two beats at the slowest configured tempo. At 20 BPM that requires
+  at least 6,000 ms. Detection also waits for the configured minimum onset count.
+- A window may contain at most 4,000 bins to keep live autocorrelation responsive. The form explains
+  incompatible combinations rather than silently clamping them.
+- Revisable beat history must fit inside the window. Older beat positions are frozen.
+- The preferred BPM is a soft prior. Increase its width to reduce the bias toward that tempo.
+- Detected meters accept a comma-separated list of counts from 1 to 12; the default compares 3 and 4.
+  These counts are **quarter-note beats**, not compound-meter groupings such as two dotted beats in 6/8.
+  Automatic meter uses accent contrast; making a meter selectable does not guarantee reliable detection.
+
+## Limits and persistence
+
+Field ranges are visible alongside help and defaults. They guard runtime cost and valid numerical
+operations; changing the schema changes both validation and the displayed ranges. Harmonic vocabulary,
+MIDI byte widths and musical interval definitions remain model/protocol data rather than preference
+controls. The learned transition table remains the trained artifact; its contribution is adjustable.
+
+`MUSIC_LIMITS` in the same module supplies document/UI/export validation: 4–1,000 BPM, 1–12 quarter-note
+beats per bar and 1/64–4,096 beats per chord. These are document guardrails, independent of beat detection
+and timeline snap. MIDI notes remain 0–127 and sounding velocities 1–127. The former 20–300 BPM and
+¼–64 beat editor restrictions have been widened; existing documents retain their durations.
+
+Settings persist inside the browser's `chordsh` record under `settings`, alongside songs. Older flat
+preferences and the legacy `musify` record are migrated without deleting the old record. Missing fields
+receive defaults. Invalid saved fields are recovered independently; incompatible sections revert to
+defaults with an explanation when Settings opens. Unknown fields are ignored by validation. Songs and
+other stored content are preserved.
+
+Recordings include the full configuration at the start of recording. `npm run replay` restores it;
+older recordings fall back to current defaults and their existing style/split metadata. The benchmark
+uses the shared shipped defaults and explicit `P_` overrides, independently of browser preferences.

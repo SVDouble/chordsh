@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { DEFAULT_SETTINGS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import {
     acceptChords,
@@ -15,7 +16,7 @@
     selectStep,
     selectTimeline,
   } from './composition.svelte';
-  import { audition, seekPlayback, session, ui } from './store.svelte';
+  import { audition, seekPlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
@@ -31,7 +32,7 @@
   let symbol = $state('');
   let duration = $state(4);
   let notes = $state('');
-  let velocity = $state(80);
+  let velocity = $state(DEFAULT_SETTINGS.editor.velocity);
   let pasted = $state('');
   let drag = $state<{
     id: string;
@@ -65,7 +66,10 @@
   });
   const end = $derived(document.steps.reduce((last, s) => Math.max(last, s.start + s.beats), 0));
   const length = $derived(
-    Math.max(document.meter * 8, Math.ceil((end + document.meter * 2) / document.meter) * document.meter),
+    Math.max(
+      document.meter * settings.editor.visibleBars,
+      Math.ceil((end + document.meter * 2) / document.meter) * document.meter,
+    ),
   );
   const slots = $derived(Array.from({ length }, (_, i) => i));
   const playing = $derived(!!ui.nowPlaying && ui.sourceId === `sequence:${document.id}`);
@@ -94,7 +98,7 @@
       existing?.beats ??
       Math.min(document.meter, document.steps.find((s) => s.start > at)?.start - at || document.meter);
     notes = existing?.notes.join(' ') ?? '';
-    velocity = existing?.velocity ?? 80;
+    velocity = existing?.velocity ?? settings.editor.velocity;
     popup = true;
     await tick();
     chordInput?.focus();
@@ -162,9 +166,13 @@
   }
   function moveDrag(e: PointerEvent) {
     if (!drag || e.pointerId !== drag.pointer) return;
-    const delta = Math.round(((e.clientX - drag.x) / zoom) * 4) / 4;
+    const delta = Math.round((e.clientX - drag.x) / zoom / settings.editor.snapBeats) * settings.editor.snapBeats;
     if (drag.mode === 'move') drag.at = Math.max(0, drag.original + delta);
-    else drag.beats = Math.max(0.25, Math.min(64, drag.originalBeats + delta));
+    else
+      drag.beats = Math.max(
+        MUSIC_LIMITS.minChordBeats,
+        Math.min(MUSIC_LIMITS.maxChordBeats, drag.originalBeats + delta),
+      );
   }
   function endDrag(e: PointerEvent) {
     if (!drag || e.pointerId !== drag.pointer) return;
@@ -238,8 +246,8 @@
       <input
         aria-label="Sequence tempo"
         type="number"
-        min="20"
-        max="300"
+        min={MUSIC_LIMITS.minBpm}
+        max={MUSIC_LIMITS.maxBpm}
         value={document.bpm}
         onchange={(e) => editSequence((s) => s.update({ bpm: +e.currentTarget.value }))}
       ></label
@@ -250,7 +258,7 @@
       value={document.meter}
       onchange={(e) => editSequence((s) => s.update({ meter: +e.currentTarget.value }))}
     >
-      {#each [2, 3, 4, 5, 6, 7, 8, 9, 12] as n}
+      {#each Array.from({ length: MUSIC_LIMITS.maxMeter }, (_, i) => i + 1) as n}
         <option value={n}>{n}/4</option>
       {/each}
     </select>
@@ -358,7 +366,13 @@
               if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                 e.preventDefault();
                 editSequence((ed) =>
-                  ed.replace(s.id, { ...s, beats: Math.max(0.25, s.beats + (e.key === 'ArrowRight' ? 0.25 : -0.25)) }),
+                  ed.replace(s.id, {
+                    ...s,
+                    beats: Math.max(
+                      MUSIC_LIMITS.minChordBeats,
+                      s.beats + (e.key === 'ArrowRight' ? settings.editor.snapBeats : -settings.editor.snapBeats),
+                    ),
+                  }),
                 );
               }
             }}
@@ -447,7 +461,14 @@
         {#each [0.5, 1, 2, 4, 8] as n}
           <button type="button" class:on={duration === n} onclick={() => (duration = n)}>{n}</button>
         {/each}
-        <input aria-label="Chord duration" type="number" min=".25" max="64" step=".25" bind:value={duration}>
+        <input
+          aria-label="Chord duration"
+          type="number"
+          min={MUSIC_LIMITS.minChordBeats}
+          max={MUSIC_LIMITS.maxChordBeats}
+          step="any"
+          bind:value={duration}
+        >
       </div>
       <details class="voicing-editor">
         <summary>Voicing</summary>
@@ -485,7 +506,7 @@
             class="icon"
             aria-label={`Use ${h.label}`}
             title={`Use ${h.label}`}
-            disabled={selected.beats / h.chords.length < 0.25}
+            disabled={selected.beats / h.chords.length < MUSIC_LIMITS.minChordBeats}
             onclick={() => {
               acceptChords(
                 h.names.map((name) => ({ symbol: name, beats: selected.beats / h.chords.length })),

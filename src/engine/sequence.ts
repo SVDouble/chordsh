@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS, MUSIC_LIMITS, editorSchema, type EditorSettings } from '../config/settings';
 import { analyzeChart, parseChart, type Chart } from './chart';
 import { chordName } from '../theory/chords';
 import { mod12 } from '../theory/pitch';
@@ -36,20 +37,29 @@ export interface ChordInput {
   key?: Key;
 }
 
-export function emptySequence(title = 'Untitled', id: string = crypto.randomUUID()): Sequence {
-  return { id, title, bpm: 100, meter: 4, key: { tonic: 0, mode: 'major' }, steps: [] };
+export function emptySequence(
+  title = 'Untitled',
+  id: string = crypto.randomUUID(),
+  settings: EditorSettings = DEFAULT_SETTINGS.editor,
+): Sequence {
+  return { id, title, bpm: settings.newTempo, meter: settings.newMeter, key: { tonic: 0, mode: 'major' }, steps: [] };
 }
 
-function step(input: ChordInput, previous: number[] | null, defaultBeats: number): SequenceStep {
+function step(
+  input: ChordInput,
+  previous: number[] | null,
+  defaultBeats: number,
+  velocityDefault: number,
+): SequenceStep {
   const chord = parseChordSymbol(input.symbol.trim());
   if (!chord) throw new Error(`Can't read chord: ${input.symbol}`);
   const beats = input.beats ?? defaultBeats;
-  if (!Number.isFinite(beats) || beats < 0.25 || beats > 64)
-    throw new Error('Duration must be between ¼ and 64 beats.');
+  if (!Number.isFinite(beats) || beats < MUSIC_LIMITS.minChordBeats || beats > MUSIC_LIMITS.maxChordBeats)
+    throw new Error(`Duration must be between ${MUSIC_LIMITS.minChordBeats} and ${MUSIC_LIMITS.maxChordBeats} beats.`);
   const notes = [...new Set(input.notes ?? voiceChord(chord, previous))].sort((a, b) => a - b);
   if (!notes.length || notes.some((n) => !Number.isInteger(n) || n < 0 || n > 127))
     throw new Error('Voicing needs MIDI notes from 0 to 127.');
-  const velocity = input.velocity ?? 80;
+  const velocity = input.velocity ?? velocityDefault;
   if (!Number.isInteger(velocity) || velocity < 1 || velocity > 127) throw new Error('Velocity must be from 1 to 127.');
   if (
     input.key &&
@@ -77,7 +87,16 @@ export class SequenceEditor {
   private past: Sequence[] = [];
   private future: Sequence[] = [];
 
-  constructor(sequence: Sequence) {
+  private options: EditorSettings;
+  get settings() {
+    return this.options;
+  }
+  set settings(value: EditorSettings) {
+    this.options = editorSchema.parse(value);
+    if (this.past.length > this.options.undoLimit) this.past.splice(0, this.past.length - this.options.undoLimit);
+  }
+  constructor(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor) {
+    this.options = editorSchema.parse(settings);
     this.value = structuredClone(sequence);
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
@@ -98,7 +117,7 @@ export class SequenceEditor {
 
   private commit(next: Sequence) {
     this.past.push(this.value);
-    if (this.past.length > 100) this.past.shift();
+    if (this.past.length > this.settings.undoLimit) this.past.splice(0, this.past.length - this.settings.undoLimit);
     this.value = next;
     this.future = [];
   }
@@ -106,9 +125,9 @@ export class SequenceEditor {
   update(patch: Partial<Pick<Sequence, 'title' | 'bpm' | 'meter' | 'key'>>) {
     const next = { ...this.value, ...patch };
     if (!next.title.trim()) throw new Error('Give the sequence a title.');
-    if (!Number.isFinite(next.bpm) || next.bpm < 20 || next.bpm > 300)
-      throw new Error('Tempo must be between 20 and 300 BPM.');
-    if (!Number.isInteger(next.meter) || next.meter < 1 || next.meter > 12)
+    if (!Number.isFinite(next.bpm) || next.bpm < MUSIC_LIMITS.minBpm || next.bpm > MUSIC_LIMITS.maxBpm)
+      throw new Error(`Tempo must be between ${MUSIC_LIMITS.minBpm} and ${MUSIC_LIMITS.maxBpm} BPM.`);
+    if (!Number.isInteger(next.meter) || next.meter < MUSIC_LIMITS.minMeter || next.meter > MUSIC_LIMITS.maxMeter)
       throw new Error('Meter must be between 1 and 12 quarter-note beats.');
     if (
       next.key &&
@@ -136,7 +155,7 @@ export class SequenceEditor {
     let previous = before[before.length - 1]?.notes ?? null;
     let cursor = at;
     const added = inputs.map((input) => {
-      const s = step(input, previous, this.value.meter);
+      const s = step(input, previous, this.value.meter, this.settings.velocity);
       s.start = cursor;
       cursor += s.beats;
       previous = s.notes;
@@ -160,6 +179,7 @@ export class SequenceEditor {
       { ...old, ...input, notes: input.notes ?? (input.symbol === old.symbol ? old.notes : undefined) },
       this.value.steps[index - 1]?.notes ?? null,
       this.value.meter,
+      this.settings.velocity,
     );
     next.id = id;
     next.start = old.start;
@@ -304,11 +324,11 @@ export function sequenceChart(sequence: Sequence): Chart {
   return chart;
 }
 
-export function sequencePiece(sequence: Sequence): Piece {
+export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor): Piece {
   const ms = 60000 / sequence.bpm;
   const notes: Piece['notes'] = [];
   for (const s of sequence.steps) {
-    for (const n of s.notes) notes.push([s.start * ms, s.beats * ms * 0.95, n, s.velocity]);
+    for (const n of s.notes) notes.push([s.start * ms, s.beats * ms * settings.gate, n, s.velocity]);
   }
   return {
     id: sequence.id,

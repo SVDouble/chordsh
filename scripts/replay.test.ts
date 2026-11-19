@@ -7,6 +7,7 @@
 import { it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { restoreSettings } from '../src/config/settings';
 import { Session, type TraceEvent } from '../src/engine/session';
 import type { Recording } from '../src/io/recorder';
 import { midiName } from '../src/theory/pitch';
@@ -60,7 +61,9 @@ it('replay', () => {
   const { file, rec } = load();
   const verbose = !!process.env.VERBOSE;
   vi.useFakeTimers();
-  const s = new Session();
+  const restored = restoreSettings(rec.settings.configuration ?? {});
+  const s = new Session(restored.settings);
+  if (restored.warnings.length) console.warn(restored.warnings.join(' '));
   if (rec.settings.style) s.setStyle(rec.settings.style as 'jazz' | 'triads');
   if (rec.settings.split !== undefined) s.seg.splitMode = rec.settings.split as typeof s.seg.splitMode;
   const base = 1_000_000;

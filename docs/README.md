@@ -3,6 +3,7 @@
 | document                     | for                                                                               |
 | ---------------------------- | --------------------------------------------------------------------------------- |
 | [app.md](app.md)             | using the app: screen, colours, hindsight & theories, bars, recording, practising |
+| [settings.md](settings.md)   | settings schema, user controls, validation, ranges and persistence                |
 | [daw.md](daw.md)             | MIDI routing/export, platform-independent core and native plug-in direction       |
 | [engine.md](engine.md)       | how the analysis works: layers, harmonizer (HMM), bars, theory modules            |
 | [benchmark.md](benchmark.md) | corpora, metrics, how to reproduce, results history                               |

@@ -15,7 +15,7 @@ The **Editor** is a beat timeline. Click an empty spot, type a chord such as `Cm
 in that chord's popover rather than occupying the main workspace.
 
 - Drag a chord by its top handle to move it; drag its right edge to change its length. Edges snap to
-  quarter-beat increments. Empty spaces are rests. Overlapping later material moves forward.
+  quarter-beat increments by default (Settings → Editor → Timeline snap). Empty spaces are rests. Overlapping later material moves forward.
 - Use the popover's ▶ to hear the current edit, ⧉ to duplicate it, or ⌫ to remove it.
 - Undo/redo are in the heading; Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields. Edits made
   while a song plays refresh playback at the current musical position.
@@ -74,7 +74,7 @@ Settings → Bars → Metronome. Library files with tempo bring their own grid.
 
 **⇩** exports the selected song/performance as a `.mid` file; the editor also has its own export icon.
 Notes, voicings, gaps, durations, velocities and sustain can then play through a DAW instrument. For
-live routing, choose **Settings → MIDI out** and **Playback output → DAW / MIDI out**. See
+live routing, choose **Settings → MIDI output** and **Playback output → DAW / MIDI out**. See
 [DAW integration](daw.md) for the current connection and native plug-in direction.
 
 ● records MIDI plus analysis. An optional note describes what you meant to play. Saved sessions go to
@@ -84,3 +84,11 @@ live routing, choose **Settings → MIDI out** and **Playback output → DAW / M
 Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5, Z/X change octave and Space is sustain.
 Typing in an input does not play notes. Settings also contains MIDI input, monitoring, hand split,
 metronome, meter and analysis key/style controls.
+
+## Settings
+
+**⚙ Settings** brings playback/input, panels, editor defaults and advanced analysis controls together.
+Search settings, read their help/ranges/defaults, then Apply or Cancel the draft. Beat detection has
+configurable BPM bounds, timing resolution and analysis windows. Harmonic-model weights, grouping
+delays and history limits are editable too. Restore defaults also waits for Apply. See
+[settings and limits](settings.md) for the source schema, tradeoffs and saved-data migration.

@@ -50,6 +50,11 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
 12. **chord.sh** — renamed interface/package/docs, retaining legacy songs and settings. Editor, Live
     and Library remain separate visible views; transport uses universal icons.
 
+13. **Shared settings** — one Zod schema for defaults, validation, control metadata and persisted
+    preferences; searchable Settings with advanced beat/bar, segmentation and harmonic-model controls.
+    BPM bounds replace hardcoded periods; editor defaults and timing are configurable. Invalid drafts
+    preserve playback; old preferences migrate; recordings/replay retain configuration.
+
 ## Next
 
 - **Native host delivery** — cross-platform core with VST3/AU MIDI wrappers, host transport/state
@@ -71,5 +76,5 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
 
 ## Hardware notes
 
-Recital Pro: USB-MIDI in works; whether it plays notes it _receives_ depends on firmware (⚙ → MIDI out →
-Test). MPK mini: no speakers — sound comes from the browser synth (🔊).
+Recital Pro: USB-MIDI in works; whether it plays notes it _receives_ depends on firmware (⚙ → MIDI output, then
+play a sequence through it). MPK mini: no speakers — sound comes from the browser synth (🔊).

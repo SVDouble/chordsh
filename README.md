@@ -21,6 +21,7 @@ annotated piece.
 
 - [Using the app](docs/app.md) — screen, colours, hindsight & theories, bars, recording, practising
 - [Engine](docs/engine.md) — composition model and harmonic analysis
+- [Settings](docs/settings.md) — shared schema, controls, limits and persistence
 - [DAW integration](docs/daw.md) — MIDI output/export and native plug-in architecture
 - [Benchmark](docs/benchmark.md) — corpora, metrics, results; [latest numbers](benchmarks/LATEST.md)
 - [Research notes](docs/research.md) — related work, sources, experiment log

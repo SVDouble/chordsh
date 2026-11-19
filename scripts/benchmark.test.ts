@@ -153,7 +153,7 @@ it('benchmark', () => {
   console.log(`\nsplit: ${sp}   (* = synthetic performance rendered from chord changes)\n\n${report}\n`);
   if (env.WRITE) {
     const git = execSync('git rev-parse --short HEAD').toString().trim();
-    const dirty = !!execSync('git status --porcelain -- src/engine src/theory scripts').toString().trim();
+    const dirty = !!execSync('git status --porcelain -- src/config src/engine src/theory scripts').toString().trim();
     const date = new Date().toISOString().slice(0, 10);
     fs.mkdirSync('benchmarks', { recursive: true });
     fs.appendFileSync(

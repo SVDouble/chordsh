@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../config/settings';
 import { mod12 } from '../theory/pitch';
 import { type Chord, corePcs, isDominantLike } from '../theory/chords';
 import { type Key, SCALES, type ScaleName, keyFromIndex, keyIndex, keyPcSet } from '../theory/scales';
@@ -43,8 +44,8 @@ export class KeyDetector {
 
   /** `chordDecay` < 1 makes recent chords dominate (live); use 1 and Infinity to weigh a whole chart evenly. */
   constructor(
-    public halfLifeMs = 40000,
-    public chordDecay = 0.85,
+    public halfLifeMs = DEFAULT_SETTINGS.analysis.keyHalfLifeMs,
+    public chordDecay = DEFAULT_SETTINGS.analysis.chordDecay,
   ) {}
 
   reset() {

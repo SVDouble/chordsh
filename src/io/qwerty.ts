@@ -14,7 +14,7 @@ export function attachQwerty(h: MidiHandlers): () => void {
   const down = new Map<string, number>();
 
   const onDown = (e: KeyboardEvent) => {
-    if (e.repeat || typing(e) || e.metaKey || e.ctrlKey) return;
+    if (e.repeat || typing(e) || e.metaKey || e.ctrlKey || document.querySelector('dialog[open]')) return;
     const k = e.key.toLowerCase();
     if (k === 'z') octave = Math.max(-3, octave - 1);
     else if (k === 'x') octave = Math.min(3, octave + 1);

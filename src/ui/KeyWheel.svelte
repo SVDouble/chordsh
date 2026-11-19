@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { settings } from './store.svelte';
   import { session, ui } from './store.svelte';
   import { type Key, SCALE_LABEL, keyEq, keyIndex, keyLong, keyShort } from '../theory/scales';
   import type { KeyReach } from '../engine/coach';
@@ -29,7 +30,7 @@
     [140, 205, 70],
     [250, 196, 30],
   ];
-  const RAMP = $derived(ui.theme === 'light' ? RAMP_LIGHT : RAMP_DARK);
+  const RAMP = $derived(settings.preferences.theme === 'light' ? RAMP_LIGHT : RAMP_DARK);
   const rampCss = $derived(RAMP.map((c) => `rgb(${c})`).join(', '));
   /** Colour for a key, relative to the most likely destination (so the scale always uses its full range). */
   function heat(l: number): string {

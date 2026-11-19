@@ -10,7 +10,7 @@ delivery format, not an existing feature.
    be an IAC bus; Windows needs a virtual MIDI port; Linux needs a sequencer port exposed to the browser.
    [Ableton's virtual MIDI guide](https://help.ableton.com/hc/en-us/articles/209774225-Setting-up-a-virtual-MIDI-bus)
    describes the application-to-application approach and macOS/Windows setup.
-2. In chord.sh, choose **Settings → MIDI out** and select that connection. Set **Playback output** to
+2. In chord.sh, choose **Settings → MIDI output** and select that connection. Set **Playback output** to
    **DAW / MIDI out**. This also turns off browser monitoring.
 3. Put an instrument on a DAW MIDI track, select the virtual connection as its input, and enable
    monitoring. Play the sequence or preview a suggestion in chord.sh.

@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { settings } from './store.svelte';
   import { persist, ui } from './store.svelte';
 
   function preset(focus: 'all' | 'song' | 'progression') {
-    ui.panels.now = focus === 'all';
-    ui.panels.next = focus === 'all';
-    ui.panels.map = focus === 'all';
-    ui.panels.piano = true;
+    settings.panels.now = focus === 'all';
+    settings.panels.next = focus === 'all';
+    settings.panels.map = focus === 'all';
+    settings.panels.piano = true;
     if (focus === 'song') ui.tab = 'editor';
     if (focus === 'progression') ui.tab = 'progression';
     persist();
@@ -22,13 +23,20 @@
       <button type="button" onclick={() => preset('progression')}>Progression</button>
     </div>
     <label
-      ><span>Now playing</span><input type="checkbox" bind:checked={ui.panels.now} onchange={() => persist()}></label
+      ><span>Now playing</span>
+      <input type="checkbox" bind:checked={settings.panels.now} onchange={() => persist()}></label
     >
     <label
-      ><span>Where next</span><input type="checkbox" bind:checked={ui.panels.next} onchange={() => persist()}></label
+      ><span>Where next</span>
+      <input type="checkbox" bind:checked={settings.panels.next} onchange={() => persist()}></label
     >
-    <label><span>Tonal map</span><input type="checkbox" bind:checked={ui.panels.map} onchange={() => persist()}></label>
-    <label><span>Piano</span><input type="checkbox" bind:checked={ui.panels.piano} onchange={() => persist()}></label>
+    <label
+      ><span>Tonal map</span>
+      <input type="checkbox" bind:checked={settings.panels.map} onchange={() => persist()}></label
+    >
+    <label
+      ><span>Piano</span><input type="checkbox" bind:checked={settings.panels.piano} onchange={() => persist()}></label
+    >
     <p class="small muted">Drag the dividers to resize. Your layout is remembered.</p>
   </div>
 </details>

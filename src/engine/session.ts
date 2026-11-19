@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS, settingsSchema, type Settings } from '../config/settings';
 import { DEGREE_LABEL, mod12 } from '../theory/pitch';
 import {
   type Chord,
@@ -11,11 +12,11 @@ import {
 } from '../theory/chords';
 import { type Roman, analyzeRoman, isDiatonic } from '../theory/roman';
 import { type PatternKind, patternsAtEnd } from '../theory/patterns';
-import { type Key, type ScaleName, keyEq, keyIndex, keyShort, nameInKey } from '../theory/scales';
+import { type Key, type ScaleName, keyEq, keyIndex, keyShort, nameInKey, keyFromIndex } from '../theory/scales';
 import { voiceChord } from '../theory/voicing';
 import { KeyDetector } from './keyDetector';
 import { Segmenter } from './segmenter';
-import { DEFAULT_PARAMS, Harmonizer, type PathItem, SegmentBuilder } from './harmonizer';
+import { Harmonizer, type PathItem, SegmentBuilder } from './harmonizer';
 import { AccentDetector, BeatTracker } from './beats';
 import { type KeyReach, type NextMove, type Path, type Style, computeReach, suggestNext, suggestPaths } from './coach';
 import { type Chart, toChartText } from './chart';
@@ -91,11 +92,11 @@ const EMPTY: Identification = { kind: 'none', best: null, alternatives: [], note
  * a view of the harmonizer's current best path.
  */
 export class Session {
-  readonly seg: Segmenter;
-  readonly harmonizer = new Harmonizer(DEFAULT_PARAMS);
-  readonly beats = new BeatTracker();
+  seg!: Segmenter;
+  harmonizer!: Harmonizer;
+  beats!: BeatTracker;
   /** Modal colour only (the key itself comes from the harmonizer). */
-  readonly detector = new KeyDetector();
+  detector!: KeyDetector;
   onChange: () => void = () => {};
   /** Set to receive every engine decision (session recording). */
   trace: ((e: TraceEvent) => void) | null = null;
@@ -117,16 +118,21 @@ export class Session {
   target: Key | null = null;
   paths: Path[] = [];
   practice: Practice | null = null;
-  style: Style = 'jazz';
+  style: Style = DEFAULT_SETTINGS.preferences.style;
   lastVoicing: number[] | null = null;
   song: SongFollower | null = null;
   /** Show the song's next chord on the piano. */
   songGuide = false;
   /** Max history items kept (the UI only shows the latest). */
-  historyLimit = 300;
+  get historyLimit() {
+    return this.settings.analysis.historyLimit;
+  }
+  set historyLimit(value: number) {
+    this.settings.analysis.historyLimit = value;
+  }
 
-  private segments: SegmentBuilder;
-  private accents = new AccentDetector();
+  private segments!: SegmentBuilder;
+  private accents!: AccentDetector;
   private group: { t: number; notes: number[] } | null = null;
   private _history: HistoryItem[] = [];
   private _patterns: PatternMark[] = [];
@@ -138,7 +144,28 @@ export class Session {
   private strikeTimer: ReturnType<typeof setTimeout> | null = null;
   private id = 1;
 
-  constructor() {
+  settings: Settings;
+  constructor(settings: Settings = DEFAULT_SETTINGS) {
+    this.settings = settingsSchema.parse(settings);
+    this.init();
+  }
+
+  /** Rebuild cached model costs only after a complete, valid settings change. */
+  configure(settings: Settings) {
+    const next = settingsSchema.parse(settings);
+    this.clear();
+    this.settings = next;
+    this.init();
+    this.onChange();
+  }
+
+  private init() {
+    this.style = this.settings.preferences.style;
+    this.keyLock = this.settings.preferences.keyLock < 0 ? null : keyFromIndex(this.settings.preferences.keyLock);
+    this.harmonizer = new Harmonizer(this.settings.harmony);
+    this.beats = new BeatTracker(this.settings.beats);
+    this.accents = new AccentDetector(this.settings.accents);
+    this.detector = new KeyDetector(this.settings.analysis.keyHalfLifeMs, this.settings.analysis.chordDecay);
     this.seg = new Segmenter(
       {
         harmony: (n, t, strike) => this.onHarmony(n, t, strike),
@@ -151,12 +178,21 @@ export class Session {
         },
       },
       (notes) => identify(notes).best?.score ?? null,
+      this.settings.segmentation,
     );
-    this.segments = new SegmentBuilder(DEFAULT_PARAMS, (s) => {
-      this.harmonizer.push(s);
-      this.log({ t: s.t0, kind: 'segment', bass: s.bass, ms: Math.round(s.t1 - s.t0) });
-      this.invalidate();
-    });
+    this.seg.splitMode =
+      this.settings.preferences.splitMode === 'fixed'
+        ? this.settings.preferences.splitNote
+        : this.settings.preferences.splitMode;
+    this.segments = new SegmentBuilder(
+      this.settings.harmony,
+      (s) => {
+        this.harmonizer.push(s);
+        this.log({ t: s.t0, kind: 'segment', bass: s.bass, ms: Math.round(s.t1 - s.t0) });
+        this.invalidate();
+      },
+      this.settings.segmentation,
+    );
   }
 
   // ── derived views (rebuilt lazily from the harmonizer) ──
@@ -196,7 +232,7 @@ export class Session {
     this.seg.noteOn(note, vel, t);
     this.segments.noteOn(note, vel, t);
     this.detector.addMelody(note, t, 0.3);
-    if (this.group && t - this.group.t > 30) this.flushGroup();
+    if (this.group && t - this.group.t > this.settings.beats.onsetGroupMs) this.flushGroup();
     this.group ??= { t, notes: [] };
     this.group.notes.push(note);
     this.invalidate();
@@ -290,6 +326,8 @@ export class Session {
     this.segments.reset();
     this.detector.reset();
     this.seg.reset();
+    this.beats.reset();
+    this.accents = new AccentDetector(this.settings.accents);
     this.labels.clear();
     this.revisedAt.clear();
     this.invalidate(true);
@@ -312,10 +350,13 @@ export class Session {
     this.nowRoman = ident.best && key ? analyzeRoman(ident.best, key) : null;
     this.checkPractice(ident);
     if (ident.best) this.song?.preview(ident.best);
-    if (strike && this.pending && t - this.pending.t > 60) this.strike();
+    if (strike && this.pending && t - this.pending.t > this.settings.analysis.strikeGapMs) this.strike();
     this.pending = { ident, notes, t };
     if (this.strikeTimer) clearTimeout(this.strikeTimer);
-    this.strikeTimer = setTimeout(() => this.strike(), strike ? 150 : 350);
+    this.strikeTimer = setTimeout(
+      () => this.strike(),
+      strike ? this.settings.analysis.strikeMs : this.settings.analysis.settleMs,
+    );
     this.onChange();
   }
 
@@ -343,20 +384,20 @@ export class Session {
       this.refresh();
       // keep re-reading while the last chord is still sounding or dying away (it gains evidence with time)
       if (this.segments.active(performance.now())) this.invalidate();
-    }, 120);
+    }, this.settings.analysis.refreshMs);
   }
 
   private sync() {
     if (!this.dirty) return;
     this.dirty = false;
     const t = performance.now();
-    if (this.group && t - this.group.t > 30) this.flushGroup();
+    if (this.group && t - this.group.t > this.settings.beats.onsetGroupMs) this.flushGroup();
     const open = this.segments.peek(t);
     const h = this.harmonizer;
     let path = this.viewTheory !== null ? h.path(this.viewTheory, open) : h.path(undefined, open);
     if (this.keyLock) path = path.map((x) => ({ ...x, key: this.keyLock! }));
     this.keyProbs = h.keyDistribution(open);
-    this.theories = this.describeTheories(h.theories(3, open));
+    this.theories = this.describeTheories(h.theories(this.settings.analysis.theoryCount, open));
     const items = this.buildHistory(path, open ? open.t0 : null, t);
     this._history = items.length > this.historyLimit ? items.slice(-this.historyLimit) : items;
     const last = path[path.length - 1];
@@ -433,7 +474,7 @@ export class Session {
   }
 
   private findPatterns(): PatternMark[] {
-    const chords = this.chords.slice(-60);
+    const chords = this.chords.slice(-this.settings.analysis.patternHistory);
     const out: PatternMark[] = [];
     for (let i = 1; i < chords.length; i++) {
       const key = chords[i].key;
@@ -471,7 +512,7 @@ export class Session {
       role: over ? noteRole(over, note) : null,
       over: over ? chordName(over, key) : null,
     });
-    if (this.melody.length > 64) this.melody.shift();
+    if (this.melody.length > this.settings.analysis.melodyLimit) this.melody.shift();
     this.onChange();
   }
 
@@ -486,7 +527,7 @@ export class Session {
       key,
       this.keyProbs,
       recent,
-      this.melody.filter((m) => t - m.t < 6000).map((m) => m.note),
+      this.melody.filter((m) => t - m.t < this.settings.analysis.melodyWindowMs).map((m) => m.note),
       this.style,
     );
     if (!this.practice)

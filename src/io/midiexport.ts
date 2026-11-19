@@ -1,10 +1,12 @@
+import { MUSIC_LIMITS } from '../config/settings';
 import type { Piece } from '../library/pieces';
 
 /** Standard MIDI File, format 0, one tempo/meter and one note track. No synth or host dependency. */
 export function writeMidi(piece: Piece, channel = 0): Uint8Array<ArrayBuffer> {
   const bpm = piece.bpm ?? 120,
     meter = piece.beatsPerBar ?? 4;
-  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) throw new Error('MIDI export needs a tempo from 20 to 300 BPM.');
+  if (!Number.isFinite(bpm) || bpm < MUSIC_LIMITS.minBpm || bpm > MUSIC_LIMITS.maxBpm)
+    throw new Error(`MIDI export needs a tempo from ${MUSIC_LIMITS.minBpm} to ${MUSIC_LIMITS.maxBpm} BPM.`);
   if (!Number.isInteger(channel) || channel < 0 || channel > 15) throw new Error('MIDI channel must be from 0 to 15.');
   if (!Number.isInteger(meter) || meter < 1 || meter > 127) throw new Error('Invalid MIDI meter.');
   const vlq = (n: number) => {

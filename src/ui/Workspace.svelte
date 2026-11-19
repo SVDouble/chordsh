@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { settings } from './store.svelte';
   import { Pane, PaneGroup, PaneResizer } from 'paneforge';
   import { ui } from './store.svelte';
   import NowPlaying from './NowPlaying.svelte';
@@ -9,25 +10,25 @@
   import Editor from './Editor.svelte';
   import { currentSequence, selectSequence } from './composition.svelte';
 
-  const left = $derived(ui.panels.now || ui.panels.next);
-  const count = $derived(1 + Number(left) + Number(ui.panels.map));
+  const left = $derived(settings.panels.now || settings.panels.next);
+  const count = $derived(1 + Number(left) + Number(settings.panels.map));
 </script>
 
-<PaneGroup direction="horizontal" autoSaveId={`musify-workspace-${left}-${ui.panels.map}`} class="workspace">
+<PaneGroup direction="horizontal" autoSaveId={`musify-workspace-${left}-${settings.panels.map}`} class="workspace">
   {#if left}
     <Pane id="assistant" order={1} defaultSize={count === 3 ? 34 : 32} minSize={18}>
       <section class="pane left">
-        {#if ui.panels.now}
+        {#if settings.panels.now}
           <NowPlaying />
         {/if}
-        {#if ui.panels.next}
+        {#if settings.panels.next}
           <NextMoves />
         {/if}
       </section>
     </Pane>
     <PaneResizer class="pane-resizer" aria-label="Resize suggestions" />
   {/if}
-  {#if ui.panels.map}
+  {#if settings.panels.map}
     <Pane id="tonal-map" order={2} defaultSize={count === 3 ? 29 : 32} minSize={16}>
       <section class="pane centre"><KeyWheel /></section>
     </Pane>

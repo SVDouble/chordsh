@@ -1,3 +1,5 @@
+import { MUSIC_LIMITS } from '../config/settings';
+import { settings } from './store.svelte';
 import {
   emptySequence,
   SequenceEditor,
@@ -12,6 +14,7 @@ import { computeReach, type Path } from '../engine/coach';
 import { parseChordSymbol } from '../theory/symbols';
 import { keyIndex } from '../theory/scales';
 import {
+  savedData as saved,
   downloadMidi,
   persist,
   playSelection,
@@ -21,14 +24,6 @@ import {
   stopPlayback,
   ui,
 } from './store.svelte';
-
-const saved = (() => {
-  try {
-    return JSON.parse(localStorage.getItem('chordsh') ?? localStorage.getItem('musify') ?? '{}');
-  } catch {
-    return {};
-  }
-})();
 
 function restore(): Sequence[] {
   const documents: Sequence[] = [];
@@ -65,8 +60,11 @@ function restore(): Sequence[] {
 
 export const exampleSequences = EXAMPLES.map((c, i) => sequenceFromChart(c.text, c.title, `example:${i}`));
 const restored = restore();
-const initial = restored.find((s) => s.id === saved.activeSequenceId) ?? restored[0] ?? emptySequence();
-let editor = new SequenceEditor(initial);
+const initial =
+  restored.find((s) => s.id === saved.activeSequenceId) ??
+  restored[0] ??
+  emptySequence('Untitled', undefined, $state.snapshot(settings.editor));
+let editor = new SequenceEditor(initial, $state.snapshot(settings.editor));
 export const composition = $state({
   revision: 0,
   selectedId: (initial.steps[initial.steps.length - 1]?.id ?? null) as string | null,
@@ -85,10 +83,8 @@ function sync(save = true) {
   const selected = document.steps.find((s) => s.id === composition.selectedId);
   if (!selected) composition.selectedId = null;
   else composition.cursor = selected.start + selected.beats;
-  preparePiece(sequencePiece(document));
+  preparePiece(sequencePiece(document, $state.snapshot(settings.editor)));
   session.loadSong(sequenceChart(document));
-  ui.tempo = document.bpm;
-  ui.meter = document.meter;
   if (save) {
     composition.documents = [...composition.documents.filter((s) => s.id !== document.id), document];
     persist({ sequences: $state.snapshot(composition.documents), activeSequenceId: document.id });
@@ -100,6 +96,7 @@ export function editSequence(action: (editor: SequenceEditor) => void) {
     composition.error = '';
     const playing = !!ui.nowPlaying && ui.sourceId === `sequence:${editor.document.id}`;
     const beat = (ui.playbackPosition * editor.document.bpm) / 60000;
+    editor.settings = $state.snapshot(settings.editor);
     action(editor);
     stopPlayback();
     sync();
@@ -114,7 +111,7 @@ export function selectSequence(id: string, autoplay = false) {
   const document = composition.documents.find((s) => s.id === id) ?? exampleSequences.find((s) => s.id === id);
   if (!document) return;
   stopPlayback();
-  editor = new SequenceEditor($state.snapshot(document));
+  editor = new SequenceEditor($state.snapshot(document), $state.snapshot(settings.editor));
   composition.selectedId = document.steps[document.steps.length - 1]?.id ?? null;
   composition.cursor = document.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0);
   composition.error = '';
@@ -125,7 +122,10 @@ export function selectSequence(id: string, autoplay = false) {
 
 export function newSequence() {
   stopPlayback();
-  editor = new SequenceEditor(emptySequence());
+  editor = new SequenceEditor(
+    emptySequence('Untitled', undefined, $state.snapshot(settings.editor)),
+    $state.snapshot(settings.editor),
+  );
   composition.selectedId = null;
   composition.cursor = 0;
   composition.error = '';
@@ -216,18 +216,18 @@ export function importChart(text: string) {
 export function captureProgression() {
   const chords = session.chords;
   if (!chords.length) return;
-  const bpm = session.tempo.bpm ?? ui.tempo;
-  const document = emptySequence('From playing');
+  const bpm = session.tempo.bpm ?? settings.preferences.tempo;
+  const document = emptySequence('From playing', undefined, $state.snapshot(settings.editor));
   document.bpm = bpm;
   document.key = session.activeKey;
   stopPlayback();
-  editor = new SequenceEditor(document);
+  editor = new SequenceEditor(document, $state.snapshot(settings.editor));
   editor.insert(
     chords.map((c) => ({
       symbol: c.name,
       notes: c.notes,
       key: c.key ?? undefined,
-      beats: Math.max(0.25, Math.min(64, ((c.t1 - c.t0) * bpm) / 60000)),
+      beats: Math.max(MUSIC_LIMITS.minChordBeats, Math.min(MUSIC_LIMITS.maxChordBeats, ((c.t1 - c.t0) * bpm) / 60000)),
     })),
   );
   composition.selectedId = null;
@@ -236,5 +236,15 @@ export function captureProgression() {
   ui.tab = 'editor';
 }
 
-export const exportSequenceMidi = () => downloadMidi(sequencePiece(editor.document));
+export function refreshCompositionSettings() {
+  editor.settings = $state.snapshot(settings.editor);
+  if (ui.sourceId !== `sequence:${editor.document.id}`) return;
+  const playing = !!ui.nowPlaying;
+  const at = ui.playbackPosition;
+  preparePiece(sequencePiece(editor.document, editor.settings));
+  ui.playbackPosition = at;
+  if (playing) resumePlayback(at);
+}
+
+export const exportSequenceMidi = () => downloadMidi(sequencePiece(editor.document, $state.snapshot(settings.editor)));
 sync(false);

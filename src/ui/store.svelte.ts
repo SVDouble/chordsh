@@ -410,8 +410,8 @@ export function startRecording() {
     keyLock: session.keyLock,
     monitor: settings.preferences.monitor,
     bars: ui.bars,
-    bpm: settings.preferences.tempo,
-    meter: settings.preferences.meter,
+    bpm: session.tempo.bpm ?? settings.preferences.tempo,
+    meter: session.tempo.beatsPerBar,
     inputs: midi.devices,
     userAgent: navigator.userAgent,
   });

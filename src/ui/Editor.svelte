@@ -115,10 +115,12 @@
   $effect(() => {
     const focus = composition.take ? recordingBeat() : playing ? playBeat : (incoming.at(-1)?.start ?? selected?.start);
     if (focus === undefined || !scroller) return;
-    const row = Math.floor(focus / beatsPerRow);
-    const top = row * 192;
-    if (top < scroller.scrollTop || top > scroller.scrollTop + scroller.clientHeight - 180)
-      scroller.scrollTop = Math.max(0, top - 40);
+    const rowStart = Math.floor(focus / beatsPerRow) * beatsPerRow;
+    const row = scroller.querySelector<HTMLElement>(`[data-start="${rowStart}"]`);
+    if (!row) return;
+    const top = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    if (top < scroller.scrollTop || top + row.offsetHeight > scroller.scrollTop + scroller.clientHeight)
+      scroller.scrollTop = Math.max(0, top - 12);
   });
 
   function editRegion(at: number, region?: KeyRegion) {
@@ -455,24 +457,24 @@
           ? playBeat
           : composition.cursor}
       <div class="chord-timeline timeline-row" data-start={rowStart}>
-        <section class="key-regions" aria-label={`Key regions from bar ${Math.floor(rowStart / document.meter) + 1}`}>
-          {#each regions.filter((r, i) => r.start < rowEnd && (regions[i + 1]?.start ?? length) > rowStart) as region}
-            {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
+        {#each regions.filter((region) => region.start >= rowStart && region.start < rowEnd) as region}
+          {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
+          <div
+            class="key-change-marker"
+            class:current={focusBeat >= region.start && focusBeat < next}
+            style:left={`${(region.start - rowStart) * beatWidth}px`}
+          >
             <button
               type="button"
-              class="key-region"
-              class:current={focusBeat >= region.start && focusBeat < next}
-              style:left={`${Math.max(0, region.start - rowStart) * beatWidth}px`}
-              style:width={`${(Math.min(next, rowEnd) - Math.max(region.start, rowStart)) * beatWidth}px`}
+              class="key-change-handle"
               aria-label={`Edit key region at beat ${region.start + 1}`}
               title={`${region.label ? region.label + ' · ' : ''}${region.key ? keyLong(region.key) : 'Auto key'} — click to edit`}
               onclick={() => editRegion(region.start, region)}
             >
               <Icon name="key" size={12} />
-              <span>{region.label ? `${region.label} · ` : ''}{region.key ? keyLong(region.key) : 'Auto key'}</span>
             </button>
-          {/each}
-        </section>
+          </div>
+        {/each}
         {#each Array.from({ length: beatsPerRow }, (_, i) => rowStart + i) as beat}
           <button
             type="button"
@@ -480,6 +482,7 @@
             class:insertion={composition.cursor >= beat && composition.cursor < beat + 1}
             data-beat={beat}
             class:bar-start={beat % document.meter === 0}
+            class:key-boundary={regions.some((region) => region.start >= beat && region.start < beat + 1)}
             style:left={`${(beat - rowStart) * beatWidth}px`}
             style:width={`${beatWidth}px`}
             aria-label={`Seek bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
@@ -522,6 +525,7 @@
                 type="button"
                 class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
                 aria-label={`Edit ${step.symbol} at beat ${step.start + 1}`}
+                title={`${step.symbol} · ${+step.beats.toFixed(2)} beats`}
                 onclick={() => openAt(step.start, step)}
               >
                 <b>{at < rowStart ? '↳ ' : ''}{step.symbol}</b

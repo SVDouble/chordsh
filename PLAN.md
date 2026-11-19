@@ -169,3 +169,18 @@ Validation: 143 tests, production build and browser checks for idle roots, white
 major/minor context, settings persistence, configurable sizing, hover references and mobile layout.
 
 - [x] Use ear icons for chord/reharmonisation previews; keep transport and source playback icons.
+
+## Timeline markers and circle exploration
+
+- [x] Replace repeated horizontal key strips with vertical key-change delimiters and editable ruler handles.
+- [x] Keep region names/keys on hover, retain the local-key readout and preserve key editing/undo.
+- [x] Fit names within short chord blocks; retain the full symbol and duration on hover.
+- [x] Compute autoscroll from actual row bounds after removing the extra key row.
+- [x] Enlarge the existing circle while exploring how it can carry suggestions directly.
+- [x] Compare interactive Chord orbit, Key routes and Circle and shelf concepts in the conversation.
+- [ ] Choose how chord moves and destination-key routes share the circle, then replace the production Ideas list.
+
+Validation: 143 tests, production build and desktop/mobile browser checks for short chords, wrapped key
+boundaries, editing/undo, seeking, one timeline scroller and the existing sketch/playback/MIDI workflow.
+The circle concepts are interactive design comparisons; the production list remains available until
+its replacement interaction has been chosen.

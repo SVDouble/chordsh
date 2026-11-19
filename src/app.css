@@ -2229,58 +2229,66 @@ button.icon {
 }
 .wrapped-timeline .timeline-row {
   width: 100%;
-  height: 180px;
+  height: 152px;
   margin-bottom: 12px;
   border: 1px solid var(--line);
   flex: none;
   overflow: hidden;
 }
 .wrapped-timeline .timeline-ruler {
-  top: 28px;
+  top: 0;
   height: 28px;
 }
 .wrapped-timeline .timeline-slot {
-  top: 56px;
+  top: 28px;
   height: 122px;
 }
 .wrapped-timeline .timeline-clip,
 .wrapped-timeline .timeline-input {
-  top: 76px;
+  top: 48px;
   height: 82px;
 }
 .wrapped-timeline .timeline-playhead,
 .wrapped-timeline .timeline-cursor {
-  top: 28px;
+  top: 0;
   height: 150px;
 }
-.key-regions {
+.key-change-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 4;
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
+  pointer-events: none;
+}
+.key-change-marker.current {
+  background: var(--accent);
+}
+.key-change-handle {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
-  height: 28px;
-  border-bottom: 1px solid var(--line);
-}
-.key-region {
-  position: absolute;
-  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
   height: 27px;
   min-height: 0;
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  border-radius: 0;
   border: 0;
-  border-left: 2px solid var(--accent);
-  padding: 3px 7px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--card));
-  font-size: 11px;
-  text-align: left;
+  border-radius: 0;
+  padding: 0;
+  color: var(--accent);
+  background: var(--card-2);
+  pointer-events: auto;
 }
-.key-region span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.key-change-handle:hover,
+.key-change-handle:focus-visible {
+  background: var(--card);
+  outline: 1px solid var(--accent);
+}
+.timeline-ruler.key-boundary {
+  padding-left: 16px;
 }
 @media (max-width: 1100px) {
   .topbar {
@@ -2311,10 +2319,6 @@ button.icon {
   }
 }
 
-.key-region.current {
-  background: color-mix(in srgb, var(--accent) 18%, var(--card));
-  border-bottom: 2px solid var(--accent);
-}
 .app > footer {
   position: relative;
   z-index: 10;
@@ -2481,7 +2485,7 @@ button.icon {
 }
 .harmony-pane .wheel.compact {
   flex: none;
-  height: clamp(150px, 24vh, 230px);
+  height: clamp(220px, 36vh, 340px);
   min-height: 0;
   padding: 8px 0 0;
   border: 0;
@@ -2584,7 +2588,7 @@ button.icon {
     font-size: 30px;
   }
   .harmony-pane .wheel.compact {
-    height: 150px;
+    height: 200px;
   }
 }
 @media (max-width: 1050px) {
@@ -2595,7 +2599,7 @@ button.icon {
     height: min(760px, 85dvh);
   }
   .harmony-pane .wheel.compact {
-    height: 230px;
+    height: 300px;
   }
   .sequence-editor .transport {
     flex: none;
@@ -2664,4 +2668,24 @@ button.icon {
 }
 .voicing-description {
   font-size: 12px;
+}
+
+/* Keep short chord blocks readable without letting centred text spill off either edge. */
+.timeline-clip {
+  container-type: inline-size;
+}
+.clip-body b,
+.clip-body .c-roman {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.clip-body b {
+  font-size: clamp(11px, 22cqi, 20px);
+}
+.clip-body .c-roman {
+  font-size: clamp(10px, 18cqi, 16px);
 }

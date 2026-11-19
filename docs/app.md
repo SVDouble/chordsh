@@ -30,11 +30,14 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
   Manual notes and velocity remain editable below the choices.
 - Use the ear icon in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
 - Undo/redo are above the timeline. Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields.
-- Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Long chords
+- Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Short chord
+  blocks scale their text to fit, with the full symbol/duration available on hover. Long chords
   continue on the next row and retain one identity; dragging can move chords between rows.
-- Tempo and quarter-note meter belong to the song. **Key regions** run above the bars: click a region
-  to name it (Verse, Bridge…) or change its local key. Select a beat and use the key icon to add a
-  modulation there. The current region is highlighted; suggestions and numerals use the local key.
+- Tempo and quarter-note meter belong to the song. **Key changes** appear as vertical delimiters at
+  their exact beats. Click the small key handle in the ruler to name a region (Verse, Bridge…) or
+  change its key; hover reveals the name and key. Select a beat and use the key icon beside tempo to
+  add a modulation. The current local key stays beside tempo. Continuing a region onto another row
+  does not repeat a strip above its chords; suggestions and numerals use the same local key.
 - The **⋯ song menu** contains transpose, chart paste (`| Dm7 G7 | Cmaj7 |`), duplicate/delete song and piano guide.
   Duplicating makes an independent variation with a distinct title. Deletion offers **Restore**.
 

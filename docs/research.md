@@ -95,3 +95,4 @@ shown when the pulse is confident (or fixed by a metronome / MIDI file).
 | 2026-11-19 | segment notes snapshotted (bug: releases erased notes) | pop chords 80→85 % |
 | 2026-11-19 | bars: incremental numbering → Viterbi over beat positions + kept accents | bar F 21–36 % → 50–53 % |
 | 2026-11-19 | benchmark: 5 corpora, top-k, error breakdown, pinned + reproducible | baseline recorded |
+| 2026-11-19 | duration-weighted salience inside a segment (`durationWeight` 0 / 0.6 / 1) | **no effect** (±0.5 pt): passing notes usually start their own segment, and short segments are already down-weighted by `durExp`. NCT handling needs cross-segment context (step in/out, metric position) — kept off |

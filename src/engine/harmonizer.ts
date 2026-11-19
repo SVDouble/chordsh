@@ -26,6 +26,8 @@ export interface HarmonizerParams {
   durExp: number;
   /** How quickly a tone's salience counts as fully present. */
   saturation: number;
+  /** 0 = every note in a segment counts fully; 1 = weight by the share of the segment it sounded (short passing notes count less). */
+  durationWeight: number;
 }
 
 /** Tuned on BPS-FH 1–12 + POP909 1–15 (scripts/tune.test.ts); checked on the held-out rest. */
@@ -42,6 +44,7 @@ export const DEFAULT_PARAMS: HarmonizerParams = {
   heldDecayMs: 910,
   durExp: 0.8,
   saturation: 2.0,
+  durationWeight: 0,
 };
 
 // Chord vocabulary: tones as [interval, weight]. Weights reflect how defining a tone is.
@@ -116,13 +119,13 @@ export class SegmentBuilder {
   private pedal = false;
   private lastRelease = -Infinity;
   /** The open segment: its onsets and every note that sounded during it (snapshotted, so releases don't erase them). */
-  private open: { t0: number; onsets: Map<number, number>; present: Map<number, { t: number; vel: number }> } | null = null;
+  private open: { t0: number; onsets: Map<number, number>; present: Map<number, { t: number; vel: number }>; released: Map<number, number> } | null = null;
 
   constructor(private params: HarmonizerParams, private emit: (s: Segment) => void) {}
 
   noteOn(note: number, vel: number, t: number) {
     if (this.open && t - this.open.t0 > 40) this.close(t); // a new onset group starts a new segment
-    this.open ??= { t0: t, onsets: new Map(), present: new Map(this.sounding) };
+    this.open ??= { t0: t, onsets: new Map(), present: new Map(this.sounding), released: new Map() };
     this.open.onsets.set(note, vel);
     this.sounding.set(note, { t, vel });
     this.open.present.set(note, { t, vel });
@@ -132,6 +135,7 @@ export class SegmentBuilder {
     if (this.pedal) this.sustained.add(note);
     else this.sounding.delete(note);
     this.lastRelease = t;
+    if (this.open?.present.has(note) && !this.pedal) this.open.released.set(note, t);
   }
   /** True while notes sound or are still dying away — the open segment is still growing. */
   active(t: number): boolean { return !!this.open && (this.sounding.size > 0 || t - this.lastRelease < 1500); }
@@ -155,14 +159,18 @@ export class SegmentBuilder {
     return this.segment(this.open, end);
   }
 
-  private segment(o: { t0: number; onsets: Map<number, number>; present: Map<number, { t: number; vel: number }> }, t1: number): Segment | null {
+  private segment(o: { t0: number; onsets: Map<number, number>; present: Map<number, { t: number; vel: number }>; released: Map<number, number> }, t1: number): Segment | null {
     const sal = new Float64Array(12);
     const notes = new Map<number, number>();
     for (const [n, h] of o.present) {
       const fresh = o.onsets.has(n);
       const age = o.t0 - h.t;
       // a held key fades (like a piano) but never below a floor: you're still holding the harmony
-      notes.set(n, Math.sqrt(h.vel / 100) * (fresh ? 1 : 0.7 * Math.max(0.35, Math.exp(-age / this.params.heldDecayMs))));
+      const base = Math.sqrt(h.vel / 100) * (fresh ? 1 : 0.7 * Math.max(0.35, Math.exp(-age / this.params.heldDecayMs)));
+      // share of the segment the note actually sounded (passing notes are short)
+      const end = o.released.get(n) ?? t1, start = Math.max(o.t0, h.t);
+      const share = Math.min(1, Math.max(0.05, (end - start) / Math.max(1, t1 - o.t0)));
+      notes.set(n, base * (1 - this.params.durationWeight + this.params.durationWeight * share));
     }
     if (!notes.size) return null;
     const bassNote = Math.min(...notes.keys());

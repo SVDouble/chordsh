@@ -30,7 +30,7 @@ function objective(p: HarmonizerParams) {
 
 type Path = [keyof HarmonizerParams] | ['prior', keyof HarmonizerParams['prior']];
 const PATHS: Path[] = [['chordChange'], ['keyChange'], ['extraNote'], ['missingTone'], ['keyFit'], ['saturation'], ['durExp'], ['heldDecayMs'],
-  ['bassRoot'], ['bassInChord'], ['bassOutside'], ['prior', 'secondary'], ['prior', 'borrowed'], ['prior', 'other'], ['prior', 'tonic'], ['prior', 'dominant']];
+  ['bassRoot'], ['bassInChord'], ['durationWeight'], ['bassOutside'], ['prior', 'secondary'], ['prior', 'borrowed'], ['prior', 'other'], ['prior', 'tonic'], ['prior', 'dominant']];
 const get = (p: HarmonizerParams, k: Path) => (k.length === 1 ? (p[k[0]] as number) : p.prior[k[1]]);
 const set = (p: HarmonizerParams, k: Path, v: number): HarmonizerParams => (k.length === 1 ? { ...p, [k[0]]: v } : { ...p, prior: { ...p.prior, [k[1]]: v } });
 

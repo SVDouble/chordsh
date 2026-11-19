@@ -6,6 +6,7 @@
  *   SPLIT=test CORPUS=pop909,jazz npm run benchmark
  *   PIECE=mozart/K279-1 BARS=24 npm run benchmark   one piece, bar-by-bar timeline
  *   WRITE=1 npm run benchmark                   also record results in benchmarks/
+ *   P_chordChange=1.2 npm run benchmark         override a harmonizer parameter (A/B tests)
  */
 import { it } from 'vitest';
 import fs from 'node:fs';
@@ -15,6 +16,16 @@ import { corpora, loadPiece, pieceIds, split } from './eval/truth';
 import { DEFAULT_PARAMS } from '../src/engine/harmonizer';
 
 const env = process.env;
+/** DEFAULT_PARAMS with P_<name>=value (or P_prior_<name>) overrides from the environment. */
+const PARAMS = (() => {
+  const p = structuredClone(DEFAULT_PARAMS) as unknown as Record<string, number | Record<string, number>>;
+  for (const [k, v] of Object.entries(env)) {
+    if (!k.startsWith('P_') || v === undefined) continue;
+    const [a, b] = k.slice(2).split('_');
+    if (b) (p[a] as Record<string, number>)[b] = Number(v); else p[a] = Number(v);
+  }
+  return p as unknown as typeof DEFAULT_PARAMS;
+})();
 const pct = (x: number) => `${(100 * x).toFixed(1)}`.padStart(5);
 
 interface Row { corpus: string; pieces: number; synthetic: boolean; c: Counts; barF: number; beatF: number }
@@ -46,7 +57,7 @@ it('benchmark', () => {
   if (env.PIECE) {
     const [corpus, id] = env.PIECE.split('/');
     const p = loadPiece(corpus, id);
-    const r = evaluate(p, DEFAULT_PARAMS, { timelineBars: Number(env.BARS ?? 32) });
+    const r = evaluate(p, PARAMS, { timelineBars: Number(env.BARS ?? 32) });
     const b = evaluateBars(p);
     console.log(`\n${p.title} (${p.genre})\nbar      | truth${''.padEnd(25)} | engine (hindsight)${''.padEnd(24)} | key\n${r.timeline.join('\n')}\n`);
     console.log(table([metrics({ corpus: `${corpus}/${id}`, pieces: 1, synthetic: p.synthetic, c: r.counts, barF: b.barF, beatF: b.beatF })]));
@@ -62,7 +73,7 @@ it('benchmark', () => {
     for (const id of ids) {
       const p = loadPiece(corpus, id);
       synthetic ||= p.synthetic;
-      c = add(c, evaluate(p).counts);
+      c = add(c, evaluate(p, PARAMS).counts);
       const b = evaluateBars(p);
       barF += b.barF; beatF += b.beatF;
     }
@@ -74,7 +85,7 @@ it('benchmark', () => {
     const git = execSync('git rev-parse --short HEAD').toString().trim();
     const date = new Date().toISOString().slice(0, 10);
     fs.mkdirSync('benchmarks', { recursive: true });
-    fs.appendFileSync('benchmarks/history.jsonl', JSON.stringify({ date, git, split: sp, params: DEFAULT_PARAMS, rows }) + '\n');
+    fs.appendFileSync('benchmarks/history.jsonl', JSON.stringify({ date, git, split: sp, params: PARAMS, rows }) + '\n');
     fs.writeFileSync('benchmarks/LATEST.md', `# Latest benchmark\n\n${date} · commit ${git} · split \`${sp}\` · reproduce with \`npm run fetch-data && npm run benchmark\`\n\nAll numbers are % of 250 ms samples (chords, keys) or F-measure (beats, bars). \`*\` = synthetic performance rendered from chord changes. See [docs/benchmark.md](../docs/benchmark.md) for what each column means.\n\n${report}\n`);
     console.log('wrote benchmarks/history.jsonl and benchmarks/LATEST.md');
   }

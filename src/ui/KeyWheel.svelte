@@ -7,8 +7,8 @@
   const nodes = Array.from({ length: 12 }, (_, i) => {
     const a = ((i * 30 - 90) * Math.PI) / 180;
     return [
-      { key: { tonic: (i * 7) % 12, mode: 'major' } as Key, x: 150 * Math.cos(a), y: 150 * Math.sin(a), r: 25 },
-      { key: { tonic: (i * 7 + 9) % 12, mode: 'minor' } as Key, x: 100 * Math.cos(a), y: 100 * Math.sin(a), r: 19 },
+      { key: { tonic: (i * 7) % 12, mode: 'major' } as Key, x: 162 * Math.cos(a), y: 162 * Math.sin(a), r: 31 },
+      { key: { tonic: (i * 7 + 9) % 12, mode: 'minor' } as Key, x: 104 * Math.cos(a), y: 104 * Math.sin(a), r: 24 },
     ];
   }).flat();
   const pos = (k: Key | null) => nodes.find((n) => keyEq(n.key, k));
@@ -35,8 +35,8 @@
 </script>
 
 <section class="card wheel">
-  <h2>Tonal map <span class="muted small">— glow = where you're likely heading · click a key to plan a route</span></h2>
-  <svg viewBox="-185 -185 370 370">
+  <h2>Tonal map <span class="muted small">glow = where you're heading · click a key to plan a route</span></h2>
+  <svg viewBox="-196 -196 392 392">
     {#if route}<path d={route} class="route-line" />{/if}
     {#each nodes as n (keyIndex(n.key))}
       {@const r = v.reach.get(keyIndex(n.key))}
@@ -57,9 +57,9 @@
         <text x={n.x} y={n.y} class:dark={l > 0.55}>{keyShort(n.key)}</text>
       </g>
     {/each}
-    <text class="centre" y="-8">{v.label}</text>
-    <text class="centre small" y="12">{v.sub}</text>
-    {#if v.flavour}<text class="centre small" y="30">{v.flavour} colour</text>{/if}
+    <text class="centre" y="-10">{v.label}</text>
+    <text class="centre small" y="14">{v.sub}</text>
+    {#if v.flavour}<text class="centre small" y="34">{v.flavour} colour</text>{/if}
   </svg>
   <div class="wheel-info">
     {#if hover && hover.relation !== 'home'}

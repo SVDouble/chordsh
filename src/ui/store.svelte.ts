@@ -25,6 +25,7 @@ export const ui = $state({
   /** User charts, saved in the browser. */
   charts: (saved.charts ?? []) as { title: string; text: string }[],
   filePlaying: false,
+  demo: false,
 });
 
 let queued = false;

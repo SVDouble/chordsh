@@ -1,4 +1,4 @@
-import { session, synth } from './store.svelte';
+import { session, synth, ui } from './store.svelte';
 
 // [left hand + right hand chord, melody notes] per bar.
 // C major ii–V–I, a secondary dominant, then Fm7 (borrowed iv) pivots into E♭ major.
@@ -43,4 +43,10 @@ export function runDemo(bpm = 96, onEnd: () => void = () => {}) {
     });
   });
   at(BARS.length * bar, onEnd);
+}
+
+export function toggleDemo() {
+  ui.demo = !ui.demo;
+  if (ui.demo) runDemo(96, () => (ui.demo = false));
+  else stopDemo();
 }

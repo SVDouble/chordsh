@@ -6,7 +6,10 @@
   const BLACK = new Set([1, 3, 6, 8, 10]);
   let canvas: HTMLCanvasElement;
   let width = $state(800);
-  const height = 120;
+  let winH = $state(900);
+  /** Scale the on-screen piano with the window so it never crowds out the panels. */
+  const height = $derived(Math.round(Math.max(90, Math.min(150, winH * 0.15))));
+  $effect(() => document.documentElement.style.setProperty('--piano-h', `${height}px`));
 
   const keys = $derived.by(() => {
     const whites = [];
@@ -54,7 +57,7 @@
         }
         if (mod12(n) === 0 && !k.black) {
           ctx.fillStyle = css('--muted');
-          ctx.font = '9px system-ui';
+          ctx.font = '11px system-ui';
           ctx.textAlign = 'center';
           ctx.fillText(`C${n / 12 - 1}`, k.x + k.w / 2, height - 4);
         }
@@ -83,6 +86,7 @@
   const up = () => { if (mouseNote !== null) session.noteOff(mouseNote); mouseNote = null; };
 </script>
 
+<svelte:window bind:innerHeight={winH} />
 <div class="piano" bind:clientWidth={width}>
   <canvas bind:this={canvas} style="width:{width}px;height:{height}px" onpointerdown={down} onpointerup={up} onpointerleave={up}></canvas>
   <div class="piano-legend small muted">

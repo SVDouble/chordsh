@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { session, ui } from './store.svelte';
+  import { midi, session, ui } from './store.svelte';
+  import { toggleDemo } from './demo';
   import { chordName, inversionLabel, toneNames } from '../theory/chords';
   import { SCALE_LABEL, keyLong } from '../theory/scales';
 
@@ -17,17 +18,21 @@
       tones: c ? toneNames(c, key) : [],
       inversion: c ? inversionLabel(c) : '',
       alts: id.alternatives.slice(0, 3).map((a) => chordName(a, key)),
+      devices: midi.devices,
     };
   });
 </script>
 
 <section class="card now">
   {#if v.kind === 'none'}
-    <div class="big muted">—</div>
-    <p class="muted">
-      Play something. No piano connected? Use <kbd>A</kbd>…<kbd>;</kbd> on your keyboard (<kbd>Z</kbd>/<kbd>X</kbd> octave,
-      <kbd>Space</kbd> pedal), click the keys below, or press <b>Demo</b>.
-    </p>
+    <div class="now-empty">
+      <div class="big muted">Play a chord</div>
+      <p>
+        {#if v.devices.length}Your <b>{v.devices.join(', ')}</b> is connected — the chord name, its function and where to go next appear here.
+        {:else}No MIDI device yet? Use the computer keys <kbd>A</kbd> <kbd>W</kbd> <kbd>S</kbd> … <kbd>;</kbd> (<kbd>Z</kbd>/<kbd>X</kbd> octave, <kbd>Space</kbd> pedal) or click the piano.{/if}
+      </p>
+      <button class="big-btn" onclick={toggleDemo}>{ui.demo ? '■ Stop demo' : '▶ Hear & watch a demo'}</button>
+    </div>
   {:else}
     <div class="now-top">
       <div class="big">{v.name}</div>

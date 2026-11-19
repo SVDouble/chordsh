@@ -68,13 +68,23 @@ src/ui/              Svelte components (render only)
 6. **Practice**: follow a route; the app waits for each chord, accepts any voicing,
    and shows hit vs missing chord tones.
 
-## Phase 2 (next)
+## Phase 2 (done)
 
-- **Song charts**: type or paste chord symbols ("Dm7 G7 Cmaj7 …"), play along, see per
-  chord what you play vs. what's written (missing 7th, wrong quality, substitutions
-  that still work).
-- Reharmonisation hints for a song ("this V7 could be a tritone sub").
-- Session save/export; MIDI file import to analyse recordings.
+- **Song charts** (`engine/chart.ts`, `theory/symbols.ts`): paste lead-sheet chords with bars,
+  sections and repeats; the app finds the key, labels every chord, and lists the big picture
+  (cadences, tonicizations, borrowed chords, blues form).
+- **Play-along** (`engine/song.ts`): per chord *exact / close enough / substitute / wrong*,
+  forgiving about voicing, re-syncs on skipped or repeated chords, scores each pass and
+  tallies habits ("you left out the 7th 5×").
+- **Reharmonisation hints** (`engine/reharm.ts`): tritone sub, ii–V, °7, secondary dominant,
+  passing and common-tone °7, borrowed iv, add the 7th — each playable.
+- **Save / import**: turn what you played into a chart; replay a MIDI file through the engine.
+
+## Phase 3 (ideas)
+
+- Per-section key regions in charts (a bridge in another key), transpose a chart.
+- Rhythm awareness: chord durations from bars and tempo, so "Hear chart" swings.
+- Voicing coach: suggest shell / rootless / drop-2 voicings for the chord you're on.
 
 ## Notes on hardware
 

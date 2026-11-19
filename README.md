@@ -14,7 +14,7 @@ npm run build
 ```
 
 No piano at hand? Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5 (`Z`/`X` octave, `Space`
-pedal), click the on-screen keys, or open the **Library** tab and play the demo, a MIDI file or an
+pedal), click the on-screen keys, or open the **song picker beside playback** and play the demo, a MIDI file or an
 annotated piece.
 
 ## Documentation

@@ -48,12 +48,19 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
     undo/redo, transpose and chart input; icon suggestion insertion and reharmonisation replacement.
     Current-song switching, MIDI export and DAW MIDI routing share the same sequence document.
 12. **chord.sh** — renamed interface/package/docs, retaining legacy songs and settings. Editor, Live
-    and Library remain separate visible views; transport uses universal icons.
+    and Library were initially separate views; the unified timeline below supersedes that layout.
 
 13. **Shared settings** — one Zod schema for defaults, validation, control metadata and persisted
     preferences; searchable Settings with advanced beat/bar, segmentation and harmonic-model controls.
     BPM bounds replace hardcoded periods; editor defaults and timing are configurable. Invalid drafts
     preserve playback; old preferences migrate; recordings/replay retain configuration.
+
+14. **One musical timeline** — one song workspace with a source picker; input previews and recorded chord takes appear
+    directly in the editable song, with one-step undo for a take. Inspector, piano and suggestions share
+    chord focus. Roles move onto/next to the piano. Pause/resume, top-bar undoable reset, duplicate song,
+    recoverable deletion and searchable/paged sources remove common workflow dead ends. Panels use
+    square corners; browsing sources retains playback. Key regions show modulations, bars wrap into rows,
+    device selection opens beside the logo, and transport/seek share one row with consistent SVG icons.
 
 ## Next
 
@@ -78,3 +85,19 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
 
 Recital Pro: USB-MIDI in works; whether it plays notes it _receives_ depends on firmware (⚙ → MIDI output, then
 play a sequence through it). MPK mini: no speakers — sound comes from the browser synth (🔊).
+
+## Current interface task list
+
+- [x] Keep a single timeline for entered, played and recorded chords; remove the separate Live view.
+- [x] Move note names and root/third/fifth roles onto/next to the piano, with colours and text labels.
+- [x] Add undoable reset at the top; retain other saved songs.
+- [x] Add pause/resume while preserving the playhead.
+- [x] Remove rounded corners from workspace panels.
+- [x] Replace the Library tab with a searchable source picker beside playback, retaining import and examples.
+- [x] Open device input/output selection by clicking the device name beside the logo.
+- [x] Replace the song-wide key dropdown with editable key regions and timeline indicators for modulations.
+- [x] Wrap the timeline into rows according to the available bar width and use vertical space.
+- [x] Consolidate Song tools into contextual controls/menus.
+- [x] Keep seek and transport on one toolbar row; use a consistent icon set.
+- [x] Verify editing, capture, region changes, playback/pause/seek, MIDI, responsive layout and persistence.
+- [ ] Update documentation and record the final regression checks.

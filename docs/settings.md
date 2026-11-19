@@ -28,7 +28,7 @@ and now comes from the shared schema.
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter/click                                |
 | Workspace                | visibility of Now playing, Where next, tonal map and piano                                                                               |
-| Editor                   | new-song tempo/meter, timeline snap/length, undo depth, chord velocity and note gate                                                     |
+| Editor                   | new-song tempo/meter, timeline snap/length, piano key width, undo depth, chord velocity and note gate                                    |
 | Beat & bar detection     | timing resolution/window/range, update/grouping/revision intervals, tempo preference/smoothing, meter candidates and bar decoder weights |
 | Downbeat evidence        | pitch memory, bass register thresholds and accent weights                                                                                |
 | Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                     |

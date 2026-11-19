@@ -1,7 +1,9 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
+  import DevicePicker from './DevicePicker.svelte';
   import { settings } from './store.svelte';
   import { onMount } from 'svelte';
-  import { live, setBars, stopPlayback, stopRecording, midi, persist, synth, ui } from './store.svelte';
+  import { live, setBars, stopPlayback, stopRecording, midi, persist, synth, ui, dismissNotice } from './store.svelte';
   import { editSequence } from './composition.svelte';
   import { attachQwerty } from '../io/qwerty';
   import Piano from './Piano.svelte';
@@ -30,57 +32,12 @@
     if (settings.preferences.bars === 'metronome') setBars('metronome');
     return attachQwerty(live);
   });
-
-  const m = $derived.by(() => {
-    void ui.tick; // re-run when the engine changes
-    const errors = midi.inputs.filter((p) => p.error);
-    return {
-      inputs: midi.inputs,
-      outputs: midi.outputs,
-      inputId: midi.inputId,
-      outputId: midi.outputId,
-      devices: midi.devices,
-      last: midi.last,
-      errors,
-      label:
-        midi.status === 'unsupported'
-          ? 'Web MIDI unavailable — use Chrome or Edge'
-          : midi.status === 'denied'
-            ? 'MIDI access denied'
-            : midi.status === 'pending'
-              ? 'Connecting MIDI…'
-              : midi.devices.length
-                ? midi.devices.join(', ')
-                : 'No MIDI device',
-    };
-  });
 </script>
 
 <div class="app" style:--topbar-height={`${topbarHeight}px`}>
   <header class="topbar" bind:clientHeight={topbarHeight}>
     <div class="brand">chord.sh</div>
-    <span
-      class="midi-chip"
-      class:ok={m.devices.length && !m.errors.length}
-      class:bad={m.errors.length}
-      title={[
-        ...m.inputs.map((p) => `${p.name}${p.error ? ' — ' + p.error : ''}`),
-        m.last ? `last message: ${m.last.text} from ${m.last.port}` : 'no messages received yet',
-      ].join('\n')}
-    >
-      {#key m.last?.t}
-        <i class="led" class:flash={m.last}></i>
-      {/key}
-      {m.label}
-      {#if m.last}
-        <code class="muted">{m.last.text}</code>
-      {:else if m.devices.length}
-        <span class="muted"> · press a key </span>
-      {/if}
-    </span>
-    {#if m.errors.length}
-      <span class="warn small">{m.errors[0].device}: {m.errors[0].error}</span>
-    {/if}
+    <DevicePicker />
     <Transport />
     <span class="spacer"></span>
     <button
@@ -102,7 +59,13 @@
           ? 'Sound on — you hear what you play (click to mute)'
           : 'Sound off (click to hear what you play)'}
     >
-      {ui.audioBlocked && settings.preferences.monitor ? '🔓' : settings.preferences.monitor ? '🔊' : '🔇'}
+      <Icon
+        name={ui.audioBlocked && settings.preferences.monitor
+          ? 'unlock'
+          : settings.preferences.monitor
+            ? 'volume'
+            : 'mute'}
+      />
     </button>
     <button
       type="button"
@@ -113,13 +76,33 @@
       }}
       title="Switch light / dark"
     >
-      {settings.preferences.theme === 'dark' ? '☀' : '☾'}
+      <Icon name={settings.preferences.theme === 'dark' ? 'sun' : 'moon'} />
     </button>
     <Panels />
     <Settings />
   </header>
 
   <main class="stage"><Workspace /></main>
+  {#if ui.notice}
+    <div class="workspace-notice" role="status" aria-live="polite">
+      <span>{ui.notice.message}</span>
+      {#if ui.notice.action}
+        <button
+          type="button"
+          onclick={() => {
+            const action = ui.notice?.action;
+            dismissNotice();
+            action?.();
+          }}
+        >
+          {ui.notice.actionLabel}
+        </button>
+      {/if}
+      <button type="button" class="icon" aria-label="Dismiss notification" title="Dismiss" onclick={dismissNotice}>
+        ×
+      </button>
+    </div>
+  {/if}
 
   {#if settings.panels.piano}
     <footer><Piano /></footer>

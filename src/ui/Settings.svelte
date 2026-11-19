@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import {
     SETTINGS_FIELDS,
     SETTINGS_SECTIONS,
@@ -68,7 +69,9 @@
   }
 </script>
 
-<button type="button" class="icon" title="Settings" aria-label="Settings" onclick={open}>⚙</button>
+<button type="button" class="icon" title="Settings" aria-label="Settings" onclick={open}>
+  <Icon name="settings" />
+</button>
 <dialog bind:this={dialog} class="settings-dialog" aria-labelledby="settings-title">
   <form onsubmit={apply} novalidate>
     <header class="settings-heading">
@@ -80,7 +83,7 @@
         title="Close settings"
         onclick={() => dialog?.close()}
       >
-        ×
+        <Icon name="close" />
       </button>
     </header>
     <div class="settings-content">

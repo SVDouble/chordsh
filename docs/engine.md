@@ -134,3 +134,20 @@ configuration; `configure()` validates before clearing live state and rebuilding
 Beat periods are derived from user-facing BPM bounds, and beat/bar timing and accent parameters are
 injected into their trackers. `Segmenter`, `SegmentBuilder` and the modal-colour detector also receive
 configured timing/evidence parameters. See [settings](settings.md) for limits and tradeoffs.
+
+## Timeline input bridge
+
+The Svelte composition bridge renders the current recognised chord as a provisional timeline block.
+Recording renders the inferred take in place and commits it to `SequenceEditor` in one insertion when
+recording stops. Previewing, selecting and recording share the same chord focus for the inspector and
+piano. `SequenceEditor.clear()` is a single undoable edit that preserves song metadata; reset uses it
+after stopping playback and clearing input analysis. This does not change harmonic inference.
+
+## Local key regions
+
+Sequences retain a sorted region list: start beat, key (or automatic), optional section name and stable
+id. Legacy home keys and per-chord key overrides migrate to regions. `sequenceKeyAt()` supplies the
+local key to numerals, the inspector and suggestions. Inserted route destinations create boundaries in
+the same undo action as their chords. Inserting/resizing chords moves boundaries anchored to affected
+chords; the opening region stays at beat zero. Transposition moves all region keys together. Editing a
+region is undoable and browser persistence retains names and boundaries.

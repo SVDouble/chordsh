@@ -1,14 +1,17 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { DEFAULT_SETTINGS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import {
     acceptChords,
     canRedo,
     canUndo,
-    captureProgression,
+    inputTimeline,
+    commitInputPreview,
     composition,
     currentSequence,
     deleteSequence,
+    duplicateSequence,
     editSequence,
     exportSequenceMidi,
     importChart,
@@ -17,7 +20,7 @@
     selectTimeline,
   } from './composition.svelte';
   import { audition, seekPlayback, session, settings, ui } from './store.svelte';
-  import { sequenceChart, type SequenceStep } from '../engine/sequence';
+  import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
@@ -25,6 +28,13 @@
 
   let zoom = $state(44);
   let scroller = $state<HTMLDivElement>();
+  let timelineWidth = $state(600);
+  let regionDialog = $state<HTMLDialogElement>();
+  let chartDialog = $state<HTMLDialogElement>();
+  let regionStart = $state(0);
+  let regionKey = $state('auto');
+  let regionLabel = $state('');
+  let regionId = $state<string | null>(null);
   let chordInput = $state<HTMLInputElement>();
   let popup = $state(false);
   let editingId = $state<string | null>(null);
@@ -39,6 +49,7 @@
     mode: 'move' | 'resize';
     pointer: number;
     x: number;
+    grab: number;
     original: number;
     originalBeats: number;
     at: number;
@@ -51,7 +62,11 @@
   const chart = $derived(sequenceChart(document));
   const selectedIndex = $derived(document.steps.findIndex((s) => s.id === composition.selectedId));
   const selected = $derived(document.steps[selectedIndex]);
-  const hints = $derived(selectedIndex < 0 ? [] : reharmHints(chart, selectedIndex));
+  const hints = $derived(
+    selectedIndex < 0
+      ? []
+      : reharmHints({ ...chart, key: sequenceKeyAt(document, selected?.start ?? 0) ?? chart.key }, selectedIndex),
+  );
   const undoable = $derived.by(() => {
     void composition.revision;
     return canUndo();
@@ -60,32 +75,71 @@
     void composition.revision;
     return canRedo();
   });
-  const captured = $derived.by(() => {
-    void ui.tick;
-    return session.chords.length;
-  });
-  const end = $derived(document.steps.reduce((last, s) => Math.max(last, s.start + s.beats), 0));
+  const incoming = $derived(inputTimeline());
+  const end = $derived([...document.steps, ...incoming].reduce((last, s) => Math.max(last, s.start + s.beats), 0));
   const length = $derived(
     Math.max(
       document.meter * settings.editor.visibleBars,
       Math.ceil((end + document.meter * 2) / document.meter) * document.meter,
     ),
   );
-  const slots = $derived(Array.from({ length }, (_, i) => i));
+  const barsPerRow = $derived(Math.max(1, Math.floor(timelineWidth / (document.meter * zoom))));
+  const beatsPerRow = $derived(barsPerRow * document.meter);
+  const beatWidth = $derived(timelineWidth / beatsPerRow);
+  const rows = $derived(Array.from({ length: Math.ceil(length / beatsPerRow) }, (_, i) => i * beatsPerRow));
+  const regions = $derived(sequenceRegions(document));
   const playing = $derived(!!ui.nowPlaying && ui.sourceId === `sequence:${document.id}`);
   const playBeat = $derived((ui.playbackPosition * document.bpm) / 60000);
+  const focusBeat = $derived(playing || ui.playbackPaused ? playBeat : (selected?.start ?? composition.cursor));
+  const localKey = $derived(sequenceKeyAt(document, focusBeat));
 
-  $effect(() => {
-    if (playing && scroller) {
-      const x = playBeat * zoom;
-      if (x > scroller.scrollLeft + scroller.clientWidth * 0.8 || x < scroller.scrollLeft)
-        scroller.scrollLeft = Math.max(0, x - scroller.clientWidth * 0.25);
-    }
-  });
   $effect(() => {
     void document.id;
     popup = false;
   });
+  $effect(() => {
+    const focus = composition.take
+      ? composition.take.at + (ui.recordingElapsed * composition.take.bpm) / 60000
+      : playing
+        ? playBeat
+        : (incoming.at(-1)?.start ?? selected?.start);
+    if (focus === undefined || !scroller) return;
+    const row = Math.floor(focus / beatsPerRow);
+    const top = row * 192;
+    if (top < scroller.scrollTop || top > scroller.scrollTop + scroller.clientHeight - 180)
+      scroller.scrollTop = Math.max(0, top - 40);
+  });
+
+  function editRegion(at: number, region?: KeyRegion) {
+    regionStart = region?.start ?? at;
+    regionId = region?.id ?? null;
+    const key = region?.key ?? sequenceKeyAt(document, at);
+    regionKey = key ? String(keyIndex(key)) : 'auto';
+    regionLabel = region?.label ?? '';
+    regionDialog?.showModal();
+  }
+  function pointerBeat(e: PointerEvent) {
+    const elements = [...(scroller?.querySelectorAll<HTMLElement>('.timeline-row') ?? [])];
+    const row =
+      elements.find((r) => {
+        const box = r.getBoundingClientRect();
+        return e.clientY >= box.top && e.clientY <= box.bottom;
+      }) ??
+      elements.reduce<HTMLElement | undefined>(
+        (best, next) =>
+          !best ||
+          Math.abs(next.getBoundingClientRect().top - e.clientY) <
+            Math.abs(best.getBoundingClientRect().top - e.clientY)
+            ? next
+            : best,
+        undefined,
+      );
+    if (!row) return 0;
+    return (
+      Number(row.dataset.start) +
+      Math.max(0, Math.min(beatsPerRow, (e.clientX - row.getBoundingClientRect().left) / beatWidth))
+    );
+  }
 
   async function openAt(at: number, step?: SequenceStep) {
     const existing = step ?? document.steps.find((s) => s.start <= at && s.start + s.beats > at);
@@ -122,7 +176,7 @@
     if (editingId) editSequence((e) => e.replace(editingId!, input));
     else {
       selectTimeline(position);
-      acceptChords([input]);
+      acceptChords([input], false, false);
     }
     if (!composition.error) popup = false;
   }
@@ -158,6 +212,7 @@
       mode,
       pointer: e.pointerId,
       x: e.clientX,
+      grab: pointerBeat(e),
       original: s.start,
       originalBeats: s.beats,
       at: s.start,
@@ -166,7 +221,7 @@
   }
   function moveDrag(e: PointerEvent) {
     if (!drag || e.pointerId !== drag.pointer) return;
-    const delta = Math.round((e.clientX - drag.x) / zoom / settings.editor.snapBeats) * settings.editor.snapBeats;
+    const delta = Math.round((pointerBeat(e) - drag.grab) / settings.editor.snapBeats) * settings.editor.snapBeats;
     if (drag.mode === 'move') drag.at = Math.max(0, drag.original + delta);
     else
       drag.beats = Math.max(
@@ -215,7 +270,7 @@
         disabled={!undoable}
         onclick={() => editSequence((e) => e.undo())}
       >
-        ↶
+        <Icon name="undo" />
       </button>
       <button
         type="button"
@@ -225,20 +280,51 @@
         disabled={!redoable}
         onclick={() => editSequence((e) => e.redo())}
       >
-        ↷
+        <Icon name="redo" />
       </button>
-      <button type="button" class="icon" aria-label="New song" title="New song" onclick={newSequence}>＋</button>
-      <button
-        type="button"
-        class="icon"
-        aria-label="Export sequence MIDI"
-        title="Export MIDI"
-        disabled={!document.steps.length}
-        onclick={exportSequenceMidi}
-      >
-        ⇩
-      </button>
+      <details class="sequence-menu settings">
+        <summary aria-label="Song actions" title="Song actions"><Icon name="more" /></summary>
+        <div class="settings-panel">
+          <button type="button" onclick={newSequence}>New song</button>
+          <button type="button" onclick={duplicateSequence}>Duplicate song</button>
+          <button type="button" onclick={exportSequenceMidi} disabled={!document.steps.length}>Export MIDI</button>
+          <button type="button" onclick={() => chartDialog?.showModal()}>Paste chord chart</button>
+          <div class="row">
+            <span class="small muted">Transpose</span
+            ><button type="button" aria-label="Transpose down" onclick={() => editSequence((e) => e.transpose(-1))}>
+              −1
+            </button><button
+              type="button"
+              aria-label="Transpose up"
+              onclick={() => editSequence((e) => e.transpose(1))}
+            >
+              +1
+            </button>
+          </div>
+          <label class="small"
+            ><span>Piano guide</span>
+            <input
+              type="checkbox"
+              checked={session.songGuide}
+              onchange={(e) => {
+                session.songGuide = e.currentTarget.checked;
+                session.onChange();
+              }}
+            ></label
+          >
+          <button type="button" onclick={deleteSequence}>Delete song</button>
+        </div>
+      </details>
     </div>
+  </div>
+  <div
+    class="song-status small"
+    class:warn={!ui.savedLocally}
+    title={ui.savedLocally
+      ? 'Songs are saved in this browser, on this device.'
+      : 'Browser storage is unavailable. Keep this page open and export MIDI.'}
+  >
+    {ui.savedLocally ? 'Saved on this device' : 'Not saved'}
   </div>
   <div class="sequence-meta">
     <label title="Tempo"
@@ -262,20 +348,16 @@
         <option value={n}>{n}/4</option>
       {/each}
     </select>
-    <select
-      aria-label="Sequence key"
-      title="Key"
-      value={document.key ? String(keyIndex(document.key)) : 'auto'}
-      onchange={(e) =>
-        editSequence((s) =>
-          s.update({ key: e.currentTarget.value === 'auto' ? null : keyFromIndex(+e.currentTarget.value) }),
-        )}
+    <span class="region-context small muted">{localKey ? keyLong(localKey) : 'Auto key'}</span>
+    <button
+      type="button"
+      class="icon"
+      title="Add a key region at the cursor"
+      aria-label="Add key change"
+      onclick={() => editRegion(composition.cursor)}
     >
-      <option value="auto">Auto key</option>
-      {#each ALL_KEYS as k}
-        <option value={String(keyIndex(k))}>{keyLong(k)}</option>
-      {/each}
-    </select>
+      <Icon name="key" />
+    </button>
     <span class="right row tight timeline-zoom"
       ><button
         type="button"
@@ -284,7 +366,7 @@
         disabled={zoom <= 24}
         onclick={() => (zoom = Math.max(24, zoom - 10))}
       >
-        −
+        <Icon name="minus" />
       </button><button
         type="button"
         aria-label="Zoom in"
@@ -292,99 +374,156 @@
         disabled={zoom >= 94}
         onclick={() => (zoom = Math.min(94, zoom + 10))}
       >
-        ＋
+        <Icon name="plus" />
       </button></span
     >
   </div>
   {#if composition.error}
     <p class="warn small" role="alert">{composition.error}</p>
   {/if}
-  <div class="timeline-scroll" bind:this={scroller}>
-    <div class="chord-timeline" style:width={`${length * zoom}px`}>
-      {#each slots as beat}
-        <button
-          type="button"
-          class="timeline-ruler"
-          class:bar-start={beat % document.meter === 0}
-          style:left={`${beat * zoom}px`}
-          style:width={`${zoom}px`}
-          aria-label={`Seek bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
-          onclick={() => {
-            selectTimeline(beat);
-            seekPlayback((beat * 60000) / document.bpm);
-          }}
-        >
-          {beat % document.meter === 0 ? Math.floor(beat / document.meter) + 1 : '·'}
-        </button>
-        <button
-          type="button"
-          class="timeline-slot"
-          class:bar-start={beat % document.meter === 0}
-          style:left={`${beat * zoom}px`}
-          style:width={`${zoom}px`}
-          aria-label={`Add chord at bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
-          title="Click to add a chord"
-          onclick={() => openAt(beat)}
-        >
-          <span>＋</span>
-        </button>
-      {/each}
-      {#each document.steps as s, i (s.id)}
-        {@const at = drag?.id === s.id ? drag.at : s.start}
-        {@const width = drag?.id === s.id ? drag.beats : s.beats}
-        <div
-          class="timeline-clip"
-          class:selected={s.id === composition.selectedId}
-          class:playing={playing && playBeat >= s.start && playBeat < s.start + s.beats}
-          style:left={`${at * zoom + 2}px`}
-          style:width={`${Math.max(18, width * zoom - 4)}px`}
-        >
+  <div class="timeline-scroll wrapped-timeline" bind:this={scroller} bind:clientWidth={timelineWidth}>
+    {#each rows as rowStart}
+      {@const rowEnd = rowStart + beatsPerRow}
+      {@const head = composition.take
+        ? composition.take.at + (ui.recordingElapsed * composition.take.bpm) / 60000
+        : playing || ui.playbackPosition > 0
+          ? playBeat
+          : composition.cursor}
+      <div class="chord-timeline timeline-row" data-start={rowStart}>
+        <section class="key-regions" aria-label={`Key regions from bar ${Math.floor(rowStart / document.meter) + 1}`}>
+          {#each regions.filter((r, i) => r.start < rowEnd && (regions[i + 1]?.start ?? length) > rowStart) as region}
+            {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
+            <button
+              type="button"
+              class="key-region"
+              class:current={focusBeat >= region.start && focusBeat < next}
+              style:left={`${Math.max(0, region.start - rowStart) * beatWidth}px`}
+              style:width={`${(Math.min(next, rowEnd) - Math.max(region.start, rowStart)) * beatWidth}px`}
+              aria-label={`Edit key region at beat ${region.start + 1}`}
+              title={`${region.label ? region.label + ' · ' : ''}${region.key ? keyLong(region.key) : 'Auto key'} — click to edit`}
+              onclick={() => editRegion(region.start, region)}
+            >
+              <Icon name="key" size={12} />
+              <span>{region.label ? `${region.label} · ` : ''}{region.key ? keyLong(region.key) : 'Auto key'}</span>
+            </button>
+          {/each}
+        </section>
+        {#each Array.from({ length: beatsPerRow }, (_, i) => rowStart + i) as beat}
           <button
             type="button"
-            class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
-            aria-label={`Edit ${s.symbol} at beat ${s.start + 1}`}
-            onclick={() => openAt(s.start, s)}
-          >
-            <b>{s.symbol}</b><span class="c-roman">{chart.chords[i].roman?.numeral ?? ''}</span>
-          </button>
-          <button
-            type="button"
-            class="clip-drag"
-            aria-label={`Move ${s.symbol}`}
-            title="Drag to move"
-            onpointerdown={(e) => beginDrag(e, s, 'move')}
-          >
-            ⠿
-          </button>
-          <button
-            type="button"
-            class="clip-resize"
-            aria-label={`Resize ${s.symbol}`}
-            title="Drag to change duration"
-            onpointerdown={(e) => beginDrag(e, s, 'resize')}
-            onkeydown={(e) => {
-              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                e.preventDefault();
-                editSequence((ed) =>
-                  ed.replace(s.id, {
-                    ...s,
-                    beats: Math.max(
-                      MUSIC_LIMITS.minChordBeats,
-                      s.beats + (e.key === 'ArrowRight' ? settings.editor.snapBeats : -settings.editor.snapBeats),
-                    ),
-                  }),
-                );
-              }
+            class="timeline-ruler"
+            class:bar-start={beat % document.meter === 0}
+            style:left={`${(beat - rowStart) * beatWidth}px`}
+            style:width={`${beatWidth}px`}
+            aria-label={`Seek bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
+            onclick={() => {
+              selectTimeline(beat);
+              seekPlayback((beat * 60000) / document.bpm);
             }}
-          ></button>
-        </div>
-      {/each}
-      {#if playing || ui.playbackPosition > 0}
-        <div class="timeline-playhead" style:left={`${playBeat * zoom}px`} aria-hidden="true"></div>
-      {:else}
-        <div class="timeline-cursor" style:left={`${composition.cursor * zoom}px`} aria-hidden="true"></div>
-      {/if}
-    </div>
+          >
+            {beat % document.meter === 0 ? Math.floor(beat / document.meter) + 1 : '·'}
+          </button>
+          <button
+            type="button"
+            class="timeline-slot"
+            class:bar-start={beat % document.meter === 0}
+            style:left={`${(beat - rowStart) * beatWidth}px`}
+            style:width={`${beatWidth}px`}
+            aria-label={`Add chord at bar ${Math.floor(beat / document.meter) + 1} beat ${(beat % document.meter) + 1}`}
+            title="Click to add a chord"
+            onclick={() => openAt(beat)}
+          >
+            <span><Icon name="plus" size={14} /></span>
+          </button>
+        {/each}
+        {#each document.steps as step, i (step.id)}
+          {@const at = drag?.id === step.id ? drag.at : step.start}
+          {@const beats = drag?.id === step.id ? drag.beats : step.beats}
+          {#if at < rowEnd && at + beats > rowStart}
+            <div
+              class="timeline-clip"
+              class:selected={step.id === composition.selectedId}
+              class:playing={playing && playBeat >= step.start && playBeat < step.start + step.beats}
+              style:left={`${Math.max(0, at - rowStart) * beatWidth + 2}px`}
+              style:width={`${Math.max(18, (Math.min(at + beats, rowEnd) - Math.max(at, rowStart)) * beatWidth - 4)}px`}
+            >
+              <button
+                type="button"
+                class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
+                aria-label={`Edit ${step.symbol} at beat ${step.start + 1}`}
+                onclick={() => openAt(step.start, step)}
+              >
+                <b>{at < rowStart ? '↳ ' : ''}{step.symbol}</b
+                ><span class="c-roman">{chart.chords[i].roman?.numeral ?? ''}</span>
+              </button>
+              <button
+                type="button"
+                class="clip-drag"
+                aria-label={`Move ${step.symbol}`}
+                title="Drag to move between beats or rows"
+                onpointerdown={(e) => beginDrag(e, step, 'move')}
+              >
+                <Icon name="grip" size={13} />
+              </button>
+              {#if at + beats <= rowEnd}
+                <button
+                  type="button"
+                  class="clip-resize"
+                  aria-label={`Resize ${step.symbol}`}
+                  title="Drag to resize"
+                  onpointerdown={(e) => beginDrag(e, step, 'resize')}
+                  onkeydown={(e) => {
+                    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      editSequence((ed) =>
+                        ed.replace(step.id, {
+                          ...step,
+                          beats: Math.max(
+                            MUSIC_LIMITS.minChordBeats,
+                            step.beats +
+                              (e.key === 'ArrowRight' ? settings.editor.snapBeats : -settings.editor.snapBeats),
+                          ),
+                        }),
+                      );
+                    }
+                  }}
+                ></button>
+              {/if}
+            </div>
+          {/if}
+        {/each}
+        {#each incoming.filter((s) => s.start < rowEnd && s.start + s.beats > rowStart) as step (step.id)}
+          <div
+            class="timeline-input"
+            class:recording={!!composition.take}
+            style:left={`${Math.max(0, step.start - rowStart) * beatWidth + 2}px`}
+            style:width={`${Math.max(50, (Math.min(step.start + step.beats, rowEnd) - Math.max(step.start, rowStart)) * beatWidth - 4)}px`}
+          >
+            <b>{step.symbol}</b><span class="small">{composition.take ? 'Recording' : 'Input preview'}</span>
+            {#if !composition.take}
+              <button
+                type="button"
+                class="icon"
+                title="Keep this chord"
+                aria-label={`Keep played ${step.symbol}`}
+                onclick={commitInputPreview}
+              >
+                <Icon name="check" />
+              </button>
+            {/if}
+          </div>
+        {/each}
+
+        {#if head >= rowStart && head < rowEnd}
+          <div
+            class={playing || ui.playbackPosition > 0 || composition.take ? 'timeline-playhead' : 'timeline-cursor'}
+            class:recording={!!composition.take}
+            style:left={`${(head - rowStart) * beatWidth}px`}
+            aria-hidden="true"
+          ></div>
+        {/if}
+      </div>
+    {/each}
   </div>
   <div class="timeline-caption muted small">
     Click to add or change a chord · drag to move · drag its edge to resize
@@ -416,7 +555,7 @@
           disabled={!symbol.trim()}
           onclick={preview}
         >
-          ▶
+          <Icon name="play" />
         </button>
         <button
           type="submit"
@@ -425,7 +564,7 @@
           title={editingId ? 'Save chord' : 'Add chord'}
           disabled={!symbol.trim()}
         >
-          ✓
+          <Icon name="check" />
         </button>
         {#if editingId}
           <button
@@ -441,9 +580,9 @@
               popup = false;
             }}
           >
-            ⧉
+            <Icon name="copy" />
           </button><button type="button" class="icon" aria-label="Delete chord" title="Delete" onclick={removeSelected}>
-            ⌫
+            <Icon name="delete" />
           </button>
         {/if}
         <button
@@ -453,7 +592,7 @@
           title="Close"
           onclick={() => (popup = false)}
         >
-          ×
+          <Icon name="close" />
         </button>
       </div>
       <div class="duration-choices">
@@ -500,7 +639,7 @@
                 h.label,
               )}
           >
-            ▶
+            <Icon name="play" />
           </button><button
             type="button"
             class="icon"
@@ -515,57 +654,68 @@
               popup = false;
             }}
           >
-            ✓
+            <Icon name="check" />
           </button></span
         >
       {/each}
     </div>
   {/if}
-  <details class="sequence-tools">
-    <summary>Song tools</summary>
-    <div class="row">
-      <button type="button" disabled={!captured} onclick={captureProgression}>From playing</button
-      ><button
-        type="button"
-        aria-label="Transpose down"
-        title="Transpose down one semitone"
-        onclick={() => editSequence((e) => e.transpose(-1))}
-      >
-        −♯
-      </button><button
-        type="button"
-        aria-label="Transpose up"
-        title="Transpose up one semitone"
-        onclick={() => editSequence((e) => e.transpose(1))}
-      >
-        +♯
-      </button><button type="button" onclick={deleteSequence}>Delete song</button>
-    </div>
-    <textarea
-      aria-label="Paste chord chart"
-      bind:value={pasted}
-      rows="3"
-      spellcheck="false"
-      placeholder="| Dm7 G7 | Cmaj7 |"
-    ></textarea><button
-      type="button"
-      disabled={!pasted.trim()}
-      onclick={() => {
-        importChart(pasted);
-        if (!composition.error) pasted = '';
+  <dialog bind:this={regionDialog} class="region-dialog" aria-label="Edit key region">
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        if (
+          editSequence((editor) =>
+            editor.setRegion(regionStart, regionKey === 'auto' ? null : keyFromIndex(+regionKey), regionLabel),
+          )
+        )
+          regionDialog?.close();
       }}
     >
-      Insert chart
-    </button><label class="small"
-      ><input
-        type="checkbox"
-        checked={session.songGuide}
-        onchange={(e) => {
-          session.songGuide = e.currentTarget.checked;
-          session.onChange();
+      <h3>Key region · bar {Math.floor(regionStart / document.meter) + 1}</h3>
+      <label>Section name<input aria-label="Region name" bind:value={regionLabel} placeholder="Verse, bridge…"></label>
+      <label
+        >Key<select aria-label="Region key" bind:value={regionKey}>
+          <option value="auto">Auto-detect</option>
+          {#each ALL_KEYS as key}
+            <option value={String(keyIndex(key))}>{keyLong(key)}</option>
+          {/each}
+        </select></label
+      >
+      <div class="row">
+        {#if regionId && regionStart > 0}
+          <button
+            type="button"
+            onclick={() => {
+              if (editSequence((e) => e.removeRegion(regionId!))) regionDialog?.close();
+            }}
+          >
+            Remove region
+          </button>
+        {/if}
+        <span class="spacer"></span><button type="button" onclick={() => regionDialog?.close()}>Cancel</button
+        ><button type="submit">Save region</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog bind:this={chartDialog} class="region-dialog" aria-label="Insert chord chart">
+    <h3>Insert chords at the cursor</h3>
+    <textarea aria-label="Paste chord chart" bind:value={pasted} rows="4" placeholder="| Dm7 G7 | Cmaj7 |"></textarea>
+    <div class="row">
+      <button type="button" onclick={() => chartDialog?.close()}>Cancel</button
+      ><button
+        type="button"
+        disabled={!pasted.trim()}
+        onclick={() => {
+          importChart(pasted);
+          if (!composition.error) {
+            pasted = '';
+            chartDialog?.close();
+          }
         }}
       >
-      Piano guide</label
-    >
-  </details>
+        Insert chart
+      </button>
+    </div>
+  </dialog>
 </div>

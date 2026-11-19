@@ -1,9 +1,12 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { audition, session, ui } from './store.svelte';
   import { keyShort } from '../theory/scales';
   import Route from './Route.svelte';
-  import { acceptChords, compositionContext } from './composition.svelte';
+  import { acceptChords, compositionContext, suggestionDestination } from './composition.svelte';
   import { suggestNext } from '../engine/coach';
+
+  const destination = $derived(suggestionDestination());
 
   const target = $derived.by(() => {
     void ui.tick;
@@ -26,12 +29,15 @@
       Change key{target ? ` → ${keyShort(target)}` : ''}
     </button>
   </nav>
+  <p class="suggestion-destination small muted" title={`Suggestions will be added to ${destination.title}`}>
+    Add to {destination.title} · {destination.position}
+  </p>
   <div class="scroll">
     {#if ui.nextTab === 'key'}
       <Route />
     {:else}
       {#if !moves.length}
-        <p class="muted small">Suggestions appear once a key is established.</p>
+        <p class="muted small">Play a few chords or choose a key for your song to hear suggestions.</p>
       {/if}
       {#each moves as m (m.id)}
         <div class="move-row">
@@ -39,7 +45,7 @@
             type="button"
             class="move f-{m.func}"
             class:playing={ui.playingId === m.id}
-            onclick={() => audition([m.voicing], m.id)}
+            onclick={() => audition([m.voicing], m.id, 2, m.name)}
             title={m.why}
           >
             <span class="m-name">{m.name}</span>
@@ -55,11 +61,11 @@
           <button
             type="button"
             class="accept-move"
-            title={`Add ${m.name} to the sequence`}
+            title={`Add ${m.name} to ${destination.title} at ${destination.position}`}
             aria-label={`Add ${m.name} to sequence`}
             onclick={() => acceptChords([{ symbol: m.name, notes: m.voicing }])}
           >
-            ＋
+            <Icon name="plus" />
           </button>
         </div>
       {/each}

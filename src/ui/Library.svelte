@@ -1,136 +1,306 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
+  let { onselect = () => {} }: { onselect?: () => void } = $props();
   import { onMount } from 'svelte';
   import { choosePerformance, registerPerformance, ui } from './store.svelte';
   import { BUILT_IN, type Piece, fromBenchmark, fromMidi, fromRecording } from '../library/pieces';
   import { midiFileMeta, parseMidiFile } from '../io/midifile';
-  import { composition, exampleSequences, selectSequence } from './composition.svelte';
+  import { composition, exampleSequences, newSequence, selectSequence } from './composition.svelte';
 
   let recordings = $state<string[]>([]);
   let corpora = $state<Record<string, string[]>>({});
   let corpus = $state('');
   let opened = $state<Piece[]>([]);
-  let error = $state('');
+  let query = $state('');
+  let shown = $state(50);
+  let fileInput = $state<HTMLInputElement>();
+  const matches = (text: string) => text.toLowerCase().includes(query.trim().toLowerCase());
+  const songs = $derived(composition.documents.filter((s) => matches(s.title)));
+  const examples = $derived(
+    exampleSequences.filter((s) => !composition.documents.some((d) => d.id === s.id) && matches(s.title)),
+  );
+  const performances = $derived([...BUILT_IN, ...opened].filter((p) => matches(p.title)));
+  const files = $derived(recordings.filter((f) => matches(recordingName(f))));
+  // Search every corpus; browsing a single corpus never silently hides items past a fixed cap.
+  const references = $derived(
+    Object.entries(corpora).flatMap(([group, ids]) =>
+      !query.trim() && group !== corpus
+        ? []
+        : ids.filter((id) => matches(`${group} ${id}`)).map((id) => ({ group, id })),
+    ),
+  );
+  const hasMatches = $derived(
+    songs.length + examples.length + performances.length + files.length + references.length > 0,
+  );
+  $effect(() => {
+    void query;
+    void corpus;
+    shown = 50;
+  });
 
+  function recordingName(file: string) {
+    return file.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2');
+  }
   async function refresh() {
     try {
       const r = await fetch('/__library');
       if (!r.ok) return;
       const j = await r.json();
+      if (!Array.isArray(j.recordings) || typeof j.corpora !== 'object' || !j.corpora) return;
       recordings = j.recordings;
       for (const file of recordings)
-        if (!ui.performanceChoices.some((p) => p.id === `recording:${file}`))
-          registerPerformance(`recording:${file}`, file.replace(/^session-|\.json$/g, ''), async () =>
-            fromRecording(`recording:${file}`, await getJson(`recordings/${file}`)),
-          );
+        registerPerformance(`recording:${file}`, recordingName(file), async () =>
+          fromRecording(`recording:${file}`, await getJson(`recordings/${file}`)),
+        );
       corpora = j.corpora;
       corpus ||= Object.keys(j.corpora)[0] ?? '';
     } catch {
-      /* not under the dev server */
+      /* The local library is optional outside the dev server. */
     }
   }
   onMount(refresh);
   $effect(() => {
     if (!ui.recording) void refresh();
-  }); // a new recording appears after saving
-
-  async function play(load: () => Promise<Piece>, id: string, title: string) {
-    error = '';
-    registerPerformance(id, title, load);
-    await choosePerformance(id, true);
-  }
-  const getJson = async (p: string) => {
-    const r = await fetch(`/__library/${p}`);
-    if (!r.ok) throw new Error(`can't load ${p}`);
-    return r.json();
+  });
+  const getJson = async (path: string) => {
+    const response = await fetch(`/__library/${path}`);
+    if (!response.ok) throw new Error(`Couldn't open ${path}. Choose another performance or try again.`);
+    return response.json();
   };
+  async function loadPerformance(load: () => Promise<Piece>, id: string, title: string, play = false) {
+    registerPerformance(id, title, load);
+    await choosePerformance(id, play || !!ui.nowPlaying);
+    if (!ui.playbackError) onselect();
+  }
   async function openFile(e: Event) {
-    const f = (e.currentTarget as HTMLInputElement).files?.[0];
-    if (!f) return;
-    void play(
+    const file = (e.currentTarget as HTMLInputElement).files?.[0];
+    if (!file) return;
+    await loadPerformance(
       async () => {
-        const buf = await f.arrayBuffer();
-        const p = fromMidi(`file:${f.name}`, f.name, parseMidiFile(buf), midiFileMeta(buf));
-        opened = [p, ...opened.filter((x) => x.id !== p.id)];
-        return p;
+        const buffer = await file.arrayBuffer();
+        const piece = fromMidi(`file:${file.name}`, file.name, parseMidiFile(buffer), midiFileMeta(buffer));
+        opened = [piece, ...opened.filter((p) => p.id !== piece.id)];
+        return piece;
       },
-      `file:${f.name}`,
-      f.name,
+      `file:${file.name}`,
+      file.name,
     );
+    if (fileInput) fileInput.value = '';
   }
 </script>
 
 <div class="panel library">
-  <div class="label">Songs</div>
-  <div class="lib-list">
-    {#each composition.documents as s (s.id)}
-      <button type="button" class="lib-item" onclick={() => selectSequence(s.id)}>
-        <b>{s.title}</b><span class="small muted">{s.steps.length} chords</span>
-      </button>
-    {/each}
-    {#each exampleSequences.filter((s) => !composition.documents.some((d) => d.id === s.id)) as s (s.id)}
-      <button type="button" class="lib-item" onclick={() => selectSequence(s.id)}>
-        <b>{s.title}</b><span class="small muted">example</span>
-      </button>
-    {/each}
+  <div class="library-actions">
+    <input type="search" aria-label="Search library" placeholder="Find a song or performance…" bind:value={query}>
+    <button
+      type="button"
+      class="icon"
+      title="New song"
+      aria-label="New song"
+      onclick={() => {
+        newSequence();
+        onselect();
+      }}
+    >
+      <Icon name="plus" />
+    </button>
+    <button type="button" title="Import a MIDI performance" onclick={() => fileInput?.click()}>Import MIDI</button>
+    <input
+      bind:this={fileInput}
+      type="file"
+      accept=".mid,.midi"
+      aria-label="Import MIDI file"
+      hidden
+      onchange={openFile}
+    >
   </div>
-  {#if error}
-    <p class="warn small">{error}</p>
+  {#if !hasMatches}
+    <p class="muted">No matches for “{query}”. Try a song title or clear the search.</p>
   {/if}
-
-  <details class="library-browser" open>
-    <summary>Browse performances</summary>
-    <div class="label">Play into the app <span class="muted">— analysed exactly as if you played it</span></div>
+  {#if songs.length}
+    <div class="label">My songs</div>
     <div class="lib-list">
-      {#each [...BUILT_IN, ...opened] as p (p.id)}
-        <button type="button" class="lib-item" onclick={() => play(async () => p, p.id, p.title)}>
-          <b>{p.title}</b><span class="muted small">{p.source}{p.bpm ? ` · ♩${Math.round(p.bpm)}` : ''}</span>
-        </button>
-      {/each}
-      <label class="lib-item filebtn">
-        <b>Open a MIDI file…</b><span class="muted small">a recording or a score</span>
-        <input type="file" accept=".mid,.midi" onchange={openFile}>
-      </label>
-    </div>
-
-    {#if recordings.length}
-      <div class="label">Your recordings</div>
-      <div class="lib-list">
-        {#each recordings as f (f)}
-          <button type="button" class="lib-item" onclick={() => choosePerformance(`recording:${f}`, true)}>
-            <b>{f.replace(/^session-|\.json$/g, '').replace(/T(\d\d)-(\d\d).*/, ' $1:$2')}</b
-            ><span class="muted small"> recording </span>
-          </button>
-        {/each}
-      </div>
-    {/if}
-
-    {#if Object.keys(corpora).length}
-      <div class="label">
-        Benchmark pieces <span class="muted">— expert-annotated; see how the analysis compares</span>
-      </div>
-      <div class="row">
-        <select bind:value={corpus}>
-          {#each Object.keys(corpora) as c}
-            <option value={c}>{c} ({corpora[c].length})</option>
-          {/each}
-        </select>
-      </div>
-      <div class="lib-list scrolly">
-        {#each (corpora[corpus] ?? []).slice(0, 200) as id (id)}
+      {#each songs as song (song.id)}
+        <div class="lib-row" class:current={ui.sourceId === `sequence:${song.id}`}>
           <button
             type="button"
             class="lib-item"
-            onclick={() =>
-              play(
-                async () => fromBenchmark(`${corpus}/${id}`, await getJson(`data/${corpus}/${id}.json`)),
-                `${corpus}/${id}`,
-                id,
-              )}
+            aria-current={ui.sourceId === `sequence:${song.id}` ? 'true' : undefined}
+            onclick={() => {
+              selectSequence(song.id, !!ui.nowPlaying);
+              onselect();
+            }}
           >
-            <b>{id}</b>
+            <b>{song.title}</b
+            ><span class="small muted"
+              >{song.steps.length ? `${song.steps.length} chords · ${song.bpm} BPM` : 'Empty song'}{ui.sourceId ===
+              `sequence:${song.id}`
+                ? ' · current'
+                : ''}</span
+            >
           </button>
+          <button
+            type="button"
+            class="icon lib-play"
+            aria-label={`Play ${song.title}`}
+            title={`Play ${song.title}`}
+            disabled={!song.steps.length}
+            onclick={() => {
+              selectSequence(song.id, true);
+              onselect();
+            }}
+          >
+            <Icon name="play" />
+          </button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+  {#if examples.length}
+    <div class="label">Starting points</div>
+    <div class="lib-list">
+      {#each examples as song (song.id)}
+        <div class="lib-row">
+          <button
+            type="button"
+            class="lib-item"
+            onclick={() => {
+              selectSequence(song.id, !!ui.nowPlaying);
+              onselect();
+            }}
+          >
+            <b>{song.title}</b><span class="small muted">Editable example · {song.steps.length} chords</span>
+          </button>
+          <button
+            type="button"
+            class="icon lib-play"
+            aria-label={`Play ${song.title}`}
+            title={`Play ${song.title}`}
+            onclick={() => {
+              selectSequence(song.id, true);
+              onselect();
+            }}
+          >
+            <Icon name="play" />
+          </button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+  {#if performances.length || files.length}
+    <div class="label">Listen & explore</div>
+    <p class="small muted">Select to open, ▶ to listen. Heard chords can be added to your song.</p>
+    <div class="lib-list">
+      {#each performances as piece (piece.id)}
+        <div class="lib-row" class:current={ui.sourceId === `piece:${piece.id}`}>
+          <button
+            type="button"
+            class="lib-item"
+            aria-current={ui.sourceId === `piece:${piece.id}` ? 'true' : undefined}
+            onclick={() => loadPerformance(async () => piece, piece.id, piece.title)}
+          >
+            <b>{piece.title}</b
+            ><span class="muted small"
+              >{piece.bpm ? `${Math.round(piece.bpm)} BPM` : 'Performance'}{ui.sourceId === `piece:${piece.id}`
+                ? ' · current'
+                : ''}</span
+            >
+          </button>
+          <button
+            type="button"
+            class="icon lib-play"
+            aria-label={`Play ${piece.title}`}
+            title={`Play ${piece.title}`}
+            onclick={() => loadPerformance(async () => piece, piece.id, piece.title, true)}
+          >
+            <Icon name="play" />
+          </button>
+        </div>
+      {/each}
+      {#each files as file (file)}
+        <div class="lib-row" class:current={ui.sourceId === `piece:recording:${file}`}>
+          <button
+            type="button"
+            class="lib-item"
+            aria-current={ui.sourceId === `piece:recording:${file}` ? 'true' : undefined}
+            onclick={async () => {
+              await choosePerformance(`recording:${file}`, !!ui.nowPlaying);
+              if (!ui.playbackError) onselect();
+            }}
+          >
+            <b>{recordingName(file)}</b
+            ><span class="muted small">Recording{ui.sourceId === `piece:recording:${file}` ? ' · current' : ''}</span>
+          </button>
+          <button
+            type="button"
+            class="icon lib-play"
+            aria-label={`Play recording ${recordingName(file)}`}
+            title="Play recording"
+            onclick={async () => {
+              await choosePerformance(`recording:${file}`, true);
+              if (!ui.playbackError) onselect();
+            }}
+          >
+            <Icon name="play" />
+          </button>
+        </div>
+      {/each}
+    </div>
+  {/if}
+  {#if Object.keys(corpora).length}
+    <details class="library-browser" open={!!query.trim() && references.length > 0}>
+      <summary>Reference performances <span class="muted small">{references.length}</span></summary>
+      <p class="small muted">Annotated performances to explore and learn from.</p>
+      {#if !query.trim()}
+        <label class="row small"
+          >Collection
+          <select aria-label="Reference collection" bind:value={corpus}>
+            {#each Object.keys(corpora) as name}
+              <option value={name}>{name} ({corpora[name].length})</option>
+            {/each}
+          </select></label
+        >
+      {/if}
+      <div class="lib-list">
+        {#each references.slice(0, shown) as ref (`${ref.group}/${ref.id}`)}
+          <div class="lib-row" class:current={ui.sourceId === `piece:${ref.group}/${ref.id}`}>
+            <button
+              type="button"
+              class="lib-item"
+              onclick={() =>
+                loadPerformance(
+                  async () =>
+                    fromBenchmark(`${ref.group}/${ref.id}`, await getJson(`data/${ref.group}/${ref.id}.json`)),
+                  `${ref.group}/${ref.id}`,
+                  ref.id,
+                )}
+            >
+              <b>{ref.id}</b><span class="small muted">{ref.group}</span>
+            </button>
+            <button
+              type="button"
+              class="icon lib-play"
+              aria-label={`Play ${ref.group} ${ref.id}`}
+              title="Play performance"
+              onclick={() =>
+                loadPerformance(
+                  async () =>
+                    fromBenchmark(`${ref.group}/${ref.id}`, await getJson(`data/${ref.group}/${ref.id}.json`)),
+                  `${ref.group}/${ref.id}`,
+                  ref.id,
+                  true,
+                )}
+            >
+              <Icon name="play" />
+            </button>
+          </div>
         {/each}
       </div>
-    {/if}
-  </details>
+      {#if references.length > shown}
+        <button type="button" class="library-more" onclick={() => (shown += 50)}>
+          Show more ({shown} of {references.length})
+        </button>
+      {/if}
+    </details>
+  {/if}
 </div>

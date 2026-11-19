@@ -1,10 +1,12 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
+  import SourcePicker from './SourcePicker.svelte';
   import { onMount } from 'svelte';
-  import { composition, exampleSequences, newSequence, selectSequence } from './composition.svelte';
+  import { resetWorkspace } from './composition.svelte';
   import {
-    choosePerformance,
     downloadMidi,
     playSelection,
+    pausePlayback,
     recorder,
     seekPlayback,
     startRecording,
@@ -16,23 +18,16 @@
 
   const time = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
   let recorded = $state(0);
-  const examples = $derived(exampleSequences.filter((s) => !composition.documents.some((d) => d.id === s.id)));
   onMount(() => {
     const timer = setInterval(() => {
       updatePlaybackClock();
-      if (ui.recording) recorded = recorder.elapsed;
+      if (ui.recording) {
+        recorded = recorder.elapsed;
+        ui.recordingElapsed = recorded;
+      }
     }, 100);
     return () => clearInterval(timer);
   });
-  async function switchSource(e: Event) {
-    const element = e.currentTarget as HTMLSelectElement;
-    const value = element.value;
-    const playing = !!ui.nowPlaying || !!ui.preview;
-    if (value === 'new') newSequence();
-    else if (value.startsWith('sequence:')) selectSequence(value.slice(9), playing);
-    else await choosePerformance(value.slice(6), playing);
-    element.value = ui.sourceId;
-  }
   function stop() {
     stopPlayback();
     if (ui.recording) void stopRecording();
@@ -44,14 +39,17 @@
     <button
       type="button"
       class="icon"
-      onclick={playSelection}
-      disabled={ui.loading || !!ui.nowPlaying || !!ui.preview || !ui.playbackDuration}
-      aria-label="Play"
-      title="Play"
+      onclick={() => (ui.nowPlaying ? pausePlayback() : playSelection())}
+      disabled={ui.loading || !!ui.preview || !ui.playbackDuration}
+      aria-label={ui.nowPlaying ? 'Pause' : 'Play'}
+      title={ui.nowPlaying ? 'Pause' : ui.playbackPaused ? 'Resume' : 'Play'}
+      aria-pressed={!!ui.nowPlaying}
     >
-      ▶
+      <Icon name={ui.nowPlaying ? 'pause' : 'play'} />
     </button>
-    <button type="button" class="icon stop-playback" onclick={stop} aria-label="Stop" title="Stop (Esc)">■</button>
+    <button type="button" class="icon stop-playback" onclick={stop} aria-label="Stop" title="Stop (Esc)">
+      <Icon name="stop" />
+    </button>
     <button
       type="button"
       class="icon record-toggle"
@@ -67,32 +65,19 @@
         }
       }}
     >
-      ●
+      <Icon name="record" />
     </button>
   </div>
-  <label class="source-picker">
-    <span class="sr-only">Current song</span>
-    <select aria-label="Current song" value={ui.sourceId} onchange={switchSource}>
-      <optgroup label="My songs">
-        {#each composition.documents as s (s.id)}
-          <option value={`sequence:${s.id}`}>{s.title}</option>
-        {/each}
-      </optgroup>
-      {#if examples.length}
-        <optgroup label="Examples">
-          {#each examples as s (s.id)}
-            <option value={`sequence:${s.id}`}>{s.title}</option>
-          {/each}
-        </optgroup>
-      {/if}
-      <optgroup label="Performances">
-        {#each ui.performanceChoices as p (p.id)}
-          <option value={`piece:${p.id}`}>{p.title}</option>
-        {/each}
-      </optgroup>
-      <option value="new">＋ New song</option>
-    </select>
-  </label>
+  <button
+    type="button"
+    class="icon reset-workspace"
+    aria-label="Reset song and input"
+    title="Reset song and input — Undo restores chords"
+    onclick={resetWorkspace}
+  >
+    <Icon name="reset" />
+  </button>
+  <SourcePicker />
   <button
     type="button"
     class="icon"
@@ -101,7 +86,7 @@
     disabled={!ui.playbackDuration}
     onclick={() => downloadMidi()}
   >
-    ⇩
+    <Icon name="download" />
   </button>
   {#if ui.recording}
     <span class="rec-on"><i class="rec-dot"></i>{time(recorded)}</span>
@@ -119,11 +104,13 @@
         step="100"
         value={ui.playbackPosition}
         onchange={(e) => seekPlayback(+e.currentTarget.value)}
-      ><span>{time(ui.playbackPosition)} / {time(ui.playbackDuration)}</span></label
+      ><span title={`Position ${time(ui.playbackPosition)} of ${time(ui.playbackDuration)}`}
+        >{time(ui.playbackPosition)}</span
+      ></label
     >
   {/if}
-  <span class="playback-status" aria-live="polite"
-    >{ui.loading ? 'Loading…' : (ui.preview ?? (ui.nowPlaying ? 'Playing' : ''))}</span
+  <span class="playback-status sr-only" aria-live="polite"
+    >{ui.loading ? 'Loading…' : (ui.preview ?? (ui.nowPlaying ? 'Playing' : ui.playbackPaused ? 'Paused' : ''))}</span
   >
   {#if ui.playbackError}
     <span class="warn small" role="alert">{ui.playbackError}</span>

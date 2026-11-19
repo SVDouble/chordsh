@@ -1,94 +1,112 @@
 # Using chord.sh
 
-chord.sh is a chord and sequence workspace. Build a timeline, hear alternatives, add suggestions, and
-send the result to your DAW as MIDI. It also listens to your playing and explains the harmony.
+chord.sh is one editable song timeline. Play chords, build a sequence, hear alternatives and use your
+DAW's instruments through MIDI. Songs and performances live in the source picker beside playback;
+playing and editing share the same workspace.
 
 ```sh
 npm install
 npm run dev        # Chrome or Edge for Web MIDI
 ```
 
-## Build a song
+## One timeline
 
-The **Editor** is a beat timeline. Click an empty spot, type a chord such as `Cmaj7`, and press Enter or
-✓. Click an existing chord to change it. Duration choices and optional voicing/velocity controls appear
-in that chord's popover rather than occupying the main workspace.
+Click an empty beat and type a chord such as `Cmaj7`. Enter or ✓ keeps it. Click an existing chord to
+change it. Its duration, optional voicing and velocity live in the chord popover.
 
-- Drag a chord by its top handle to move it; drag its right edge to change its length. Edges snap to
-  quarter-beat increments by default (Settings → Editor → Timeline snap). Empty spaces are rests. Overlapping later material moves forward.
-- Use the popover's ▶ to hear the current edit, ⧉ to duplicate it, or ⌫ to remove it.
-- Undo/redo are in the heading; Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields. Edits made
-  while a song plays refresh playback at the current musical position.
-- Tempo, meter and key are above the timeline. Zoom changes how many beats fit on screen.
-- **Song tools** contains transposition, chord-chart paste (`| Dm7 G7 | Cmaj7 |`), capture **From playing**,
-  deletion and the piano guide. Capturing makes an editable song from the analysed progression.
+- Drag the top handle to move a chord or its right edge to resize. The default snap is a quarter beat;
+  change it in Settings → Editor. Empty spaces are rests. Overlapping later chords move forward.
+- Use ▶ in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
+- Undo/redo are above the timeline. Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields.
+- Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Long chords
+  continue on the next row and retain one identity; dragging can move chords between rows.
+- Tempo and quarter-note meter belong to the song. **Key regions** run above the bars: click a region
+  to name it (Verse, Bridge…) or change its local key. Select a beat and use the key icon to add a
+  modulation there. The current region is highlighted; suggestions and numerals use the local key.
+- The **⋯ song menu** contains transpose, chart paste (`| Dm7 G7 | Cmaj7 |`), duplicate/delete song and piano guide.
+  Duplicating makes an independent variation with a distinct title. Deletion offers **Restore**.
 
-Songs save automatically. Existing songs/settings from the old Musify storage are read and migrated
-when saved under chord.sh. The name is styled **chord.sh**.
+Songs save automatically in this browser. The editor shows whether saving succeeded. It retains
+existing songs and preferences from the old Musify storage when migrating to chord.sh.
 
-## Playback and switching songs
+## Play into the timeline
 
-The top bar uses ▶, ■ and ● with tooltips and accessible labels. The song selector shows the current
-song or performance and lets you switch it. Switching while playing starts the new selection; selecting
-while stopped prepares it. The seek slider and moving timeline playhead show the current position.
+Incoming MIDI, computer keys or the on-screen piano show an **input preview at the timeline cursor**.
+The chord inspector, piano and suggestions follow that chord. ✓ on the preview keeps it as an editable
+block. Selecting a timeline chord brings the same tools back to that selection.
 
-■ and Escape stop playback, previews, the metronome and any active recording. Clicking the active ●
-again saves a recording without stopping playback. Stop cancels queued MIDI and releases held/sustained
-notes. Seeking restarts analysis at that position, including held notes and the current pedal state.
+● records a take directly on the same timeline. Chord blocks and a red playhead grow as you play;
+stop/save commits the phrase to the song as **one undoable edit**, retaining its inferred timings.
+Later material moves forward if the take overlaps it. A recording without note input adds no chords.
+The MIDI/analysis recording is also saved, as before. There is no separate Live view or played-phrase panel.
 
-The sound icon shows 🔓 when browser audio needs a gesture. Click it, or interact with the page, to
-unlock. MIDI input cannot satisfy the browser's gesture requirement; see
-[Chrome's autoplay policy](https://developer.chrome.com/blog/autoplay/).
+The chord inspector shows the chord, its function and position. Note names and roles belong to the
+**piano below**: a nearby legend pairs names with Root, 3, ♭3, 5, 7 and extensions, while the actual
+voicing's keys carry the same labels and colours. Root is green, guide tones (thirds/sevenths) blue,
+fifth grey, extensions amber and alterations red. Text labels keep the roles clear without colour. On narrow screens the piano scrolls horizontally
+instead of squeezing the keys; Settings → Piano key width controls their minimum width.
+
+## Transport
+
+The top bar uses one row for transport, source selection and seeking. Consistent SVG icons have
+tooltips and accessible names. Narrow screens scroll the toolbar horizontally instead of wrapping seek
+onto another line:
+
+- ▶ plays; it becomes Ⅱ while playing. Pause silences output and retains the playhead; ▶ resumes.
+- ■ stops playback, previews, metronome and recording, and returns the playhead to the start.
+- ● records; pressing it again saves without needing a separate recording area.
+- ↺ resets the current timeline and input analysis, stopping sound. Song name, tempo, meter and key
+  remain; **Undo restores the cleared chords**. Other songs are retained.
+- ⇩ exports the selected song/performance as MIDI. The editor also has its own export icon.
+
+The song selector names the current playback source. Changing it while playing starts the new source;
+while stopped it prepares the source. Seeking starts playback at that position. Opening the source picker does not restart or interrupt playback.
+
+Escape stops output and any recording. In Settings, Escape closes the dialog instead. The sound icon
+shows 🔓 when browser audio needs a gesture. Click it or interact with the page to unlock; MIDI input
+cannot satisfy the browser's gesture requirement. See [Chrome's autoplay policy](https://developer.chrome.com/blog/autoplay/).
 
 ## Suggestions
 
-**Where next** keeps its **Next chord** and **Change key** views. Suggestions follow the selected chord
-or insertion point in the editor, and follow live analysis when a performance is selected.
+**Where next** retains **Next chord** and **Change key** tabs. It follows the focused chord, whether
+played or selected. A line states the destination song and insertion position.
 
-- Click a chord suggestion to preview it; **＋** adds it at the timeline cursor.
-- Choose a key on the map or a destination in Change key. ▶ previews a route; **＋** inserts all its
-  chords as one undoable edit. The destination key is retained for subsequent suggestions.
-- Selecting a chord also exposes compact **Try instead** ideas. ▶ previews; **✓** replaces the selected
-  chord with that alternative, sharing its duration across the new chords.
-- **Practise** still waits for you to play each chord of a route; inversions and voicings are accepted.
+- Click a chord suggestion to hear it; **＋** inserts it at the cursor.
+- Select a destination key on the map or in Change key. ▶ previews a route; **＋** inserts the whole
+  route in one undoable edit. Its destination key is retained for further suggestions.
+- Selecting a chord exposes **Try instead** reharmonisations. ▶ previews; **✓** replaces the chord,
+  sharing its duration across the replacement chords.
+- **Practise** waits for each chord in a route; voicings and inversions are accepted.
 
-Previewing never commits a suggestion. Adding, replacing, moving and resizing are undoable.
+Previews do not commit edits. Add/replace actions show a short confirmation with the song and position.
 
-## Library, live analysis and panels
+## Sources, devices and workspace
 
-**Library** remains a visible tab: saved songs, examples, the demo, recordings, MIDI-file import and
-annotated benchmark performances. **Editor** works on the current song. **Live** shows the analysed
-progression, key theories and hindsight revisions (↻). **Edit sequence** brings that progression into
-the editor. Clear resets pending notes and analysis without deleting the song.
+**The source picker beside playback** searches saved songs, examples, opened performances, recordings
+and every reference collection. There is no separate Library tab. Reference results are paged with explicit counts and Show more; search includes pieces
+beyond the initially displayed page. The active source is marked current.
 
-Use **Panels** to hide optional panels or choose Song/Progression focus. Drag panel dividers to resize;
-arrow keys also resize a focused divider. Layouts are remembered, and narrow screens stack vertically.
+Click the current source name to browse. Select a row to open it; the play icon explicitly plays it. Changing sources during playback keeps playback running.
+**Import MIDI** opens a performance for listening and analysis. Record it into the timeline to turn its
+inferred chords into editable material. Examples are editable starting points.
 
-Function colours: tonic green, predominant amber, dominant red, chromatic violet. The piano shows
-harmony blue, melody amber, previews violet and practice targets green.
+**Panels** offers All panels and Song focus. Hide the tonal map, suggestions, chord inspector or piano
+as needed, or drag the dividers to resize. Settings contains the same visibility choices. Workspace
+panels have square corners, and small screens put the song first before stacking the optional panels.
 
-Bars in Live depend on a confident pulse; free playing stays a sequence. For exact bars choose
-Settings → Bars → Metronome. Library files with tempo bring their own grid.
+## MIDI and settings
 
-## MIDI and recording
+Click the **device name beside the logo** to select MIDI input, MIDI output and browser/DAW sound.
+The same choices remain available in Settings. Choose DAW / MIDI output to use a DAW instrument.
+MIDI export preserves notes, voicings, gaps, durations, velocities and sustain. See [DAW integration](daw.md).
 
-**⇩** exports the selected song/performance as a `.mid` file; the editor also has its own export icon.
-Notes, voicings, gaps, durations, velocities and sustain can then play through a DAW instrument. For
-live routing, choose **Settings → MIDI output** and **Playback output → DAW / MIDI out**. See
-[DAW integration](daw.md) for the current connection and native plug-in direction.
-
-● records MIDI plus analysis. An optional note describes what you meant to play. Saved sessions go to
-`local/recordings/` and appear in Library. `npm run replay` replays the newest recording, or use
-`REC=local/recordings/x.json npm run replay` for a specific file.
+Recordings go to `local/recordings/` under the development server and appear in the source picker. Elsewhere,
+saving falls back to downloading JSON. `npm run replay` replays the latest recording, including its
+configuration; `REC=local/recordings/x.json npm run replay` selects a specific file.
 
 Computer keys `A W S E D F T G Y H U J K O L P ;` play C4–E5, Z/X change octave and Space is sustain.
-Typing in an input does not play notes. Settings also contains MIDI input, monitoring, hand split,
-metronome, meter and analysis key/style controls.
+Typing in a form or using Settings does not play notes.
 
-## Settings
-
-**⚙ Settings** brings playback/input, panels, editor defaults and advanced analysis controls together.
-Search settings, read their help/ranges/defaults, then Apply or Cancel the draft. Beat detection has
-configurable BPM bounds, timing resolution and analysis windows. Harmonic-model weights, grouping
-delays and history limits are editable too. Restore defaults also waits for Apply. See
-[settings and limits](settings.md) for the source schema, tradeoffs and saved-data migration.
+**⚙ Settings** collects playback, MIDI, editor, workspace and advanced analysis controls. Search by
+purpose, read help/ranges/defaults, then Apply or Cancel. See [settings](settings.md) for the schema,
+tradeoffs and persistence. Browser preferences do not alter reproducible benchmark defaults.

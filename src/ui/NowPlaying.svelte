@@ -1,36 +1,42 @@
 <script lang="ts">
-  import { midi, session, ui } from './store.svelte';
-  import { chordName, inversionLabel, toneNames } from '../theory/chords';
-  import { SCALE_LABEL, keyLong } from '../theory/scales';
-  import { roleClass } from './colours';
-
+  import Icon from './Icon.svelte';
+  import { audition, ui } from './store.svelte';
+  import { inversionLabel } from '../theory/chords';
+  import { keyLong } from '../theory/scales';
+  import { focusedChord } from './composition.svelte';
   const FUNC = { T: 'Tonic', PD: 'Predominant', D: 'Dominant', '?': 'Colour' };
-
   const v = $derived.by(() => {
-    void ui.tick; // re-run when the engine changes
-    const id = session.now,
-      key = session.activeKey,
-      c = id.best;
+    const focus = focusedChord();
     return {
-      kind: id.kind,
-      name: c ? chordName(c, key) : id.notes.map((n) => session.spell(n)).join('–') || '—',
-      interval: id.intervalName,
-      roman: session.nowRoman,
-      key: key ? keyLong(key) + (session.flavour ? ` · ${SCALE_LABEL[session.flavour]}` : '') : null,
-      tones: c ? toneNames(c, key) : [],
-      inversion: c ? inversionLabel(c) : '',
-      alts: id.alternatives.slice(0, 3).map((a) => chordName(a, key)),
-      devices: midi.devices,
+      ...focus,
+      kind: focus.chord ? 'chord' : 'none',
+      key: focus.key ? keyLong(focus.key) : null,
+      inversion: focus.chord ? inversionLabel(focus.chord) : '',
+      empty:
+        ui.nowPlaying || ui.playbackPaused
+          ? 'Rest'
+          : 'Click the timeline or play a chord. Note roles appear on the piano below.',
     };
   });
 </script>
 
 <div class="card now">
+  <div class="inspector-heading">
+    <span class="label">{v.heading}</span>
+    {#if v.notes.length}
+      <button
+        type="button"
+        class="icon"
+        aria-label={`Preview ${v.name}`}
+        title={`Hear ${v.name}`}
+        onclick={() => audition([v.notes], 'inspector', 2, v.name)}
+      >
+        <Icon name="play" />
+      </button>
+    {/if}
+  </div>
   {#if v.kind === 'none'}
-    <div class="big muted">Play a chord</div>
-    <p class="muted small">
-      {v.devices.length ? 'Listening to your keyboard.' : 'MIDI, computer keys or the on-screen piano.'}
-    </p>
+    <p class="muted small">{v.empty}</p>
   {:else}
     <div class="now-top">
       <span class="big">{v.name}</span>
@@ -38,13 +44,12 @@
         <span class="numeral f-{v.roman.func}">{v.roman.numeral}</span>
       {/if}
     </div>
+    {#if v.position}
+      <p class="small muted">{v.position}</p>
+    {/if}
     <div class="badges">
       {#if v.roman}
         <span class="func f-{v.roman.func}">{FUNC[v.roman.func]}</span>
-        <span class="badge">{v.roman.kind.replaceAll('-', ' ')}</span>
-      {/if}
-      {#if v.interval}
-        <span class="badge">{v.interval}</span>
       {/if}
       {#if v.inversion}
         <span class="badge">{v.inversion}</span>
@@ -56,12 +61,5 @@
     {#if v.roman}
       <p class="explain">{v.roman.explain}</p>
     {/if}
-    <div class="tones" title={v.alts.length ? `Also readable as ${v.alts.join(' · ')}` : ''}>
-      {#each v.tones as t}
-        <span class="tone {roleClass(t.role)}" class:implied={t.implied}>
-          <b>{t.name}</b><i>{t.role}</i>
-        </span>
-      {/each}
-    </div>
   {/if}
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { audition, session, ui } from './store.svelte';
   import { findPivots, suggestPaths } from '../engine/coach';
   import { acceptPath, compositionContext } from './composition.svelte';
@@ -98,7 +99,7 @@
                   path.id,
                 )}
             >
-              ▶
+              <Icon name="play" />
             </button>
             <button
               type="button"
@@ -107,7 +108,7 @@
               title="Add transition to sequence"
               onclick={() => acceptPath(path)}
             >
-              ＋
+              <Icon name="plus" />
             </button>
             <button type="button" onclick={() => session.startPractice(path)}>Practise</button>
           </span>

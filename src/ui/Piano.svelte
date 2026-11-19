@@ -1,12 +1,36 @@
 <script lang="ts">
-  import { live, session, ui } from './store.svelte';
+  import { focusedChord } from './composition.svelte';
+  import { toneNames, prettyRole } from '../theory/chords';
+  import { roleClass } from './colours';
+  import { live, session, ui, settings } from './store.svelte';
   import { mod12 } from '../theory/pitch';
 
+  const voice = $derived(focusedChord());
+  const tones = $derived(voice.chord ? toneNames(voice.chord, voice.key) : []);
+  const roles = $derived(
+    new Map(
+      voice.chord?.tones.map((tone) => [
+        mod12(voice.chord!.root + tone.interval),
+        tone.role === '1' ? 'R' : prettyRole(tone.role),
+      ]) ?? [],
+    ),
+  );
+  const ROLE_COLOURS: Record<string, string> = {
+    'r-root': '--guide',
+    'r-guide': '--harmony',
+    'r-fifth': '--muted',
+    'r-ext': '--melody',
+    'r-alt': '--D',
+  };
+  const roleColour = (role: string) => css(ROLE_COLOURS[roleClass(role)]);
   const LO = 21,
     HI = 108; // full 88 keys
   const BLACK = new Set([1, 3, 6, 8, 10]);
   let canvas: HTMLCanvasElement;
   let width = $state(800);
+  let keyboard = $state<HTMLElement>();
+  const drawWidth = $derived(Math.max(width, settings.editor.pianoKeyWidth * 52));
+  const noteSignature = $derived(voice.notes.join(','));
   let winH = $state(900);
   /** Scale the on-screen piano with the window so it never crowds out the panels. */
   const height = $derived(Math.round(Math.max(70, Math.min(130, winH * 0.13))));
@@ -14,7 +38,7 @@
   const keys = $derived.by(() => {
     const whites = [];
     for (let n = LO; n <= HI; n++) if (!BLACK.has(mod12(n))) whites.push(n);
-    const ww = width / whites.length;
+    const ww = drawWidth / whites.length;
     const geo = new Map<number, { x: number; w: number; black: boolean }>();
     whites.forEach((n, i) => geo.set(n, { x: i * ww, w: ww, black: false }));
     for (let n = LO; n <= HI; n++)
@@ -28,14 +52,16 @@
     void ui.tick; // re-run when the engine changes ui.playing; // redraw on engine ticks and audition
     const ctx = canvas.getContext('2d')!;
     const dpr = devicePixelRatio || 1;
-    canvas.width = width * dpr;
+    canvas.width = drawWidth * dpr;
     canvas.height = height * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const seg = session.seg;
     const guide = new Set(session.guideNotes);
     const playing = new Set(ui.playing ?? []);
+    const selected = new Set(voice.notes);
     const colour = (n: number) => {
       const sounding = seg.held.has(n) || seg.sustained.has(n);
+      if (selected.has(n)) return roles.has(mod12(n)) ? roleColour(roles.get(mod12(n))!) : css('--melody');
       if (sounding)
         return seg.melodyNotes.has(n) ? css('--melody') : seg.harmony.has(n) ? css('--harmony') : css('--accent');
       if (playing.has(n)) return css('--audition');
@@ -60,6 +86,13 @@
           ctx.arc(k.x + k.w / 2, h - 10, Math.min(6, k.w / 3), 0, Math.PI * 2);
           ctx.fill();
         }
+        const role = selected.has(n) ? roles.get(mod12(n)) : undefined;
+        if (role) {
+          ctx.fillStyle = '#0b0d12';
+          ctx.font = `bold ${Math.min(12, Math.max(8, k.w - 2))}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.fillText(role === 'R' ? 'R' : role, k.x + k.w / 2, h - 21);
+        }
         if (mod12(n) === 0 && !k.black) {
           ctx.fillStyle = css('--muted');
           ctx.font = '11px system-ui';
@@ -77,6 +110,14 @@
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  });
+
+  $effect(() => {
+    const notes = noteSignature ? noteSignature.split(',').map(Number) : [60];
+    const positions = notes.map((n) => keys.get(n)?.x).filter((n): n is number => n !== undefined);
+    if (!keyboard || !positions.length || drawWidth <= width) return;
+    const middle = (Math.min(...positions) + Math.max(...positions)) / 2;
+    keyboard.scrollLeft = Math.max(0, middle - width / 2);
   });
 
   let mouseNote: number | null = null;
@@ -100,12 +141,32 @@
 </script>
 
 <svelte:window bind:innerHeight={winH} />
-<div class="piano" bind:clientWidth={width}>
+<section class="keyboard-roles" aria-label="Chord tones">
+  {#if tones.length}
+    <b>{voice.name}</b>
+    {#each tones as tone}
+      <span class="key-role {roleClass(tone.role)}" title={tone.implied ? 'Implied tone, not in this voicing' : ''}
+        ><b>{tone.name}</b> {tone.role === 'R' ? 'Root' : tone.role}</span
+      >
+    {/each}
+  {:else}
+    <span class="muted small">Note roles appear here when you select or play a chord.</span>
+  {/if}
+</section>
+<section
+  class="piano"
+  bind:clientWidth={width}
+  bind:this={keyboard}
+  aria-label={voice.name
+    ? `Piano: ${voice.name}. ${tones.map((t) => `${t.name} ${t.role === 'R' ? 'root' : t.role}`).join(', ')}`
+    : 'Piano keyboard'}
+>
   <canvas
     bind:this={canvas}
-    style="width:{width}px;height:{height}px"
+    style="width:{drawWidth}px;height:{height}px"
     onpointerdown={down}
     onpointerup={up}
     onpointerleave={up}
+    onpointercancel={up}
   ></canvas>
-</div>
+</section>

@@ -4,7 +4,7 @@ import { Session } from '../engine/session';
 import { Midi } from '../io/midi';
 import { Synth } from '../io/synth';
 import { BUILT_IN, type Piece } from '../library/pieces';
-import { Recorder, saveRecording } from '../io/recorder';
+import { Recorder, saveRecording, type Recording } from '../io/recorder';
 import { writeMidi } from '../io/midiexport';
 
 const saved = (() => {
@@ -39,7 +39,16 @@ export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
 export const live = {
-  noteOn: (n: number, v: number, t = performance.now(), monitor = settings.preferences.monitor, forward = true) => {
+  noteOn: (
+    n: number,
+    v: number,
+    t = performance.now(),
+    monitor = settings.preferences.monitor,
+    forward = true,
+    playback = false,
+  ) => {
+    ui.inputSerial++;
+    if (!playback) ui.harmonyContext = 'input';
     recorder.input('on', n, v, t);
     session.noteOn(n, v, t);
     if (monitor) synth.noteOn(n, v);
@@ -87,13 +96,19 @@ export const ui = $state({
   sourceId: 'piece:demo',
   performanceChoices: BUILT_IN.map((p) => ({ id: p.id, title: p.title })),
   playbackError: '',
-  /** Main panel: the live progression, a song chart, or the library. */
-  tab: 'editor' as 'editor' | 'progression' | 'library',
+  playbackPaused: false,
+  savedLocally: true,
+  notice: null as { message: string; action?: () => void; actionLabel?: string } | null,
+  /** Main panel: one song timeline, or the library. */
+  tab: 'editor' as 'editor' | 'library',
+  harmonyContext: 'timeline' as 'timeline' | 'input',
   /** Chord suggestions and key-change routes share Where next. */
   nextTab: 'chords' as 'chords' | 'key',
   /** Play what you play through the browser synth (for controllers without speakers, e.g. MPK mini). */
   audioBlocked: true,
   recording: false,
+  recordingElapsed: 0,
+  inputSerial: 0,
   /** Where bars come from: estimated from playing, a metronome, or a MIDI file's tempo. */
   bars: 'auto' as 'auto' | 'metronome' | 'file',
   recNote: '',
@@ -126,10 +141,22 @@ export function persist(extra: Record<string, unknown> = {}) {
   );
   try {
     localStorage.setItem('chordsh', JSON.stringify(saved));
+    ui.savedLocally = true;
   } catch {
-    /* private mode */
+    ui.savedLocally = false;
   }
 }
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+export function dismissNotice() {
+  clearTimeout(noticeTimer);
+  ui.notice = null;
+}
+export function notify(message: string, action?: () => void, actionLabel = 'Undo') {
+  dismissNotice();
+  ui.notice = { message, action, actionLabel };
+  if (!action) noticeTimer = setTimeout(dismissNotice, 10000);
+}
+
 /** Validate once and apply atomically. Invalid settings never stop playback or replace working settings. */
 export function applySettings(value: unknown) {
   const next = settingsSchema.parse(value);
@@ -253,6 +280,8 @@ export function registerPerformance(id: string, title: string, load: () => Promi
 
 export function preparePiece(piece: Piece) {
   selectedPiece = piece;
+  ui.playbackPaused = false;
+  ui.harmonyContext = piece.source === 'sequence' ? 'timeline' : 'input';
   ui.sourceId = `${piece.source === 'sequence' ? 'sequence' : 'piece'}:${piece.id}`;
   ui.loadedTitle = piece.title;
   ui.playbackDuration =
@@ -279,7 +308,7 @@ export async function choosePerformance(id: string, autoplay = false) {
     preparePiece(piece);
     session.loadSong(null);
     if (autoplay) playPiece(piece);
-    ui.tab = 'progression';
+    ui.tab = 'editor';
   } catch (error) {
     if (request === ui.playbackRequest) ui.playbackError = (error as Error).message;
   } finally {
@@ -315,6 +344,16 @@ export function updatePlaybackClock() {
 export function playSelection() {
   if (!selectedPiece.notes.length || !outputReady()) return;
   playPiece(selectedPiece, ui.playbackPosition >= ui.playbackDuration ? 0 : ui.playbackPosition);
+}
+
+/** Silence all output but retain the position for the next Play. */
+export function pausePlayback() {
+  if (!ui.nowPlaying) return;
+  updatePlaybackClock();
+  const at = ui.playbackPosition;
+  stopPlayback();
+  ui.playbackPosition = at;
+  ui.playbackPaused = true;
 }
 
 /** Refresh a running arrangement without returning its playhead to the beginning. */
@@ -356,7 +395,7 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
       setTimeout(
         () => {
           pieceNotes.add(note);
-          live.noteOn(note, vel, performance.now(), false, false);
+          live.noteOn(note, vel, performance.now(), false, false, true);
           if (settings.preferences.sound === 'synth' || settings.preferences.sound === 'both') synth.noteOn(note, vel);
         },
         lead + Math.max(0, t - playbackOffset),
@@ -391,6 +430,7 @@ export function stopPiece() {
 
 /** One global stop action for library playback, previews, metronome and lingering notes. */
 export function stopPlayback() {
+  ui.playbackPaused = false;
   ui.playbackRequest++;
   ui.loading = false;
   stopPiece();
@@ -401,6 +441,8 @@ export function stopPlayback() {
   synth.silence();
   ui.playbackPosition = 0;
 }
+
+export const recordingHooks = { start: () => {}, stop: (_recording: Recording) => {} };
 
 export function startRecording() {
   recorder.start({
@@ -417,13 +459,16 @@ export function startRecording() {
   });
   session.trace = (e) => recorder.engine(e);
   ui.recording = true;
+  ui.recordingElapsed = 0;
   ui.recMsg = '';
+  recordingHooks.start();
 }
 
 export async function stopRecording() {
   session.trace = null;
   const rec = recorder.stop(ui.recNote);
   ui.recording = false;
+  recordingHooks.stop(rec);
   ui.recMsg = 'Saving…';
   ui.recMsg = `Saved ${await saveRecording(rec)} — ${rec.input.filter((e) => e.kind === 'on').length} notes, ${rec.engine.length} engine events`;
   setTimeout(() => (ui.recMsg = ''), 8000);

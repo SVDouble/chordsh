@@ -15,14 +15,14 @@ import {
   type MelodyNote,
   type Sequence,
 } from '../engine/sequence';
-import { type Development, fillGaps } from '../engine/advisor';
+import { type Development, estimateKey, type FilledChord, fillGaps } from '../engine/advisor';
 import type { Recording } from '../io/recorder';
 import { EXAMPLES } from '../engine/chart';
 import { computeReach, type Path } from '../engine/coach';
 import { parseChordSymbol } from '../theory/symbols';
 import { chordName, identify } from '../theory/chords';
 import { analyzeRoman } from '../theory/roman';
-import { type Key, keyIndex } from '../theory/scales';
+import { type Key, keyIndex, keyLong } from '../theory/scales';
 import {
   savedData as saved,
   downloadMidi,
@@ -657,7 +657,14 @@ recordingHooks.stop = (recording) => {
     const melody = takeMelody(take, recording);
     if (melody.length) {
       const end = melody.reduce((e, n) => Math.max(e, n.start + n.beats), take.at);
-      editSequence((e) => e.recordMelody(melody, take.at, end));
+      let found: Key | null = null;
+      editSequence((e) =>
+        e.batch(() => {
+          e.recordMelody(melody, take.at, end);
+          found = keyFromMelody(e);
+        }),
+      );
+      if (found) notify(`Key set to ${keyLong(found)} from the melody (undo keeps the old key).`);
     }
   }
   if (assist.recordTarget === 'melody' || !steps.length) return;
@@ -689,20 +696,42 @@ export function insertTemplate(symbols: string[]) {
 }
 
 /** Pipeline step 3: one basic chord per bar wherever the melody has none. */
+/**
+ * A song without chords takes its key from the melody (new songs start in C major, which an A-minor tune would
+ * otherwise be harmonised in). Returns the new key, or null when the key stays.
+ */
+function keyFromMelody(e: SequenceEditor): Key | null {
+  const doc = e.document;
+  if (doc.steps.length || !doc.melody?.length || (doc.regions?.length ?? 0) > 1) return null;
+  const found = estimateKey(doc.melody);
+  if (doc.key && keyIndex(doc.key) === keyIndex(found)) return null;
+  e.update({ key: found });
+  return found;
+}
+
 export function fillMelodyGaps() {
   const doc = editor.document;
-  const filled = fillGaps(doc, assist.style, barQuarters(doc.meter, doc.denominator), assist.perBar);
-  if (!filled.length) {
-    notify(doc.melody?.length ? 'Every bar with melody already has a chord.' : 'Record or play a melody first.');
+  if (!doc.melody?.length) {
+    notify('Record or play a melody first.');
     return;
   }
+  let found: Key | null = null;
+  let filled: FilledChord[] = [];
   editSequence((e) =>
     e.batch(() => {
+      found = keyFromMelody(e);
+      const now = e.document;
+      filled = fillGaps(now, assist.style, barQuarters(now.meter, now.denominator), assist.perBar);
       for (const f of filled) e.place([{ symbol: f.symbol, beats: f.beats }], f.start);
     }),
   );
+  if (!filled.length) {
+    notify('Every bar with melody already has a chord.');
+    return;
+  }
+  const key = found ? ` in ${keyLong(found)} (key taken from the melody)` : '';
   notify(
-    `Added ${filled.length} chord${filled.length > 1 ? 's' : ''} under the melody: ${filled.map((f) => f.symbol).join(' · ')}`,
+    `Added ${filled.length} chord${filled.length > 1 ? 's' : ''} under the melody${key}: ${filled.map((f) => f.symbol).join(' · ')}`,
   );
 }
 

@@ -98,4 +98,16 @@ describe('fill with two chords per bar', () => {
     expect(light.every((d) => d.chords.length === 1)).toBe(true);
     expect(developments(song.document, 4, 'rich').some((d) => d.chords.length > 1)).toBe(true);
   });
+  it('harmonises a minor melody in minor even in a new (C major) song', () => {
+    // A minor: A C E C | D F A F | E G♯ B G♯ | A E A A
+    const p = [69, 72, 76, 72, 74, 77, 81, 77, 76, 80, 83, 80, 81, 76, 69, 69];
+    const song = new SequenceEditor(sequenceFromChart('| C |', 'Minor'));
+    song.remove(song.document.steps[0].id);
+    song.recordMelody(p.map((pitch, i) => ({ start: i, beats: 1, pitch, velocity: 90 })));
+    expect(
+      fillGaps(song.document, 'functional', 4, 1)
+        .map((f) => f.symbol)
+        .join(' '),
+    ).toBe('Am Dm E Am');
+  });
 });

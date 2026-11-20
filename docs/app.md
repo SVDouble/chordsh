@@ -170,6 +170,9 @@ helps you harmonize it in four steps. Use them in any order:
    no chord gets a basic chord: I, IV or V (i, iv, V in minor), staying on the tonic when the melody
    allows. Each chord is chosen with its neighbours in mind, and existing chords are never moved.
    Twinkle Twinkle gives the textbook C C F C F C G C.
+   A song with no chords yet takes its **key from the melody** (when you record it, or when you fill),
+   so an A-minor tune in a new song is harmonised Am Dm E Am, not in the default C major. The change
+   is announced and undoes with the take or the fill.
 4. **Customize.**
    - Select a chord, or put the cursor on an empty bar, to see **ranked ideas** for that spot.
    - Each idea shows a score; what the melody, the context (tension prepared or resolved), the motion

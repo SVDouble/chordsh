@@ -121,8 +121,13 @@ export function estimateKey(melody: MelodyNote[], chords: Chord[] = []): Key {
   return best.key;
 }
 
-/** The song's key at a beat: an explicit key region, else an estimate from the melody and chords. */
+/**
+ * The song's key at a beat: an explicit key region, else an estimate from the melody and chords. A song with a
+ * melody but no chords and no key changes uses the melody's key: new songs start in C major by default, and an
+ * A-minor tune should not be harmonised in C.
+ */
 export function keyAt(song: Sequence, beat: number): Key {
+  if (!song.steps.length && song.melody?.length && (song.regions?.length ?? 0) <= 1) return estimateKey(song.melody);
   return (
     sequenceKeyAt(song, beat) ??
     estimateKey(

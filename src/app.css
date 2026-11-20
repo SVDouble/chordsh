@@ -1988,8 +1988,27 @@ button.icon.dim {
 }
 .song-status {
   color: var(--muted);
-  margin: -2px 0 10px;
-  font-size: 11px;
+  margin: 2px 0 16px;
+  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.song-status > span {
+  min-width: 96px;
+}
+.song-status button {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.song-status .load-parts {
+  gap: 8px;
+  margin-left: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
 }
 .song-status.warn {
   color: var(--D);
@@ -3007,7 +3026,7 @@ button.icon {
 .load-parts button {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 .load-part-list {
   list-style: none;

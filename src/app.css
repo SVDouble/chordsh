@@ -2965,3 +2965,33 @@ button.icon {
 .develop-all {
   margin-top: 6px;
 }
+
+/* ── sequence ideas (SequenceIdeas.svelte) ── */
+.sequence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sequence-idea {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sequence-main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+}
+.sequence-main b,
+.sequence-main .c-roman {
+  overflow-wrap: anywhere;
+}
+.sequence-idea .idea-judges,
+.sequence-idea .idea-why {
+  grid-column: 1 / -1;
+  min-width: 0;
+}

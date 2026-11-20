@@ -16,6 +16,7 @@ import {
   type Sequence,
 } from '../engine/sequence';
 import { type Development, estimateKey, type FilledChord, fillGaps } from '../engine/advisor';
+import type { ProgressionStats } from '../engine/progressions';
 import type { Recording } from '../io/recorder';
 import { EXAMPLES } from '../engine/chart';
 import { computeReach, type Path } from '../engine/coach';
@@ -804,4 +805,59 @@ export function developAsVersion(list: Development[]) {
   selectSequence(copy.id);
   developAll(list);
   notify(`Created ${copy.title}; ${original.title} is unchanged.`);
+}
+
+// ───────────────────────────── sequences for a span ─────────────────────────────
+
+/** Pattern counts from the rules study (local/assist/progressions.json, dev server only); null = rules only. */
+export const habits = $state<{ stats: ProgressionStats | null; status: 'loading' | 'ready' | 'none' }>({
+  stats: null,
+  status: 'loading',
+});
+if (typeof fetch !== 'undefined')
+  fetch('/__library/assist/progressions.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data: ProgressionStats | null) => {
+      habits.stats = data?.traditions ? data : null;
+      habits.status = habits.stats ? 'ready' : 'none';
+    })
+    .catch(() => (habits.status = 'none'));
+
+/** Replace the chords that start inside the span with a sequence of equal chords. */
+function writeSequence(e: SequenceEditor, span: { start: number; end: number }, names: string[]) {
+  for (const s of e.document.steps.filter((s) => s.start >= span.start - 1e-8 && s.start < span.end - 1e-8))
+    e.remove(s.id);
+  const beats = (span.end - span.start) / names.length;
+  e.place(
+    names.map((symbol) => ({ symbol, beats })),
+    span.start,
+  );
+}
+
+export function useSequence(span: { start: number; end: number }, names: string[]) {
+  if (editSequence((e) => e.batch(() => writeSequence(e, span, names)))) {
+    composition.selectedId = null;
+    composition.cursor = span.end;
+    notify(`Placed ${names.join(' → ')}. Undo brings back what was there.`);
+  }
+}
+
+/** Hear a sequence with the melody of its span, without changing the song. */
+export function previewSequence(span: { start: number; end: number }, names: string[]) {
+  const options = $state.snapshot(settings.editor);
+  const copy = new SequenceEditor(editor.document, options);
+  try {
+    writeSequence(copy, span, names);
+  } catch (error) {
+    composition.error = (error as Error).message;
+    return;
+  }
+  const piece = sequencePiece(copy.document, options);
+  const ms = 60000 / copy.document.bpm;
+  const from = span.start * ms;
+  const to = span.end * ms;
+  const notes = piece.notes
+    .filter(([at]) => at >= from - 1 && at < to - 1)
+    .map(([at, d, n, v]): [number, number, number, number] => [at - from, Math.min(d, to - at), n, v]);
+  previewArrangement({ ...piece, notes, durationMs: to - from }, names.join(' → '));
 }

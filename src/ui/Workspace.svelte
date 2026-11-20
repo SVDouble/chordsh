@@ -4,6 +4,7 @@
   import NowPlaying from './NowPlaying.svelte';
   import NextMoves from './NextMoves.svelte';
   import ChordIdeas from './ChordIdeas.svelte';
+  import SequenceIdeas from './SequenceIdeas.svelte';
   import KeyWheel from './KeyWheel.svelte';
   import Editor from './Editor.svelte';
   const harmony = $derived(settings.panels.now || settings.panels.next || settings.panels.map);
@@ -17,6 +18,7 @@
           <NowPlaying />
         {/if}
         <ChordIdeas />
+        <SequenceIdeas />
         {#if settings.panels.next}
           <NextMoves />
         {:else if settings.panels.map}

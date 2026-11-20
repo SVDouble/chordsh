@@ -2,7 +2,7 @@
   import Icon from './Icon.svelte';
   import Transport from './Transport.svelte';
   import StylePicker from './StylePicker.svelte';
-  import { barPlaybackStyle, playbackStyle } from '../engine/accompaniment';
+  import { barPlaybackStyle } from '../engine/accompaniment';
   import { DEFAULT_SETTINGS, METER_DENOMINATORS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
   import { barQuarters, beatQuarters, meterPosition, notatedQuarters } from '../theory/meter';
@@ -27,7 +27,7 @@
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
   import { runFit } from '../engine/advisor';
-  import { noteRole } from '../engine/assist';
+  import { melodyFit, motion, noteRole } from '../engine/assist';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
   import { voiceChord } from '../theory/voicing';
@@ -84,6 +84,77 @@
   const parsedSteps = $derived(
     document.steps.map((s) => ({ start: s.start, end: s.start + s.beats, chord: parseChordSymbol(s.symbol) })),
   );
+  /** How well each chord covers the melody above it (null: no melody there). */
+  const coverage = $derived.by(() => {
+    const melody = (document.melody ?? []).map(({ start, beats, pitch }) => ({ start, beats, pitch }));
+    return parsedSteps.map((s, i) => {
+      if (!s.chord || !melody.length) return null;
+      const fit = melodyFit(
+        s.chord,
+        melody,
+        { start: s.start, end: s.end },
+        barLength,
+        parsedSteps[i + 1]?.chord ?? null,
+      );
+      if (!fit) return null;
+      const count = (role: string) => fit.notes.filter((n) => n.role === role).length;
+      const parts = [
+        ['rest', 'on chord tones'],
+        ['colour', 'colour'],
+        ['lean', 'leaning'],
+        ['pull', 'pulling'],
+      ]
+        .map(([role, words]) => [count(role), words] as const)
+        .filter(([n]) => n)
+        .map(([n, words]) => `${n} ${words}`);
+      return {
+        score: fit.score,
+        clashes: fit.clashes,
+        title: `Covers the melody ${Math.round(100 * fit.score)}%: ${parts.join(', ')}${fit.clashes ? ` · ${fit.clashes} unresolved clash${fit.clashes > 1 ? 'es' : ''}` : ''}`,
+      };
+    });
+  });
+  const MOTION_SIGN: Record<string, string> = {
+    resolves: '↘',
+    glides: '≈',
+    slides: '∼',
+    steps: '→',
+    opens: '↗',
+    leaps: '⤴',
+    stays: '=',
+  };
+  /** How each chord moves to the next one that touches it: kind, brightness, and how natural it is. */
+  const connections = $derived.by(() =>
+    parsedSteps.flatMap((s, i) => {
+      const n = parsedSteps[i + 1];
+      if (!s.chord || !n?.chord || Math.abs(n.start - s.end) > 1e-6) return [];
+      const key = sequenceKeyAt(document, n.start) ?? chart.key ?? { tonic: 0, mode: 'major' as const };
+      const m = motion(s.chord, n.chord, key);
+      return [
+        {
+          at: n.start,
+          kind: m.kind,
+          sign: MOTION_SIGN[m.kind] ?? '→',
+          brightness: m.brightness,
+          quality: m.score >= 0.75 ? 'smooth' : m.score >= 0.5 ? 'plain' : 'rough',
+          title: `${document.steps[i].symbol} → ${document.steps[i + 1].symbol}: ${m.text} · ${m.common} shared note${m.common === 1 ? '' : 's'} · natural ${Math.round(100 * m.score)}%`,
+        },
+      ];
+    }),
+  );
+  /** Playback lane: runs of bars in one style, each starting at a marker (or the song start). */
+  function styleRuns(firstBar: number, bars: number) {
+    const runs: { bar: number; bars: number; name: string; marked: boolean }[] = [];
+    for (let bar = firstBar; bar < firstBar + bars; bar++) {
+      const name = barPlaybackStyle(document, bar).name;
+      const marked = bar === 0 || !!document.styleMarks?.some((m) => m.bar === bar);
+      const last = runs.at(-1);
+      if (last && last.name === name && !marked) last.bars++;
+      else runs.push({ bar, bars: 1, name, marked });
+    }
+    return runs;
+  }
+  const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   function melodyIn(rowStart: number, rowEnd: number) {
     const [lo, hi] = melodyRange;
     return (document.melody ?? [])
@@ -97,8 +168,18 @@
           role,
           left: (from - rowStart) * beatWidth,
           width: Math.max(3, (Math.min(n.start + n.beats, rowEnd) - from) * beatWidth - 1),
-          top: 3 + 24 * (1 - (n.pitch - lo) / Math.max(1, hi - lo)),
-          title: `${n.pitch} · ${role === 'none' ? 'no chord' : role}`,
+          top: 4 + 48 * (1 - (n.pitch - lo) / Math.max(1, hi - lo)),
+          name: `${NOTE_NAMES[n.pitch % 12]}${Math.floor(n.pitch / 12) - 1}`,
+          title: `${NOTE_NAMES[n.pitch % 12]}${Math.floor(n.pitch / 12) - 1} · ${
+            role === 'none'
+              ? 'no chord under it'
+              : {
+                  rest: 'a chord tone',
+                  colour: 'colours the chord',
+                  lean: 'leans on the chord',
+                  pull: 'pulls against the chord',
+                }[role]
+          }`,
         };
       });
   }
@@ -108,6 +189,7 @@
   const positionAt = (quarters: number) => meterPosition(quarters, document.meter, document.denominator);
   const selectedIndex = $derived(document.steps.findIndex((s) => s.id === composition.selectedId));
   const selected = $derived(document.steps[selectedIndex]);
+  const cursorBar = $derived(Math.floor((selected?.start ?? composition.cursor) / barLength + 1e-8));
   const voicings = $derived.by(() => {
     const chord = parseChordSymbol(symbol);
     const previous = document.steps.find((step) => step.id === editingId)?.notes ?? null;
@@ -138,7 +220,11 @@
   const end = $derived(
     [...document.steps, ...incoming].reduce(
       (last, s) => Math.max(last, s.start + s.beats),
-      Math.max(0, ...(document.barStyles ?? []).map((entry) => (entry.bar + 1) * barLength)),
+      Math.max(
+        0,
+        ...(document.barStyles ?? []).map((entry) => (entry.bar + 1) * barLength),
+        ...(document.styleMarks ?? []).map((m) => (m.bar + 1) * barLength),
+      ),
     ),
   );
   const length = $derived(
@@ -509,16 +595,13 @@
     <button
       type="button"
       class="song-style"
-      aria-label={`Song style: ${playbackStyle(document.style).name}`}
-      title="Default playback style; individual bars can override it"
+      aria-label={`Playback style at bar ${cursorBar + 1}: ${barPlaybackStyle(document, cursorBar).name}`}
+      title={`Playback style at bar ${cursorBar + 1}; click to change it from this bar on`}
       disabled={ui.recording}
-      onclick={() =>
-        (styleTarget = {
-          bar: null,
-          previewBar: Math.floor((selected?.start ?? document.steps[0]?.start ?? 0) / barLength),
-        })}
+      onclick={() => (styleTarget = { bar: cursorBar, previewBar: cursorBar })}
     >
-      <Icon name="chord" size={14} /><span>{playbackStyle(document.style).name}</span><Icon name="down" size={12} />
+      <Icon name="chord" size={14} /><span>{barPlaybackStyle(document, cursorBar).name}</span>
+      <Icon name="down" size={12} />
     </button>
     <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
       >Bar {positionAt(cursorBeat).bar} · beat {+positionAt(cursorBeat).beat.toFixed(2)}</span
@@ -560,22 +643,33 @@
           ? playBeat
           : composition.cursor}
       <div class="chord-timeline timeline-row" class:has-melody={!!document.melody?.length} data-start={rowStart}>
-        {#each Array.from({ length: barsPerRow }, (_, i) => Math.round(rowStart / barLength) + i) as bar}
-          {@const style = barPlaybackStyle(document, bar)}
-          <button
-            type="button"
-            class="timeline-bar-style"
-            class:overridden={document.barStyles?.some((entry) => entry.bar === bar)}
-            style:left={`${(bar * barLength - rowStart) * beatWidth}px`}
-            style:width={`${barLength * beatWidth}px`}
-            aria-label={`Style for bar ${bar + 1}: ${style.name}`}
-            title={`Bar ${bar + 1} · ${style.name} — click to change accompaniment`}
-            disabled={ui.recording}
-            onclick={() => (styleTarget = { bar, previewBar: bar })}
-          >
-            <Icon name="chord" size={12} /><span>{style.name}</span><Icon name="down" size={11} />
-          </button>
-        {/each}
+        <div class="playback-lane">
+          {#each styleRuns(Math.round(rowStart / barLength), barsPerRow) as run (run.bar)}
+            <div
+              class="style-run"
+              class:marked={run.marked}
+              style:left={`${(run.bar * barLength - rowStart) * beatWidth}px`}
+              style:width={`${run.bars * barLength * beatWidth}px`}
+            >
+              {#if run.marked}
+                <Icon name="chord" size={11} />
+              {/if}
+              <span>{run.marked || run.bar * barLength === rowStart ? run.name : ''}</span>
+            </div>
+          {/each}
+          {#each Array.from({ length: barsPerRow }, (_, i) => Math.round(rowStart / barLength) + i) as bar}
+            <button
+              type="button"
+              class="style-bar"
+              style:left={`${(bar * barLength - rowStart) * beatWidth}px`}
+              style:width={`${barLength * beatWidth}px`}
+              aria-label={`Playback style from bar ${bar + 1} (now ${barPlaybackStyle(document, bar).name})`}
+              title={`Bar ${bar + 1}: ${barPlaybackStyle(document, bar).name} — click to change the style from here on`}
+              disabled={ui.recording}
+              onclick={() => (styleTarget = { bar, previewBar: bar })}
+            ></button>
+          {/each}
+        </div>
         {#each regions.filter((region) => region.start >= rowStart - 1e-8 && region.start < rowEnd - 1e-8) as region}
           {@const next = regions[regions.indexOf(region) + 1]?.start ?? length}
           <div
@@ -665,6 +759,19 @@
                 <b>{at < rowStart ? '↳ ' : ''}{step.symbol}</b
                 ><span class="c-roman">{chart.chords[i].roman?.numeral ?? ''}</span>
               </button>
+              {#if coverage[i]}
+                {@const c = coverage[i]!}
+                <span
+                  class="clip-coverage"
+                  class:good={c.score >= 0.8 && !c.clashes}
+                  class:fair={(c.score >= 0.55 && c.score < 0.8) || (c.clashes > 0 && c.score >= 0.55)}
+                  class:poor={c.score < 0.55}
+                  role="img"
+                  aria-label={c.title}
+                  title={c.title}
+                  ><i style:width={`${Math.round(100 * c.score)}%`}></i></span
+                >
+              {/if}
               <button
                 type="button"
                 class="clip-drag"
@@ -700,12 +807,30 @@
             </div>
           {/if}
         {/each}
+        <div class="motion-lane">
+          {#each connections.filter((c) => c.at > rowStart - 1e-8 && c.at < rowEnd - 1e-8) as c (c.at)}
+            <span
+              class="motion-badge {c.quality}"
+              style:left={`${Math.max(12, (c.at - rowStart) * beatWidth)}px`}
+              role="img"
+              aria-label={c.title}
+              title={c.title}
+              >{c.sign}
+              {#if c.brightness > 0}
+                <sup>☀</sup>
+              {:else if c.brightness < 0}
+                <sup>☾</sup>
+              {/if}</span
+            >
+          {/each}
+        </div>
         {#if document.melody?.length}
           <div
             class="melody-lane"
             role="img"
             aria-label="Melody: green rests on the chord, blue colours it, amber and red rub"
           >
+            <span class="lane-label">Melody</span>
             {#each melodyIn(rowStart, rowEnd) as n (n.id)}
               <div
                 class="melody-note {n.role}"
@@ -713,7 +838,11 @@
                 style:width={`${n.width}px`}
                 style:top={`${n.top}px`}
                 title={n.title}
-              ></div>
+              >
+                {#if n.width >= 24}
+                  <span>{n.name}</span>
+                {/if}
+              </div>
             {/each}
           </div>
         {/if}
@@ -753,6 +882,21 @@
       </div>
     {/each}
   </div>
+  <details class="timeline-legend-box small muted">
+    <summary>How to read the timeline</summary>
+    <div class="timeline-legend">
+      <span><b>Chord colour</b> (top edge): green tonic, amber subdominant, red dominant</span>
+      <span><i class="swatch" style="background:var(--T)"></i>bar under a chord: how well it covers the melody</span>
+      <span
+        ><b>Between chords:</b> ↘ resolves · ≈ glides (shared notes) · ∼ slides a semitone · → steps · ↗ opens · ⤴ leaps
+        · = stays</span
+      >
+      <span>☀ brighter · ☾ darker (moves on the circle of fifths)</span>
+      <span><b>Badge colour:</b> green smooth · blue plain · red rough</span>
+      <span><b>Melody notes:</b> green chord tone · blue colour · amber leans · red pulls · hatched no chord</span>
+      <span><b>Bottom lane:</b> playback style; click a bar to change the style from there on</span>
+    </div>
+  </details>
   <div class="timeline-caption muted small">
     {settings.editor.autoCaptureChords
       ? composition.selectedId
@@ -769,7 +913,7 @@
       onclose={() => (styleTarget = null)}
       onapply={(style) =>
         editSequence((editor) =>
-          styleTarget?.bar === null ? editor.setStyle(style ?? 'once') : editor.setBarStyle(styleTarget!.bar!, style),
+          styleTarget?.bar === null ? editor.setStyle(style ?? 'once') : editor.setStyleMark(styleTarget!.bar!, style),
         )}
     />
   {/if}

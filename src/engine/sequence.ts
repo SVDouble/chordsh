@@ -8,7 +8,13 @@ import { parseChordSymbol } from '../theory/symbols';
 import { voiceChord } from '../theory/voicing';
 import { analyzeRoman } from '../theory/roman';
 import type { Piece } from '../library/pieces';
-import { accompanimentNotes, validPlaybackStyle, type BarStyle } from './accompaniment';
+import {
+  accompanimentNotes,
+  marksFromBarStyles,
+  validPlaybackStyle,
+  type BarStyle,
+  type StyleMark,
+} from './accompaniment';
 
 export interface SequenceStep {
   id: string;
@@ -42,6 +48,8 @@ export interface Sequence {
   /** Accompaniment is musical presentation, separate from analysis/coaching vocabulary. */
   style?: string;
   barStyles?: BarStyle[];
+  /** From each marker's bar onward, the accompaniment plays its style (like key regions, for playback). */
+  styleMarks?: StyleMark[];
   /** The tune, separate from the chords: what the harmony has to fit (see engine/assist.ts). */
   melody?: MelodyNote[];
 }
@@ -176,6 +184,8 @@ export class SequenceEditor {
       )
     )
       throw new Error('Invalid bar accompaniment style.');
+    if (sequence.styleMarks?.some((m) => !Number.isSafeInteger(m.bar) || m.bar < 0 || !validPlaybackStyle(m.style)))
+      throw new Error('Invalid style marker.');
     if (sequence.melody) this.value.melody = validMelody(sequence.melody);
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
@@ -350,6 +360,22 @@ export class SequenceEditor {
     this.commit({ ...this.value, barStyles: barStyles.sort((a, b) => a.bar - b.bar) });
   }
 
+  /** From `bar` onward play `style`; null removes the marker at that bar (the style before it continues). */
+  setStyleMark(bar: number, style: string | null) {
+    if (!Number.isSafeInteger(bar) || bar < 0) throw new Error('Choose a valid bar.');
+    if (style !== null && !validPlaybackStyle(style)) throw new Error('Choose a known playback style.');
+    if (bar === 0 && style !== null) return this.setStyle(style);
+    const marks = (this.value.styleMarks ?? []).filter((m) => m.bar !== bar);
+    if (style !== null) marks.push({ bar, style });
+    this.commit({ ...this.value, styleMarks: marks.sort((a, b) => a.bar - b.bar) });
+  }
+
+  /** Turn one-bar overrides into markers with the same sound (older songs). */
+  convertBarStyles() {
+    if (!this.value.barStyles?.length) return;
+    this.commit({ ...this.value, styleMarks: marksFromBarStyles(this.value), barStyles: [] });
+  }
+
   removeRegion(id: string) {
     const region = this.value.regions?.find((r) => r.id === id);
     if (!region || region.start === 0)
@@ -362,6 +388,7 @@ export class SequenceEditor {
       this.value.steps.length ||
       (this.value.regions?.length ?? 0) > 1 ||
       this.value.barStyles?.length ||
+      this.value.styleMarks?.length ||
       this.value.melody?.length
     )
       this.commit({
@@ -369,6 +396,7 @@ export class SequenceEditor {
         steps: [],
         regions: this.value.regions?.filter((r) => r.start === 0),
         ...(this.value.barStyles?.length ? { barStyles: [] } : {}),
+        ...(this.value.styleMarks?.length ? { styleMarks: [] } : {}),
         ...(this.value.melody?.length ? { melody: [] } : {}),
       });
   }

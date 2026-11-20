@@ -22,7 +22,14 @@
   let dialog: HTMLDialogElement;
   let choice = $state('');
   let previewing = false;
-  const selected = $derived(playbackStyle(choice || sequence.style));
+  /** The style that plays at this bar without a marker of its own (what "no change" continues). */
+  const before = $derived(
+    playbackStyle(
+      bar ? (sequence.styleMarks?.filter((m) => m.bar < bar).at(-1)?.style ?? sequence.style) : sequence.style,
+    ),
+  );
+  const marked = $derived(!!bar && !!sequence.styleMarks?.some((m) => m.bar === bar));
+  const selected = $derived(choice ? playbackStyle(choice) : before);
   const start = $derived(previewBar * barQuarters(sequence.meter, sequence.denominator));
   const hasChords = $derived(
     sequence.steps.some(
@@ -65,7 +72,9 @@
   }
   onMount(() => {
     choice =
-      bar === null ? (sequence.style ?? 'once') : (sequence.barStyles?.find((entry) => entry.bar === bar)?.style ?? '');
+      bar === null || bar === 0
+        ? (sequence.style ?? 'once')
+        : (sequence.styleMarks?.find((mark) => mark.bar === bar)?.style ?? '');
     dialog.showModal();
     return stopPreview;
   });
@@ -86,14 +95,14 @@
     }}
   >
     <div class="row">
-      <strong>{bar === null ? 'Song style' : `Bar ${bar + 1} style`}</strong>
+      <strong>{bar === null ? 'Song style' : bar === 0 ? 'Opening style' : `Style from bar ${bar + 1}`}</strong>
       <button type="button" class="icon right" aria-label="Close style picker" title="Close" onclick={close}>
         <Icon name="close" />
       </button>
     </div>
     <select aria-label="Playback style" bind:value={choice} onchange={stopPreview}>
-      {#if bar !== null}
-        <option value="">Song style ({playbackStyle(sequence.style).name})</option>
+      {#if bar}
+        <option value="">{marked ? 'Remove this change' : 'No change here'} (continue {before.name})</option>
       {/if}
       {#each STYLE_GROUPS as group}
         <optgroup label={group}>
@@ -133,7 +142,11 @@
       >
         <Icon name="ear" />
       </button>
-      <span class="small muted">{bar === null ? 'Default for bars without an override' : 'This bar only'}</span>
+      <span class="small muted"
+        >{bar === null || bar === 0
+          ? 'From the start, until the first style change'
+          : 'From this bar until the next style change'}</span
+      >
       <button type="submit" class="icon right active" aria-label="Apply playback style" title="Apply style">
         <Icon name="check" />
       </button>

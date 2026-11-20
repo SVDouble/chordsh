@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLAYBACK_STYLES, barPlaybackStyle } from '../src/engine/accompaniment';
+import { PLAYBACK_STYLES, barPlaybackStyle, marksFromBarStyles } from '../src/engine/accompaniment';
 import { DEFAULT_SETTINGS, settingsSchema } from '../src/config/settings';
 import { emptySequence, SequenceEditor, sequencePiece } from '../src/engine/sequence';
 import { fromMidi } from '../src/library/pieces';
@@ -182,5 +182,47 @@ describe('musical arrangement rendering', () => {
       expect(Math.abs(note[0] - expected[i][0])).toBeLessThan(0.6);
       expect(Math.abs(note[1] - expected[i][1])).toBeLessThan(0.6);
     });
+  });
+});
+
+describe('style markers: from this bar onward', () => {
+  it('a marker holds until the next one; removing it lets the earlier style continue', () => {
+    const editor = song('pop-1');
+    editor.setStyleMark(2, 'bossa-nova-1');
+    editor.setStyleMark(5, 'rock-1');
+    const at = (bar: number) => barPlaybackStyle(editor.document, bar).id;
+    expect([0, 1, 2, 3, 4, 5, 9].map(at)).toEqual([
+      'pop-1',
+      'pop-1',
+      'bossa-nova-1',
+      'bossa-nova-1',
+      'bossa-nova-1',
+      'rock-1',
+      'rock-1',
+    ]);
+    editor.setStyleMark(2, null);
+    expect([1, 2, 5].map(at)).toEqual(['pop-1', 'pop-1', 'rock-1']);
+    editor.undo();
+    expect(at(3)).toBe('bossa-nova-1');
+    editor.setStyleMark(0, 'funk-2'); // bar 0 is the song style
+    expect(editor.document.style).toBe('funk-2');
+    expect(() => editor.setStyleMark(1, 'made-up')).toThrow();
+  });
+  it('converts one-bar overrides to markers without changing what plays', () => {
+    const editor = song('pop-1');
+    editor.setStyleMark(6, 'rock-1');
+    editor.setBarStyle(2, 'bossa-nova-1');
+    editor.setBarStyle(3, 'bossa-nova-1');
+    editor.setBarStyle(6, 'funk-2');
+    const before = Array.from({ length: 10 }, (_, b) => barPlaybackStyle(editor.document, b).id);
+    expect(marksFromBarStyles(editor.document)).toEqual([
+      { bar: 2, style: 'bossa-nova-1' },
+      { bar: 4, style: 'pop-1' },
+      { bar: 6, style: 'funk-2' },
+      { bar: 7, style: 'rock-1' },
+    ]);
+    editor.convertBarStyles();
+    expect(editor.document.barStyles).toEqual([]);
+    expect(Array.from({ length: 10 }, (_, b) => barPlaybackStyle(editor.document, b).id)).toEqual(before);
   });
 });

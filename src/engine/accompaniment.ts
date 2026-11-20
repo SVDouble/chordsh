@@ -379,12 +379,21 @@ export interface BarStyle {
   bar: number;
   style: string;
 }
+/** A style marker: from this bar onward, play in this style (until the next marker). */
+export interface StyleMark {
+  /** Zero-based bar index. */
+  bar: number;
+  style: string;
+}
 interface Arrangement {
   bpm: number;
   meter: number;
   denominator?: number;
+  /** The opening style (and the style of songs without markers). */
   style?: string;
+  /** One-bar overrides (older songs); the app converts them to markers on load. */
   barStyles?: BarStyle[];
+  styleMarks?: StyleMark[];
   steps: { start: number; beats: number; notes: number[]; velocity: number; symbol: string }[];
 }
 interface PerformanceOptions {
@@ -394,8 +403,35 @@ interface PerformanceOptions {
   accompanimentStrumMs: number;
   accompanimentSwing: string;
 }
-export const barPlaybackStyle = (song: Pick<Arrangement, 'style' | 'barStyles'>, bar: number) =>
-  playbackStyle(song.barStyles?.find((entry) => entry.bar === bar)?.style ?? song.style);
+/** The style of a bar: a one-bar override, else the last marker at or before it, else the song style. */
+export const barPlaybackStyle = (song: Pick<Arrangement, 'style' | 'barStyles' | 'styleMarks'>, bar: number) =>
+  playbackStyle(
+    song.barStyles?.find((entry) => entry.bar === bar)?.style ??
+      song.styleMarks?.findLast((mark) => mark.bar <= bar)?.style ??
+      song.style,
+  );
+
+/**
+ * One-bar overrides as markers, with the same sound: an override on bar 5 becomes "bar 5: its style" plus
+ * "bar 6: back to what played before", unless bar 6 has its own override. Markers that change nothing are dropped.
+ */
+export function marksFromBarStyles(song: Pick<Arrangement, 'style' | 'barStyles' | 'styleMarks'>): StyleMark[] {
+  const overrides = new Map((song.barStyles ?? []).map((e) => [e.bar, e.style]));
+  const base = (bar: number) => song.styleMarks?.findLast((m) => m.bar <= bar)?.style ?? song.style ?? 'once';
+  const marks = new Map((song.styleMarks ?? []).map((m) => [m.bar, m.style]));
+  for (const [bar, style] of overrides) {
+    marks.set(bar, style);
+    if (!overrides.has(bar + 1) && !marks.has(bar + 1)) marks.set(bar + 1, base(bar + 1));
+  }
+  const out: StyleMark[] = [];
+  let current = song.style ?? 'once';
+  for (const [bar, style] of [...marks].sort((a, b) => a[0] - b[0]))
+    if (style !== current) {
+      out.push({ bar, style });
+      current = style;
+    }
+  return out;
+}
 
 /** Deterministic musical events; times are milliseconds, shared by preview, transport and MIDI export. */
 export function accompanimentNotes(song: Arrangement, options: PerformanceOptions): [number, number, number, number][] {

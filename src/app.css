@@ -2276,8 +2276,11 @@ button.icon {
   flex: 1 1 auto;
 }
 .wrapped-timeline .timeline-row {
+  /* lanes, top to bottom: ruler 0–28, chords 32–94, motion 96–116, melody 118–182 (if any), playback */
+  --lane-motion: 96px;
+  --lane-play: 118px;
   width: 100%;
-  height: 164px;
+  height: calc(var(--lane-play) + 26px);
   margin-bottom: 12px;
   border: 1px solid var(--line);
   flex: none;
@@ -2289,17 +2292,17 @@ button.icon {
 }
 .wrapped-timeline .timeline-slot {
   top: 28px;
-  height: 104px;
+  height: calc(var(--lane-play) - 28px);
 }
 .wrapped-timeline .timeline-clip,
 .wrapped-timeline .timeline-input {
-  top: 48px;
-  height: 82px;
+  top: 32px;
+  height: 62px;
 }
 .wrapped-timeline .timeline-playhead,
 .wrapped-timeline .timeline-cursor {
   top: 0;
-  height: 162px;
+  height: 100%;
 }
 .song-style {
   display: inline-flex;
@@ -2307,37 +2310,10 @@ button.icon {
   gap: 5px;
   max-width: 180px;
 }
-.song-style span,
-.timeline-bar-style span {
+.song-style span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.timeline-bar-style {
-  position: absolute;
-  bottom: 0;
-  height: 30px;
-  min-height: 0;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 2px 6px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  border-radius: 0;
-  color: var(--muted);
-  background: var(--card);
-  font-size: 11px;
-}
-.timeline-bar-style.overridden {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--card));
-}
-.timeline-bar-style:hover {
-  color: var(--accent);
 }
 .style-picker {
   width: min(420px, calc(100vw - 24px));
@@ -2892,22 +2868,49 @@ button.icon {
 
 /* ── melody lane on the timeline (Editor.svelte) ── */
 .wrapped-timeline .timeline-row.has-melody {
-  height: 204px;
+  --lane-play: 184px;
 }
 .melody-lane {
   position: absolute;
   left: 0;
   right: 0;
-  top: 137px;
-  height: 34px;
+  top: 118px;
+  height: 64px;
   pointer-events: none;
   border-top: 1px dashed var(--line);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+}
+.lane-label {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.7;
 }
 .melody-note {
   position: absolute;
-  height: 5px;
-  border-radius: 2px;
+  height: 9px;
+  border-radius: 3px;
   background: var(--melody);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.melody-note span {
+  padding-left: 3px;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+.melody-note.none {
+  background: repeating-linear-gradient(135deg, var(--muted) 0 3px, transparent 3px 6px);
+  outline: 1px solid var(--muted);
 }
 .melody-note.rest {
   background: var(--T);
@@ -3020,4 +3023,148 @@ button.icon {
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+}
+
+/* ── coverage, motion and playback lanes (Editor.svelte) ── */
+.clip-coverage {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 5px;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+  overflow: hidden;
+  pointer-events: auto;
+}
+.clip-coverage i {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+.clip-coverage.good i {
+  background: var(--T);
+}
+.clip-coverage.fair i {
+  background: var(--PD);
+}
+.clip-coverage.poor i {
+  background: var(--D);
+}
+.motion-lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--lane-motion);
+  height: 20px;
+  pointer-events: none;
+}
+.motion-badge {
+  position: absolute;
+  top: 1px;
+  transform: translateX(-50%);
+  min-width: 22px;
+  height: 18px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  z-index: 3;
+}
+.motion-badge sup {
+  font-size: 8px;
+}
+.motion-badge.smooth {
+  border-color: var(--T);
+  color: var(--T);
+}
+.motion-badge.plain {
+  border-color: var(--harmony);
+  color: var(--harmony);
+}
+.motion-badge.rough {
+  border-color: var(--D);
+  color: var(--D);
+}
+.playback-lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--lane-play);
+  height: 26px;
+  border-top: 1px solid var(--line);
+  background: var(--card);
+}
+.style-run {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+  overflow: hidden;
+  white-space: nowrap;
+  border-left: 1px solid transparent;
+}
+.style-run.marked {
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.style-run span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.style-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.style-bar:hover,
+.style-bar:focus-visible {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  outline: none;
+}
+/* shorter clips: room for the coverage bar under the numeral */
+.wrapped-timeline .clip-body {
+  padding: 6px 3px 12px;
+  gap: 1px;
+  justify-content: flex-start;
+}
+.wrapped-timeline .clip-body .c-roman {
+  font-size: clamp(10px, 15cqi, 13px);
+}
+.timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+}
+.timeline-legend span {
+  white-space: nowrap;
+}
+.timeline-legend .swatch {
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 3px;
 }

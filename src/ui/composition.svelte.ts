@@ -64,10 +64,16 @@ function restore(): Sequence[] {
         editor.place([s], at);
         end = at + s.beats;
       }
+      if (Array.isArray(raw.styleMarks))
+        for (const mark of raw.styleMarks)
+          if (Number.isSafeInteger(mark.bar) && mark.bar > 0 && validPlaybackStyle(mark.style))
+            editor.setStyleMark(mark.bar, mark.style);
       if (Array.isArray(raw.barStyles))
         for (const entry of raw.barStyles)
           if (Number.isSafeInteger(entry.bar) && entry.bar >= 0 && validPlaybackStyle(entry.style))
             editor.setBarStyle(entry.bar, entry.style);
+      // older songs: one-bar overrides become "from here on" markers that sound the same
+      editor.convertBarStyles();
       if (Array.isArray(raw.regions))
         for (const region of raw.regions) editor.setRegion(region.start, region.key, region.label);
       if (Array.isArray(raw.melody) && raw.melody.length)

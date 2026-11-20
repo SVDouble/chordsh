@@ -396,6 +396,19 @@ export const analysisSchema = z.object({
 });
 
 export const editorSchema = z.object({
+  autoCaptureChords: flag(
+    true,
+    'Auto-save played chords',
+    'Replace the selected chord, or append at the end, after playing stops. Turn off for live analysis without editing the song.',
+  ),
+  inputIdleMs: integer(
+    600,
+    100,
+    5000,
+    'Played chord idle delay',
+    'Wait after releasing keys and pedal before saving a played chord. Further playing starts the next chord.',
+    'ms',
+  ),
   pianoChordEntry: flag(
     false,
     'Piano chord entry',

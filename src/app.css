@@ -680,6 +680,25 @@ select {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.timeline-clip.input-replacement .clip-body {
+  opacity: 0.18;
+}
+.timeline-input:not(.recording) {
+  pointer-events: none;
+}
+.timeline-input {
+  container-type: inline-size;
+  overflow: hidden;
+}
+.timeline-input b {
+  font-size: clamp(10px, 26cqi, 22px);
+  white-space: nowrap;
+}
+@container (width < 80px) {
+  .input-status {
+    display: none;
+  }
+}
 .timeline-clip.playing .clip-body {
   background: color-mix(in srgb, var(--audition) 20%, var(--card));
   border-color: var(--audition);

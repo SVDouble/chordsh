@@ -38,6 +38,13 @@ export const session = new Session($state.snapshot(settings));
 export const synth = new Synth();
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
+/** Only physical/interactive input enters the sketch editor; scheduled performances bypass these hooks. */
+export const inputHooks = {
+  noteOn: (_note: number, _velocity: number) => {},
+  noteOff: (_note: number) => {},
+  pedal: (_on: boolean) => {},
+  cancel: () => {},
+};
 const inputAttacks = new Map<number, number>();
 export const live = {
   noteOn: (
@@ -48,6 +55,7 @@ export const live = {
     forward = true,
     playback = false,
   ) => {
+    if (!playback) inputHooks.noteOn(n, v);
     ui.inputSerial++;
     inputAttacks.set(n, ui.inputSerial);
     if (!playback) {
@@ -61,18 +69,20 @@ export const live = {
     if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both') && outputReady())
       midi.message([0x90, n, v]);
   },
-  noteOff: (n: number, t = performance.now(), forward = true) => {
+  noteOff: (n: number, t = performance.now(), forward = true, playback = false) => {
     inputAttacks.delete(n);
     recorder.input('off', n, 0, t);
     session.noteOff(n, t);
+    if (!playback) inputHooks.noteOff(n);
     synth.noteOff(n);
     if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both'))
       midi.message([0x80, n, 0]);
   },
-  pedal: (on: boolean, t = performance.now(), forward = true) => {
+  pedal: (on: boolean, t = performance.now(), forward = true, playback = false) => {
     ui.inputPedal = on;
     recorder.input('pedal', 0, on ? 127 : 0, t);
     session.pedal(on, t);
+    if (!playback) inputHooks.pedal(on);
     synth.setPedal(on);
     if (forward && (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both'))
       midi.control(64, on ? 127 : 0);
@@ -169,6 +179,7 @@ export function notify(message: string, action?: () => void, actionLabel = 'Undo
 /** Validate once and apply atomically. Invalid settings never stop playback or replace working settings. */
 export function applySettings(value: unknown) {
   const next = settingsSchema.parse(value);
+  inputHooks.cancel();
   const engineChanged = ['beats', 'accents', 'segmentation', 'harmony', 'analysis'].some(
     (key) => JSON.stringify(next[key as keyof Settings]) !== JSON.stringify(settings[key as keyof Settings]),
   );
@@ -449,8 +460,9 @@ export function pausePlayback() {
 }
 
 /** Refresh a running arrangement without returning its playhead to the beginning. */
-export function resumePlayback(at: number) {
-  if (at < ui.playbackDuration && selectedPiece.notes.length && outputReady()) playPiece(selectedPiece, at, 40);
+export function resumePlayback(at: number, preserveInput = false) {
+  if (at < ui.playbackDuration && selectedPiece.notes.length && outputReady())
+    playPiece(selectedPiece, at, 40, preserveInput);
 }
 
 export function seekPlayback(at: number) {
@@ -460,8 +472,8 @@ export function seekPlayback(at: number) {
 }
 
 /** Play any library piece into the app, exactly as if you played it (analysis, sound, recording). */
-export function playPiece(p: Piece, from = 0, lead = 300) {
-  stopPlayback();
+export function playPiece(p: Piece, from = 0, lead = 300, preserveInput = false) {
+  stopPlayback(preserveInput);
   session.clear();
   if (p.source !== 'sequence') session.loadSong(null);
   preparePiece(p);
@@ -484,12 +496,12 @@ function schedulePieceCycle(p: Piece, from: number, start: number) {
   );
   const initialPedal = p.pedal?.findLast(([at]) => at <= playbackOffset)?.[1] ?? false;
   if (initialPedal) {
-    pieceTimers.push(setTimeout(() => live.pedal(true, performance.now(), false), lead));
+    pieceTimers.push(setTimeout(() => live.pedal(true, performance.now(), false, true), lead));
     if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both') midi.control(64, 127, start);
   }
   for (const [at, on] of p.pedal ?? [])
     if (at > playbackOffset) {
-      pieceTimers.push(setTimeout(() => live.pedal(on, performance.now(), false), lead + at - playbackOffset));
+      pieceTimers.push(setTimeout(() => live.pedal(on, performance.now(), false, true), lead + at - playbackOffset));
       if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
         midi.control(64, on ? 127 : 0, start + at - playbackOffset);
     }
@@ -511,7 +523,7 @@ function schedulePieceCycle(p: Piece, from: number, start: number) {
       setTimeout(
         () => {
           pieceNotes.delete(note);
-          live.noteOff(note, performance.now(), false);
+          live.noteOff(note, performance.now(), false, true);
         },
         lead + t + d - playbackOffset,
       ),
@@ -526,11 +538,11 @@ function schedulePieceCycle(p: Piece, from: number, start: number) {
         pieceTimers = [];
         if (settings.preferences.loopPlayback && ui.nowPlaying && ui.playbackDuration > 0) {
           if (p.pedal?.length) {
-            live.pedal(false, performance.now(), false);
+            live.pedal(false, performance.now(), false, true);
             if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
               midi.control(64, 0, boundary);
           }
-          for (const note of pieceNotes) live.noteOff(note, performance.now(), false);
+          for (const note of pieceNotes) live.noteOff(note, performance.now(), false, true);
           pieceNotes.clear();
           const now = performance.now();
           // A background-tab stall skips missed passes instead of replaying their attacks in a burst.
@@ -551,16 +563,19 @@ export function stopPiece() {
   updatePlaybackClock();
   pieceTimers.forEach(clearTimeout);
   pieceTimers = [];
-  live.pedal(false);
-  for (const n of pieceNotes) live.noteOff(n, performance.now(), false);
+  live.pedal(false, performance.now(), true, true);
+  for (const n of pieceNotes) live.noteOff(n, performance.now(), false, true);
   pieceNotes.clear();
   ui.nowPlaying = null;
   if (ui.bars === 'file') setBars('auto');
 }
 
 /** One global stop action for library playback, previews, metronome and lingering notes. */
-export function stopPlayback() {
-  ui.inputCancelSerial++;
+export function stopPlayback(preserveInput = false) {
+  if (!preserveInput) {
+    inputHooks.cancel();
+    ui.inputCancelSerial++;
+  }
   ui.playbackPaused = false;
   ui.playbackRequest++;
   ui.loading = false;
@@ -576,6 +591,7 @@ export function stopPlayback() {
 export const recordingHooks = { start: () => {}, noteOn: (_t: number) => {}, stop: (_recording: Recording) => {} };
 
 export function startRecording() {
+  inputHooks.cancel();
   const clock = selectedPiece.source === 'sequence' ? selectedPiece : null;
   recorder.start({
     configuration: $state.snapshot(settings),

@@ -48,9 +48,25 @@ existing songs and preferences from the old Musify storage when migrating to cho
 
 ## Play into the timeline
 
-Incoming MIDI, computer keys or the on-screen piano show an **input preview at the timeline cursor**.
-The chord inspector, piano and suggestions follow that chord. ✓ on the preview keeps it as an editable
-block. Selecting a timeline chord brings the same tools back to that selection.
+Incoming MIDI, computer keys or the on-screen piano show a pending chord directly on the timeline.
+**With a chord selected, playing replaces it**, preserving its position, duration and identity.
+**Without a selection, playing appends at the actual end**, even if the ruler cursor is elsewhere.
+Pending blocks say **Replacing…** or **Adding…**. The inspector, piano and suggestions follow that input.
+
+The chord saves automatically **600 ms after you release the keys and pedal**; there is no acceptance
+button. Full voicings and average played velocity are retained. Appended chords occupy a full bar in
+the current meter and stay unselected, so the next chord appends again. A replacement stays selected
+for further variations. Press **Escape** to clear the selection and append; if a popover is open,
+the first Escape closes it. Clicking the ruler or an empty beat also clears chord selection.
+Loading a song, typing a new chord or adding a suggestion does not silently select the last chord.
+
+Starting the next released gesture saves the preceding chord immediately. Pedal-held gestures wait
+until pedal release: they append in order, or the last variation replaces the selected chord.
+Accepting an idea also saves a released pending chord first, so it is not lost to the new edit.
+Each idle save is undoable. Changing focus, editing, Stop, Reset or switching songs cancels pending
+input. Playback, suggestion previews and recorded takes do not create duplicate automatic edits.
+Settings → Editor has **Played chord idle delay** and **Auto-save played chords**; turn the latter off
+to analyse live playing without editing the song. Recording remains the way to capture played rhythm.
 
 To build a chord with the mouse, **hold Shift and click several piano keys**, then release Shift to
 play them together. Click a selected key again to remove it. The stacked-notes button beside the

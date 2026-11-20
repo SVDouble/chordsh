@@ -60,6 +60,8 @@ describe('settings validation and recovery', () => {
     expect(settings.editor.pianoChordBeats).toBe(2);
     expect(settings.preferences.loopPlayback).toBe(false);
     expect(settings.editor.dragThresholdPx).toBe(6);
+    expect(settings.editor.autoCaptureChords).toBe(true);
+    expect(settings.editor.inputIdleMs).toBe(600);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);
   });

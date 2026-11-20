@@ -4,7 +4,7 @@
   import { settings } from './store.svelte';
   import { onMount } from 'svelte';
   import { live, setBars, stopPlayback, stopRecording, midi, persist, synth, ui, dismissNotice } from './store.svelte';
-  import { editSequence } from './composition.svelte';
+  import { clearChordFocus, editSequence } from './composition.svelte';
   import { attachQwerty } from '../io/qwerty';
   import Piano from './Piano.svelte';
   import Workspace from './Workspace.svelte';
@@ -116,6 +116,7 @@
     if (e.key === 'Escape') {
       stopPlayback();
       if (ui.recording) void stopRecording();
+      clearChordFocus();
     }
     const typing =
       e.target instanceof HTMLInputElement ||

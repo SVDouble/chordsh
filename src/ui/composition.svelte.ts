@@ -1,6 +1,7 @@
 import { barQuarters, beatQuarters, isMeterDenominator, meterPosition } from '../theory/meter';
 import { MUSIC_LIMITS } from '../config/settings';
 import { validPlaybackStyle } from '../engine/accompaniment';
+import { ChordEntry, type PlayedInput } from '../engine/chordEntry';
 import { settings } from './store.svelte';
 import {
   emptySequence,
@@ -31,6 +32,7 @@ import {
   ui,
   notify,
   recordingHooks,
+  inputHooks,
   stopRecording,
 } from './store.svelte';
 
@@ -97,10 +99,11 @@ const initial =
 let editor = new SequenceEditor(initial, $state.snapshot(settings.editor));
 export const composition = $state({
   revision: 0,
-  selectedId: (initial.steps[initial.steps.length - 1]?.id ?? null) as string | null,
+  selectedId: null as string | null,
   cursor: initial.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0),
   documents: restored.length ? restored : [initial],
   error: '',
+  input: null as PlayedInput<InputTarget> | null,
   take: null as {
     started: number;
     at: number;
@@ -116,6 +119,74 @@ export const currentSequence = () => editor.document;
 export const canUndo = () => editor.canUndo;
 export const canRedo = () => editor.canRedo;
 
+interface InputTarget {
+  songId: string;
+  revision: number;
+  selectedId: string | null;
+  start: number;
+  beats: number;
+  key: Key | null;
+}
+const sequenceEnd = () => editor.document.steps.reduce((end, step) => Math.max(end, step.start + step.beats), 0);
+const chordEntry = new ChordEntry<InputTarget>({
+  delay: () => settings.editor.inputIdleMs,
+  target: () => {
+    const doc = editor.document;
+    const selected = doc.steps.find((step) => step.id === composition.selectedId);
+    const start = selected?.start ?? sequenceEnd();
+    return {
+      songId: doc.id,
+      revision: composition.revision,
+      selectedId: selected?.id ?? null,
+      start,
+      beats: selected?.beats ?? barQuarters(doc.meter, doc.denominator),
+      key: sequenceKeyAt(doc, start),
+    };
+  },
+  identify: (notes, velocity, target) => {
+    const result = identify(notes, target.key);
+    return result.best ? { symbol: chordName(result.best, target.key), notes, velocity } : null;
+  },
+  preview: (input) => {
+    composition.input = input;
+  },
+  commit: ({ target, chords }) => {
+    if (
+      target.songId !== editor.document.id ||
+      target.revision !== composition.revision ||
+      composition.take ||
+      !settings.editor.autoCaptureChords
+    )
+      return;
+    const applied = editSequence((e) => {
+      if (target.selectedId) {
+        e.replace(target.selectedId, chords.at(-1)!);
+      } else {
+        e.place(
+          chords.map((chord) => ({ ...chord, beats: target.beats })),
+          sequenceEnd(),
+        );
+      }
+    }, true);
+    if (applied) {
+      if (!target.selectedId) selectTimeline(sequenceEnd());
+      ui.harmonyContext = 'timeline';
+    }
+  },
+});
+inputHooks.noteOn = (note, velocity) => {
+  if (settings.editor.autoCaptureChords && !ui.recording) chordEntry.noteOn(note, velocity);
+};
+inputHooks.noteOff = (note) => {
+  if (!ui.recording) chordEntry.noteOff(note);
+};
+inputHooks.pedal = (on) => chordEntry.setPedal(on);
+inputHooks.cancel = () => chordEntry.cancel();
+
+export function clearChordFocus() {
+  selectTimeline(sequenceEnd());
+}
+
 function sync(save = true) {
   const document = editor.document;
   composition.revision++;
@@ -130,7 +201,7 @@ function sync(save = true) {
   }
 }
 
-export function editSequence(action: (editor: SequenceEditor) => void) {
+export function editSequence(action: (editor: SequenceEditor) => void, playedInput = false) {
   try {
     composition.error = '';
     const playing = !!ui.nowPlaying && ui.sourceId === `sequence:${editor.document.id}`;
@@ -144,12 +215,13 @@ export function editSequence(action: (editor: SequenceEditor) => void) {
       if (removed.length) selectTimeline(Math.min(...removed.map((s) => s.start)));
     } else if (!composition.selectedId) {
       const added = after.steps.filter((s) => !before.steps.some((n) => n.id === s.id));
-      if (added.length) selectStep(added[added.length - 1].id);
+      const last = added.at(-1);
+      if (last) composition.cursor = last.start + last.beats;
     }
-    stopPlayback();
+    if (!playedInput || ui.nowPlaying) stopPlayback(playedInput);
     sync();
     ui.tab = 'editor';
-    if (playing) resumePlayback((beat * 60000) / editor.document.bpm);
+    if (playing) resumePlayback((beat * 60000) / editor.document.bpm, playedInput);
     return true;
   } catch (error) {
     composition.error = (error as Error).message;
@@ -162,7 +234,7 @@ export function selectSequence(id: string, autoplay = false) {
   if (!document) return;
   stopPlayback();
   editor = new SequenceEditor($state.snapshot(document), $state.snapshot(settings.editor));
-  composition.selectedId = document.steps[document.steps.length - 1]?.id ?? null;
+  composition.selectedId = null;
   composition.cursor = document.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0);
   composition.error = '';
   sync();
@@ -223,10 +295,15 @@ export function suggestionDestination() {
   void composition.revision;
   const doc = editor.document;
   const live = ui.harmonyContext === 'input';
-  return { title: doc.title, position: timelinePosition(composition.cursor, doc.meter, doc.denominator), live };
+  const input = composition.input;
+  const at = input
+    ? input.target.start + input.target.beats * (input.target.selectedId ? 1 : input.chords.length)
+    : composition.cursor;
+  return { title: doc.title, position: timelinePosition(at, doc.meter, doc.denominator), live };
 }
 
 export function selectStep(id: string) {
+  chordEntry.cancel();
   ui.harmonyContext = 'timeline';
   composition.selectedId = id;
   const s = editor.document.steps.find((s) => s.id === id);
@@ -235,6 +312,7 @@ export function selectStep(id: string) {
 }
 
 export function selectTimeline(at: number) {
+  chordEntry.cancel();
   ui.harmonyContext = 'timeline';
   composition.selectedId = null;
   composition.cursor = Math.max(0, at);
@@ -245,9 +323,11 @@ export function compositionContext() {
   void composition.revision;
   void ui.tick;
   const document = editor.document;
-  const editing = ui.harmonyContext === 'timeline' && ui.sourceId === `sequence:${document.id}`;
+  const input = composition.input;
+  const played = input?.chords.at(-1);
+  const editing = !!input || (ui.harmonyContext === 'timeline' && ui.sourceId === `sequence:${document.id}`);
   const playbackIndex =
-    ui.nowPlaying && ui.sourceId === `sequence:${document.id}`
+    !input && ui.nowPlaying && ui.sourceId === `sequence:${document.id}`
       ? document.steps.findIndex(
           (s) =>
             s.start <= (ui.playbackPosition * document.bpm) / 60000 &&
@@ -262,46 +342,66 @@ export function compositionContext() {
         : document.steps.findLastIndex((s) => s.start + s.beats <= composition.cursor + 1e-8);
   const upto = index + 1;
   const current = document.steps[upto - 1];
-  const contextBeat =
-    playbackIndex >= 0
+  const contextBeat = input
+    ? input.target.start
+    : playbackIndex >= 0
       ? (ui.playbackPosition * document.bpm) / 60000
       : composition.selectedId
         ? (current?.start ?? composition.cursor)
         : composition.cursor;
-  const key = editing ? (sequenceKeyAt(document, contextBeat) ?? sequenceChart(document).key) : session.activeKey;
-  const last = editing ? (current ? parseChordSymbol(current.symbol) : null) : session.now.best;
-  const voicing = editing ? (current?.notes ?? null) : session.lastVoicing;
+  const key = input
+    ? (input.target.key ?? session.activeKey)
+    : editing
+      ? (sequenceKeyAt(document, contextBeat) ?? sequenceChart(document).key)
+      : session.activeKey;
+  const last = played
+    ? parseChordSymbol(played.symbol)
+    : editing
+      ? current
+        ? parseChordSymbol(current.symbol)
+        : null
+      : session.now.best;
+  const voicing = played?.notes ?? (editing ? (current?.notes ?? null) : session.lastVoicing);
   const regionStart = sequenceRegions(document).findLast((region) => region.start <= contextBeat + 1e-8)?.start ?? 0;
   const inputChords = session.chords;
   const inputBoundary = inputChords.findLastIndex(
     (entry) => !key || !entry.key || keyIndex(entry.key) !== keyIndex(key),
   );
-  const recent = editing
-    ? document.steps
-        .slice(0, upto)
-        .filter((step) => step.start >= regionStart - 1e-8)
-        .slice(-8)
-        .map((s) => parseChordSymbol(s.symbol)!)
-    : inputChords
-        .slice(inputBoundary + 1)
-        .slice(-8)
-        .map((s) => s.chord);
+  const recent = input
+    ? [
+        ...document.steps
+          .filter((step) => step.start < input.target.start - 1e-8 && step.start >= regionStart - 1e-8)
+          .map((step) => parseChordSymbol(step.symbol)!),
+        ...input.chords.map((chord) => parseChordSymbol(chord.symbol)!),
+      ].slice(-8)
+    : editing
+      ? document.steps
+          .slice(0, upto)
+          .filter((step) => step.start >= regionStart - 1e-8)
+          .slice(-8)
+          .map((s) => parseChordSymbol(s.symbol)!)
+      : inputChords
+          .slice(inputBoundary + 1)
+          .slice(-8)
+          .map((s) => s.chord);
   const probabilities = editing ? new Float64Array(24) : session.keyProbs;
   if (editing && key) probabilities[keyIndex(key)] = 1;
   return { key, last, voicing, recent, reach: computeReach(key, probabilities, recent, [], session.style) };
 }
 
 export function acceptChords(inputs: ChordInput[], replace = false, announce = true) {
+  chordEntry.finishReleased();
   const key = compositionContext().key ?? undefined;
   const home = editor.document.key;
   const region = key && (!home || keyIndex(key) !== keyIndex(home)) ? key : undefined;
   const destination = suggestionDestination();
   const added = editSequence((e) => {
     const chords = inputs.map((input) => ({ ...input, key: input.key ?? region }));
-    composition.selectedId =
-      replace && composition.selectedId
-        ? e.replaceWith(composition.selectedId, chords)
-        : e.place(chords, composition.cursor);
+    if (replace && composition.selectedId) composition.selectedId = e.replaceWith(composition.selectedId, chords);
+    else {
+      e.place(chords, composition.cursor);
+      composition.selectedId = null;
+    }
   });
   if (added && announce)
     notify(
@@ -358,12 +458,26 @@ export function inputTimeline() {
         };
       });
   }
+  const input = composition.input;
+  if (input) {
+    const chords = input.target.selectedId ? input.chords.slice(-1) : input.chords;
+    return chords.map((chord, index) => ({
+      ...chord,
+      id: `input-preview:${index}`,
+      start: input.target.start + index * input.target.beats,
+      beats: input.target.beats,
+      key: input.target.key ?? undefined,
+    }));
+  }
+  if (settings.editor.autoCaptureChords && ui.sourceId === `sequence:${doc.id}`) return [];
   if (ui.harmonyContext !== 'input' || !session.now.best) return [];
   return [
     {
       id: 'input-preview',
       symbol: chordName(session.now.best, session.activeKey),
-      start: composition.cursor,
+      start: composition.selectedId
+        ? (doc.steps.find((s) => s.id === composition.selectedId)?.start ?? sequenceEnd())
+        : sequenceEnd(),
       beats: barQuarters(doc.meter, doc.denominator),
       notes: session.now.notes,
       key: session.activeKey ?? undefined,
@@ -392,10 +506,11 @@ export function focusedChord() {
     incoming.at(-1) ??
     (playing
       ? doc.steps.find((s) => s.start <= beat && beat < s.start + s.beats)
-      : doc.steps.find((s) => s.id === composition.selectedId));
+      : (doc.steps.find((s) => s.id === composition.selectedId) ??
+        doc.steps.findLast((s) => s.start + s.beats <= composition.cursor + 1e-8)));
   const key =
     (step?.id.startsWith('input')
-      ? (session.keyLock ?? step.key)
+      ? (composition.input?.target.key ?? session.keyLock ?? step.key)
       : step
         ? sequenceKeyAt(doc, playing ? beat : step.start)
         : doc.key) ?? session.activeKey;
@@ -426,12 +541,6 @@ export function focusedChord() {
       ? `${timelinePosition(step.start, doc.meter, doc.denominator)} · ${+(step.beats / beatQuarters(doc.denominator)).toFixed(2)} beats`
       : '',
   };
-}
-
-export function commitInputPreview() {
-  const steps = inputTimeline();
-  if (!steps.length || composition.take) return;
-  acceptChords(steps.map((s) => ({ ...s, beats: barQuarters(editor.document.meter, editor.document.denominator) })));
 }
 
 export async function resetWorkspace() {

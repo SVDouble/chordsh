@@ -202,6 +202,21 @@ ranking strength, context/smoothing and visible idea counts.
 
 ## Meter units and interchange
 
+`engine/chordEntry.ts` groups actual note gestures independently of playback and recognition history.
+It retains the last identifiable full voicing through staggered releases, averages attack velocities,
+and commits after the configured idle interval with no held keys/pedal. A new gesture flushes the
+previous released chord; pedal-held phrases queue until release. Single notes/octaves are ignored;
+recognised two-note voicings are supported. Capture preserves the destination selected at gesture start.
+
+`composition.svelte.ts` applies those inputs at an explicitly selected step or the actual document end.
+Replacement retains step identity, position, duration and key metadata; append leaves no selection.
+Pending input drives the inspector, ideas and destination overlay consistently. Input hooks exclude
+scheduled note-offs/pedal as well as note-ons; recording bypasses auto-capture. Focus changes, normal
+edits, settings, sources and Stop cancel pending work, with document/revision checks before any write.
+An idle save is one undoable edit and does not interrupt an unrelated preview; active arrangements
+resume through the existing edit/playback path. The automatic path preserves a newly started piano
+gesture while committing its predecessor. Legacy songs open without implicit last-chord selection.
+
 Transport repeats reuse the current rendered piece at its exact duration boundary. Each pass shares
 the original musical schedule without the first-play lead-in, clears completed/pending callbacks
 from the previous pass and retains analysis/recording history. Pause, seek, source changes and Stop

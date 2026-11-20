@@ -12,7 +12,6 @@
     canUndo,
     inputTimeline,
     recordingBeat,
-    commitInputPreview,
     composition,
     currentSequence,
     deleteSequence,
@@ -124,6 +123,9 @@
   $effect(() => {
     void document.id;
     popup = false;
+  });
+  $effect(() => {
+    if (composition.input) popup = false;
   });
   $effect(() => {
     if (drag) return;
@@ -603,6 +605,7 @@
             <div
               class="timeline-clip"
               class:selected={step.id === composition.selectedId}
+              class:input-replacement={composition.input?.target.selectedId === step.id}
               class:playing={playing && playBeat >= step.start && playBeat < step.start + step.beats}
               style:left={`${Math.max(0, at - rowStart) * beatWidth + 2}px`}
               style:width={`${Math.max(18, (Math.min(at + beats, rowEnd) - Math.max(at, rowStart)) * beatWidth - 4)}px`}
@@ -611,7 +614,7 @@
                 type="button"
                 class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
                 aria-label={`Edit ${step.symbol} at beat ${+(step.start / unit + 1).toFixed(4)}`}
-                title={`${step.symbol} · ${+(step.beats / unit).toFixed(2)} beats · drag to move, click to edit`}
+                title={`${step.symbol} · ${+(step.beats / unit).toFixed(2)} beats · play to replace, drag to move, Esc to append`}
                 onpointerdown={(e) => beginDrag(e, step, 'move', true)}
                 onclick={(e) => {
                   if (e.detail !== 0 && suppressChordClick) {
@@ -663,21 +666,24 @@
           <div
             class="timeline-input"
             class:recording={!!composition.take}
+            title={composition.take
+              ? 'Recording'
+              : composition.input
+                ? `Saves after ${settings.editor.inputIdleMs} ms of idle input; ${composition.input?.target.selectedId ? 'replaces the selected chord' : 'appends at the end'}`
+                : 'Live analysis — playback and previews do not edit the song'}
             style:left={`${Math.max(0, step.start - rowStart) * beatWidth + 2}px`}
-            style:width={`${Math.max(50, (Math.min(step.start + step.beats, rowEnd) - Math.max(step.start, rowStart)) * beatWidth - 4)}px`}
+            style:width={`${Math.max(18, (Math.min(step.start + step.beats, rowEnd) - Math.max(step.start, rowStart)) * beatWidth - 4)}px`}
           >
-            <b>{step.symbol}</b><span class="small">{composition.take ? 'Recording' : 'Input preview'}</span>
-            {#if !composition.take}
-              <button
-                type="button"
-                class="icon"
-                title="Keep this chord"
-                aria-label={`Keep played ${step.symbol}`}
-                onclick={commitInputPreview}
-              >
-                <Icon name="check" />
-              </button>
-            {/if}
+            <b>{step.symbol}</b
+            ><span class="small input-status"
+              >{composition.take
+                ? 'Recording'
+                : !composition.input
+                  ? 'Live analysis'
+                  : composition.input?.target.selectedId
+                    ? 'Replacing…'
+                    : 'Adding…'}</span
+            >
           </div>
         {/each}
 
@@ -692,7 +698,13 @@
       </div>
     {/each}
   </div>
-  <div class="timeline-caption muted small">Click a beat to add · drag chords to arrange · drag the ruler to seek</div>
+  <div class="timeline-caption muted small">
+    {settings.editor.autoCaptureChords
+      ? composition.selectedId
+        ? 'Play to replace selected chord · Esc to append'
+        : 'Play to append at the end · click a beat to type'
+      : 'Click a beat to add · drag chords to arrange · drag the ruler to seek'}
+  </div>
 
   {#if styleTarget}
     <StylePicker

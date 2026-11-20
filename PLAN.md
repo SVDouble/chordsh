@@ -64,6 +64,11 @@ Details: [docs/](docs/README.md) — [app](docs/app.md), [engine](docs/engine.md
 
 ## Next
 
+- **Melody-first harmonization** (new direction): record a melody, assign it to bars, suggest a basic
+  harmony, then develop it with explainable moves checked against the melody. Design, research and
+  milestones in [docs/harmonize.md](docs/harmonize.md); principles in
+  [docs/harmony-model.md](docs/harmony-model.md).
+
 - **Native host delivery** — cross-platform core with VST3/AU MIDI wrappers, host transport/state
   synchronization and a tested host matrix; [architecture](docs/daw.md).
 
@@ -243,6 +248,20 @@ cancellation, existing resize handles and touch dragging. Accompaniment/preview/
 Validation: 180 tests, production build, lint/typecheck and browser checks for unchanged scroll position
 across live attacks/releases, previews, timeline selection, transport, held mouse notes, Shift chord
 entry/clear, manual scrolling and mobile resize.
+
+## Played-chord focus and automatic saving
+
+- [x] Replace an explicitly selected chord; append at the actual song end when nothing is selected.
+- [x] Save after a configurable idle pause, preserving the full played voicing and selected duration.
+- [x] Remove manual input acceptance and show the replacement/append destination while pending.
+- [x] Keep playback/preview/recording separate from real sketch input; cancel stale input on focus/edit/source changes.
+- [x] Verify input grouping, pedal, cancellation, repeat entry, undo, persistence and browser interaction.
+
+Validation: 188 tests, typecheck/lint, changed-file formatting and production build. Browser checks
+cover retained replacement IDs/durations, actual-end append, no implicit focus, rapid MIDI/piano entry,
+pedal phrases, undo/cancellation/source changes, shared saved settings, recording separation, preview
+continuity, playback analysis without capture, accepting an idea during idle, context/voicing alignment,
+desktop/mobile and stationary piano. Loop transport and chord-body drag regressions also pass.
 
 ## Mouse chord entry
 

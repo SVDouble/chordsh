@@ -97,6 +97,10 @@ key width and twice this label size when root labels are shown. Horizontal scrol
 
 ## Meter and beat units
 
+**Auto-save played chords** is on by default. **Played chord idle delay** defaults to 600 ms (100–5,000),
+counted after keys and pedal are released. A selected chord is replaced without changing its duration;
+with no selection, new chords append at the song end. Disable auto-saving for live analysis alone.
+
 **Loop playback** in Playback & input is the same saved preference as the repeat icon on the transport.
 **Chord drag threshold** in Editor defaults to 6 px (0–24): movements below it still open chord editing,
 while larger gestures move the block. Snap remains a separate musical beat setting.

@@ -14,7 +14,7 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 
 | part | what it does |
 | --- | --- |
-| [src/engine/rules.ts](../src/engine/rules.ts) | Rule catalogue (25 chord rules, 10 piece rules) and 4 rulebooks. |
+| [src/engine/rules.ts](../src/engine/rules.ts) | Rule catalogue (33 chord rules, 10 piece rules) and 7 rulebooks. |
 | [src/engine/features.ts](../src/engine/features.ts) | Phrases, cadences, named progressions, sequences, pedal points. Phrases come from expert annotations, else fermatas, else melodic pauses. |
 | [scripts/fetch_assist_data.py](../scripts/fetch_assist_data.py) | Corpora with real melodies and years, pinned to commits or checksums. |
 | [scripts/rules.test.ts](../scripts/rules.test.ts) | The study. It writes `local/assist/study.json`. |
@@ -24,8 +24,8 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 **Reproduce:**
 
 ```sh
-npm run fetch-assist-data   # chorales, DCML (1,283 pieces), RS200, Billboard, POP909 — one-off, ~30 min
-npm run study:rules         # ~4 minutes; writes local/assist/study.json
+npm run fetch-assist-data   # chorales, DCML, Lieder, RS200, Billboard, Chordonomicon, WJazzD, POP909 — one-off, ~1 hour
+npm run study:rules         # ~12 minutes; writes local/assist/study.json
 npm run lab                 # local lab → "Rules of harmony"
 ```
 
@@ -35,6 +35,7 @@ npm run lab                 # local lab → "Rules of harmony"
 | --- | --- | --- | --- | --- | --- | --- |
 | art music | Bach chorales: [When in Rome](https://github.com/MarkGotham/When-in-Rome) analyses + Sapp's Humdrum scores | 370 | 1730s | soprano | fermatas | CC BY-SA 4.0 (analyses) |
 | art music | [DCML Distant Listening Corpus](https://github.com/DCMLab/distant_listening_corpus): 40 collections from Sweelinck to Schulhoff | 1,283 | 1590–1931 | sung part, else the highest staff | expert phrase ends | CC BY-NC-SA 4.0 |
+| art music | [OpenScore Lieder](https://github.com/OpenScore/Lieder) with When in Rome analyses: 19th-century art song | 116 | ≈1800–1900 (approximate) | the voice | melodic pauses | CC0 (scores), CC BY-SA 4.0 (analyses) |
 | popular | [Rolling Stone 200](http://rockcorpus.midside.com) (de Clercq & Temperley) | 191 | 1949–2002 | transcribed | melodic pauses | CC BY 4.0 |
 | popular | [McGill Billboard](https://ddmal.music.mcgill.ca/research/The_McGill_Billboard_Project_(Chord_Analysis_Dataset)/) | 879 | 1958–1991 (chart date) | none | annotated lines | CC0 |
 | undated | POP909 | 909 | – | MELODY track | melodic pauses | MIT; songs copyrighted |
@@ -42,7 +43,7 @@ npm run lab                 # local lab → "Rules of harmony"
 | jazz | [Weimar Jazz Database](https://jazzomat.hfm-weimar.de/) (transcribed solos over changes) | 430 | 1925–2009 (recording) | the solo | annotated phrases | ODbL |
 | popular | [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon) (Ultimate Guitar charts + Spotify dates), sample of 12 per year × genre | 8,881 | 1950–2025 | none; no durations | song sections | CC BY-NC 4.0 |
 
-In total: **14,108 pieces and 1,160,012 chords**.
+In total: **14,224 pieces and 1,166,932 chords**.
 
 Nothing is redistributed. Everything is fetched into `local/` for analysis only, and pinned to a commit
 or a file checksum.
@@ -53,7 +54,9 @@ The key is estimated with the Krumhansl–Kessler profiles. There are no duratio
 duration rules (cadential acceleration, longest arrival chord) are switched off for it.
 
 For art music, the dates are composition years; for popular music, release or chart years. The
-chorales get one shared year (1735). DCML pieces bring **expert cadence labels**, which test the
+chorales get one shared year (1735). **Lieder years are approximate**: the corpus has no composition
+dates, so each song gets its composer's birth year + 35, capped at the year of death, and is flagged
+`year_approx` in the lab. DCML pieces bring **expert cadence labels**, which test the
 cadence finder (below).
 
 ## Rules, rulebooks and how they are measured
@@ -193,6 +196,11 @@ Rulebook AUC is pooled by chords, and piece rules are averaged over pieces:
   it.
 - **Chromatic triadic** sits around 70–80% almost everywhere. Smooth, shared-note motion is a common
   property, not a film-only trick.
+- **Art song (OpenScore Lieder, added later, 116 songs, 6,920 chords):** counterpoint 81%, functional
+  85%, melody fit 85%, 76% of phrases close with a cadence, 77% end V → I. That sits right on the
+  Romantic row above (which was computed before the Lieder were added). The sung melody gives the
+  same picture as the instrumental top line. Years are approximate, so the songs only count as
+  "Romantic", not as evidence for a finer trend.
 - **Style dimensions (PCA over per-piece harmony profiles):**
   1. PC1 (20%): key discipline (diatonic, colour explained, consonant).
   2. PC2 (16%): fifth-based, common-tone motion versus parallel planing and walking bass.
@@ -257,6 +265,30 @@ Moves without a name are flagged "unnamed: why does it work?" for review. The la
 The automatic namer is conservative, so some names will be wrong. For example, a `♭V7` is usually an
 augmented sixth spelled as a dominant chord. The review marks in the lab are for catching exactly
 those cases.
+
+### Review of the unnamed moves
+
+These are the frequent moves the namer could not label (run of 2026-11-20). Each has a hypothesis for
+why it works, to check by ear in the lab:
+
+| tradition | move | likely explanation |
+| --- | --- | --- |
+| art | V → ♯iv° (386), I → ♯iv° (291), i → ♯iv° (119) | **Passing diminished chord** between I/V and a I6/4 or V: the bass slides chromatically. Also the bottom of a ♯iv°7 → I6/4 → V cadence, which is common-tone and leading-tone motion, not root motion. |
+| art | v → IV (233), iv → iii° (174), IV → iii° (88) | **Descending bass by step** (e.g. the "lament" or a 6-chord chain). The middle chords are passing sonorities over a stepwise bass, and the analysis labels each one as a root-position chord. |
+| art | ii → ♭ii° (127), I → iii° | Chromatic voice leading into a Neapolitan or an augmented sixth, which our labels split into two chords. |
+| popular | v → IV (1,724) | **Mixolydian / Dorian loop** (e.g. v–IV–I in a Mixolydian song): the minor v is the natural fifth chord of the mode, and v → IV is planing down a step. Functional harmony expects V. |
+| popular | ♭V → IV (300) | Blues or metal **chromatic slide** into IV, a passing chord of the same shape (planing). Also the ♭5 of the blues scale under a riff. |
+| popular | V → iv (385) | **Minor plagal colour** after the dominant, an older pop habit (V–iv–I) borrowed from the parallel minor. It leans to I through the falling ♭6 → 5. |
+| popular | ♭III → ii (398) | **Tritone substitute of V/ii**: ♭III(7) stands in for VI7 (E♭ for A7 in C) and falls a half step to ii, as in the turnaround I–♭III–ii–V. The rules only recognise the substitute before I. |
+| jazz | Imaj7 → ♭VII7 (41), ii7 → ♭VII7 (19) | **Backdoor dominant**: ♭VII7 resolves to I by a whole step up (iv–♭VII7–I). The jazz rules know the tritone substitute but not the backdoor; a rule candidate. |
+| jazz | VII7 → ♭VIImaj7 (16), I7 → VII7sus4 (15) | **Parallel planing** of the same shape a half step down (side-slipping), a soloist's and arranger's device. |
+| jazz | i → ♭III7, I7 → ♭iii7 | ♭III7 as a **tritone substitute of VI7** (the V/ii), resolving to ii; I7 → ♭iii7 is the start of a chromatic ii–V chain to ii. |
+| reference | I → ♭V, V → ♭V, ♭VI → ♭V, iii → ♭iii° | Mostly **audio chord-recognition artefacts** in POP909 (♭V is rare in practice) and chromatic passing chords in jazz changes. Not used as evidence for rules. |
+
+**Rule candidates from this review:** a *backdoor dominant* (♭VII7 → I) in the jazz rulebook; a
+*passing chord* rule (a dissonant chord between two chords whose bass it connects by step); and a
+*modal fifth* rule (minor v in Mixolydian or Dorian). The tritone-substitute rule could also accept
+substitutes for applied dominants, not only for V.
 
 ## Next
 

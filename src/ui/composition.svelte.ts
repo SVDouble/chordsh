@@ -756,7 +756,44 @@ export function fillMelodyGaps() {
 }
 
 export function clearMelody() {
-  if (editSequence((e) => e.clearMelody())) notify('Melody cleared. Undo brings it back.');
+  if (!editor.document.melody?.length) return;
+  if (editSequence((e) => e.clearMelody())) notify('Melody cleared; the chords stay. Undo brings it back.');
+}
+
+/** Remove every chord (the melody, key changes and styles stay): one undo step. */
+export function clearChords() {
+  const ids = editor.document.steps.map((s) => s.id);
+  if (!ids.length) return;
+  if (
+    editSequence((e) =>
+      e.batch(() => {
+        for (const id of ids) e.remove(id);
+      }),
+    )
+  ) {
+    composition.selectedId = null;
+    composition.cursor = 0;
+    notify('Chords cleared; the melody stays. Undo brings them back.');
+  }
+}
+
+/**
+ * Close the song in the timeline. Unsaved changes are saved or discarded first (`choice`); a saved song stays in
+ * the library at its saved version, an unsaved one is dropped. The timeline then shows an empty song.
+ */
+export function closeSong(choice: 'save' | 'discard') {
+  const doc = editor.document;
+  if (choice === 'save') saveSong();
+  const saved = composition.saved[doc.id];
+  composition.documents = saved
+    ? composition.documents.map((d) => (d.id === doc.id ? (JSON.parse(saved) as Sequence) : d))
+    : composition.documents.filter((d) => d.id !== doc.id);
+  const blank = composition.documents.find(
+    (d) => !composition.saved[d.id] && !d.steps.length && !d.melody?.length && d.id !== doc.id,
+  );
+  if (blank) selectSequence(blank.id);
+  else newSequence();
+  notify(`Closed ${doc.title}${saved ? ' (it stays in your songs)' : ''}.`);
 }
 
 export function refreshCompositionSettings() {

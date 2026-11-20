@@ -31,6 +31,9 @@
     dropTarget,
     isUnsaved,
     saveSong,
+    clearMelody,
+    clearChords,
+    closeSong,
   } from './composition.svelte';
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
@@ -49,6 +52,8 @@
   let timelineWidth = $state(600);
   let regionDialog = $state<HTMLDialogElement>();
   let chartDialog = $state<HTMLDialogElement>();
+  let closeDialog = $state<HTMLDialogElement>();
+  let loader = $state<{ pick: (role: 'melody' | 'chords') => void }>();
   let regionStart = $state(0);
   let regionKey = $state('auto');
   let regionLabel = $state('');
@@ -562,6 +567,29 @@
       onchange={(e) => editSequence((s) => s.update({ title: e.currentTarget.value }))}
     >
     <div class="row tight">
+      <span class="song-status" class:warn={!ui.savedLocally}>
+        {#if !ui.savedLocally}
+          <span title="Browser storage is unavailable. Keep this page open and export MIDI."
+            >Can't save in this browser</span
+          >
+        {:else if !composition.saved[document.id]}
+          <span class="muted">Not saved yet</span>
+        {:else if unsaved}
+          <span>Unsaved changes</span>
+        {:else}
+          <span class="muted">Saved</span>
+        {/if}
+        <button
+          type="button"
+          class="save-song"
+          class:primary={unsaved}
+          disabled={!unsaved && !!composition.saved[document.id]}
+          title="Save this song in this browser (Ctrl+S). Nothing is saved until you do."
+          onclick={saveSong}
+        >
+          Save
+        </button>
+      </span>
       <button
         type="button"
         class="icon"
@@ -581,6 +609,15 @@
         onclick={() => editSequence((e) => e.redo())}
       >
         <Icon name="redo" />
+      </button>
+      <button
+        type="button"
+        class="icon"
+        aria-label="Close song"
+        title="Close this song (asks first if it has unsaved changes)"
+        onclick={() => (unsaved ? closeDialog?.showModal() : closeSong('discard'))}
+      >
+        <Icon name="close" />
       </button>
       <details class="sequence-menu settings">
         <summary aria-label="Song actions" title="Song actions"><Icon name="more" /></summary>
@@ -618,30 +655,7 @@
     </div>
   </div>
   <Transport />
-  <div class="song-status small row tight" class:warn={!ui.savedLocally}>
-    {#if !ui.savedLocally}
-      <span title="Browser storage is unavailable. Keep this page open and export MIDI."
-        >Can't save in this browser</span
-      >
-    {:else if !composition.saved[document.id]}
-      <span class="muted">Not saved yet</span>
-    {:else if unsaved}
-      <span>Unsaved changes</span>
-    {:else}
-      <span class="muted">Saved</span>
-    {/if}
-    <button
-      type="button"
-      class="save-song"
-      class:primary={unsaved}
-      disabled={!unsaved && !!composition.saved[document.id]}
-      title="Save this song in this browser (Ctrl+S). Nothing is saved until you do."
-      onclick={saveSong}
-    >
-      Save
-    </button>
-    <LoadParts />
-  </div>
+  <LoadParts bind:this={loader} />
   <div class="sequence-meta">
     <label title="Tempo"
       >♩
@@ -697,28 +711,58 @@
       <Icon name="chord" size={14} /><span>{barPlaybackStyle(document, cursorBar).name}</span>
       <Icon name="down" size={12} />
     </button>
-    <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
-      >Bar {positionAt(cursorBeat).bar} · beat {+positionAt(cursorBeat).beat.toFixed(2)}</span
-    >
-    <span class="right row tight timeline-zoom"
-      ><button
-        type="button"
-        aria-label="Zoom out"
-        title="Zoom out"
-        disabled={zoom <= 24}
-        onclick={() => (zoom = Math.max(24, zoom - 10))}
-      >
-        <Icon name="minus" />
-      </button><button
-        type="button"
-        aria-label="Zoom in"
-        title="Zoom in"
-        disabled={zoom >= 94}
-        onclick={() => (zoom = Math.min(94, zoom + 10))}
-      >
-        <Icon name="plus" />
-      </button></span
-    >
+    <span class="song-parts">
+      <div class="song-part">
+        <span class="part-name">♪ Melody</span>
+        <span class="part-count muted">{document.melody?.length ? `${document.melody.length} notes` : 'none yet'}</span>
+        <button
+          type="button"
+          class="icon"
+          aria-label="Load a melody"
+          title="Load a melody from a MIDI file (or drop one on the page). The chords stay."
+          onclick={() => loader?.pick('melody')}
+        >
+          <Icon name="upload" size={15} />
+        </button>
+        <button
+          type="button"
+          class="icon"
+          aria-label="Clear the melody"
+          title="Clear the melody. The chords stay; Undo brings it back."
+          disabled={!document.melody?.length}
+          onclick={clearMelody}
+        >
+          <Icon name="delete" size={15} />
+        </button>
+      </div>
+      <div class="song-part">
+        <span class="part-name">Chords</span>
+        <span class="part-count muted"
+          >{document.steps.length
+            ? `${document.steps.length} chord${document.steps.length > 1 ? 's' : ''}`
+            : 'none yet'}</span
+        >
+        <button
+          type="button"
+          class="icon"
+          aria-label="Load chords"
+          title="Load chords from a MIDI file or a chord chart (.txt), or drop one on the page. The melody stays."
+          onclick={() => loader?.pick('chords')}
+        >
+          <Icon name="upload" size={15} />
+        </button>
+        <button
+          type="button"
+          class="icon"
+          aria-label="Clear the chords"
+          title="Clear the chords. The melody stays; Undo brings them back."
+          disabled={!document.steps.length}
+          onclick={clearChords}
+        >
+          <Icon name="delete" size={15} />
+        </button>
+      </div>
+    </span>
   </div>
   {#if composition.error}
     <p class="warn small" role="alert">{composition.error}</p>
@@ -1006,6 +1050,28 @@
         </option>
       </select></label
     >
+    <span class="timeline-position small muted" aria-live="off" title="Click or drag the bar ruler to seek"
+      >Bar {positionAt(cursorBeat).bar} · beat {+positionAt(cursorBeat).beat.toFixed(2)}</span
+    >
+    <span class="row tight timeline-zoom"
+      ><button
+        type="button"
+        aria-label="Zoom out"
+        title="Zoom out"
+        disabled={zoom <= 24}
+        onclick={() => (zoom = Math.max(24, zoom - 10))}
+      >
+        <Icon name="minus" />
+      </button><button
+        type="button"
+        aria-label="Zoom in"
+        title="Zoom in"
+        disabled={zoom >= 94}
+        onclick={() => (zoom = Math.min(94, zoom + 10))}
+      >
+        <Icon name="plus" />
+      </button></span
+    >
   </div>
   <details class="timeline-legend-box small muted">
     <summary>How to read the timeline</summary>
@@ -1267,6 +1333,35 @@
         ><button type="submit">Save region</button>
       </div>
     </form>
+  </dialog>
+  <dialog bind:this={closeDialog} class="region-dialog" aria-label="Close song">
+    <h3>Close “{document.title}”?</h3>
+    <p class="small muted">
+      {composition.saved[document.id] ? 'It has changes since you last saved it.' : 'It has not been saved.'}
+    </p>
+    <div class="row">
+      <button type="button" onclick={() => closeDialog?.close()}>Cancel</button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        onclick={() => {
+          closeDialog?.close();
+          closeSong('discard');
+        }}
+      >
+        {composition.saved[document.id] ? 'Discard changes' : "Don't save"}
+      </button>
+      <button
+        type="button"
+        class="primary"
+        onclick={() => {
+          closeDialog?.close();
+          closeSong('save');
+        }}
+      >
+        Save and close
+      </button>
+    </div>
   </dialog>
   <dialog bind:this={chartDialog} class="region-dialog" aria-label="Insert chord chart">
     <h3>Insert chords at the cursor</h3>

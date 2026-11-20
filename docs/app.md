@@ -43,6 +43,19 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
 - The **⋯ song menu** contains transpose, chart paste (`| Dm7 G7 | Cmaj7 |`), duplicate/delete song and piano guide.
   Duplicating makes an independent variation with a distinct title. Deletion offers **Restore**.
 
+**The song header** has three rows:
+
+- **title bar:** the name, the save status with **Save**, undo/redo, **✕ Close** and ⋯ for more;
+- **transport;**
+- **song row:** tempo, meter, key and style, then the two parts of the song, each with its own load
+  and clear buttons: **♪ Melody** (notes) and **Chords**. Clearing one part keeps the other, as one
+  undo step; ↺ in the transport clears both.
+
+Bar position and zoom sit under the timeline.
+
+**✕ Close** puts the song away and shows an empty one. With unsaved changes it asks first: **Save and
+close**, **Discard changes** or Cancel. A saved song stays in your songs at its saved version.
+
 **Songs are saved only when you press Save** (or Ctrl+S / ⌘S). Edits change a working copy, and the
 status next to Save says "Not saved yet", "Unsaved changes" or "Saved". The song list marks unsaved
 songs. Leaving the page with unsaved songs asks first. Saved songs live in this browser. It retains

@@ -10,7 +10,6 @@
   import {
     acceptChords,
     assist,
-    clearMelody,
     composition,
     currentSequence,
     developAll,
@@ -274,7 +273,6 @@
       >
         Fill chords under the melody
       </button>
-      <button type="button" onclick={clearMelody} disabled={!v.hasMelody}>Clear melody</button>
     </div>
   </div>
 </div>

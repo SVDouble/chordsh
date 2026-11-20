@@ -1987,28 +1987,42 @@ button.icon.dim {
   line-height: 1.4;
 }
 .song-status {
-  color: var(--muted);
-  margin: 2px 0 16px;
-  font-size: 12px;
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-.song-status > span {
-  min-width: 96px;
+  margin-right: 6px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .song-status button {
-  min-height: 34px;
+  min-height: 32px;
   padding: 0 14px;
   font-size: 13px;
-  white-space: nowrap;
 }
-.song-status .load-parts {
-  gap: 8px;
-  margin-left: 6px;
-  padding-left: 14px;
-  border-left: 1px solid var(--line);
+.song-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 3px 1px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-2);
+}
+.song-part .part-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+}
+.song-part .part-count {
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+.song-part button.icon {
+  min-height: 30px;
+  height: 30px;
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
 }
 .song-status.warn {
   color: var(--D);
@@ -3281,4 +3295,26 @@ button.icon {
   background: var(--card);
   color: var(--text);
   box-shadow: 0 1px 2px color-mix(in srgb, #000 15%, transparent);
+}
+
+/* ── editor header: title bar, transport, song row, evenly spaced ── */
+.sequence-editor > .transport {
+  margin-bottom: 12px;
+}
+.sequence-meta {
+  row-gap: 10px;
+}
+.song-parts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+.timeline-lens {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.timeline-lens .timeline-position {
+  margin-left: auto;
 }

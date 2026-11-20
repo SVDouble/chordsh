@@ -54,7 +54,8 @@
     opened(file);
   }
 
-  function pick(r: Role) {
+  /** Open the file picker to load the melody or the chords (the song's other part stays). */
+  export function pick(r: Role) {
     role = r;
     if (input) {
       input.accept = r === 'melody' ? '.mid,.midi' : '.mid,.midi,.txt';
@@ -107,28 +108,16 @@
   <div class="drop-hint" aria-hidden="true">Drop a MIDI file (melody or chords) or a chord chart (.txt)</div>
 {/if}
 
-<div class="row tight load-parts">
-  <button type="button" onclick={() => pick('melody')} title="Load a melody from a MIDI file; the chords stay">
-    <Icon name="upload" size={14} /> Load melody…
-  </button>
-  <button
-    type="button"
-    onclick={() => pick('chords')}
-    title="Load chords from a MIDI file (its accompaniment) or a chord chart (.txt); the melody stays"
-  >
-    <Icon name="upload" size={14} /> Load chords…
-  </button>
-  <input
-    bind:this={input}
-    type="file"
-    hidden
-    aria-label="Choose a file to load"
-    onchange={(e) => {
-      const file = e.currentTarget.files?.[0];
-      if (file) opened(file);
-    }}
-  >
-</div>
+<input
+  bind:this={input}
+  type="file"
+  hidden
+  aria-label="Choose a file to load"
+  onchange={(e) => {
+    const file = e.currentTarget.files?.[0];
+    if (file) opened(file);
+  }}
+>
 
 <dialog bind:this={dialog} class="region-dialog load-parts-dialog" aria-label="Choose the parts to load">
   <form

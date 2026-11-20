@@ -185,7 +185,8 @@ helps you harmonize it in four steps. Use them in any order:
      *light* keeps one chord per slot (7ths, substitutes), *rich* also adds chords (secondary
      dominants, ii–V, passing °7). 👂 hears the
      replacement, ✓ uses it, and **Use all** applies the whole list. **Hear as it is** and **Hear
-     developed** compare the whole song before and after (A/B) without changing it. Each is one undo step, as is
+     developed** compare the whole song before and after (A/B) without changing it. **Keep as a new version**
+     copies the song as “… (developed)” and develops the copy, so both versions stay in the song list. Each is one undo step, as is
      filling.
 
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:

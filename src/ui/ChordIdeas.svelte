@@ -13,6 +13,7 @@
     composition,
     currentSequence,
     developAll,
+    developAsVersion,
     previewDevelopment,
     fillMelodyGaps,
     insertTemplate,
@@ -225,6 +226,14 @@
         </button>
         <button type="button" disabled={!develop.length} onclick={() => developAll(develop)}>
           Use all {develop.length}
+        </button>
+        <button
+          type="button"
+          disabled={!develop.length}
+          title="Copy the song and develop the copy; the basic version stays in the song list"
+          onclick={() => developAsVersion(develop)}
+        >
+          Keep as a new version
         </button>
       </div>
     </details>

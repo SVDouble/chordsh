@@ -766,3 +766,13 @@ export function previewDevelopment(list: Development[] | null) {
   }
   previewArrangement(sequencePiece(copy.document, options), 'Developed');
 }
+
+/** Versions: keep the basic song and switch to a developed copy of it (both stay in the song list). */
+export function developAsVersion(list: Development[]) {
+  const original = editor.document;
+  const copy = { ...original, id: crypto.randomUUID(), title: availableTitle(`${original.title} (developed)`) };
+  composition.documents = [...composition.documents, copy];
+  selectSequence(copy.id);
+  developAll(list);
+  notify(`Created ${copy.title}; ${original.title} is unchanged.`);
+}

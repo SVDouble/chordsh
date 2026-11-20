@@ -465,10 +465,16 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
   session.clear();
   if (p.source !== 'sequence') session.loadSong(null);
   preparePiece(p);
-  playbackOffset = Math.max(0, Math.min(ui.playbackDuration, from));
+  ui.nowPlaying = p.title;
+  schedulePieceCycle(p, Math.max(0, Math.min(ui.playbackDuration, from)), performance.now() + lead);
+}
+
+/** Repeat at the exact score boundary, without a new transport lead-in or clearing live/recorded analysis. */
+function schedulePieceCycle(p: Piece, from: number, start: number) {
+  playbackOffset = from;
   ui.playbackPosition = playbackOffset;
-  const start = performance.now() + lead;
   playbackStarted = start;
+  const lead = start - performance.now();
   setBars(
     p.bpm ? 'file' : 'auto',
     p.bpm ?? settings.preferences.tempo,
@@ -511,8 +517,34 @@ export function playPiece(p: Piece, from = 0, lead = 300) {
       ),
     );
   }
-  ui.nowPlaying = p.title;
-  pieceTimers.push(setTimeout(stopPiece, lead + ui.playbackDuration - playbackOffset + 200));
+  const boundary = start + ui.playbackDuration - playbackOffset;
+  pieceTimers.push(
+    setTimeout(
+      () => {
+        // Drop any final callbacks still queued by browser timer rounding before the next pass attacks.
+        pieceTimers.forEach(clearTimeout);
+        pieceTimers = [];
+        if (settings.preferences.loopPlayback && ui.nowPlaying && ui.playbackDuration > 0) {
+          if (p.pedal?.length) {
+            live.pedal(false, performance.now(), false);
+            if (settings.preferences.sound === 'midi' || settings.preferences.sound === 'both')
+              midi.control(64, 0, boundary);
+          }
+          for (const note of pieceNotes) live.noteOff(note, performance.now(), false);
+          pieceNotes.clear();
+          const now = performance.now();
+          // A background-tab stall skips missed passes instead of replaying their attacks in a burst.
+          const late = now - boundary;
+          if (late >= ui.playbackDuration) schedulePieceCycle(p, late % ui.playbackDuration, now);
+          else schedulePieceCycle(p, 0, boundary);
+        } else {
+          stopPiece();
+          ui.playbackPosition = ui.playbackDuration;
+        }
+      },
+      Math.max(0, boundary - performance.now()),
+    ),
+  );
 }
 
 export function stopPiece() {

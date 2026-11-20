@@ -221,6 +221,19 @@ exported notes, pause/resume/stop, MIDI schedules after live style changes and l
 Existing sketch/recording/device/key-region workflows and mouse/touch chord entry also pass.
 Repository-wide formatting still flags the pre-existing edits in docs/README.md and docs/harmony-model.md.
 
+## Looping and moving chords
+
+- [x] Add a saved repeat toggle beside playback, including pause/resume, seeking and stop.
+- [x] Repeat at the score boundary without the initial playback delay or resetting recorded analysis.
+- [x] Drag chords from their body, distinguish clicks from drags, and retain the resize/drag handles.
+- [x] Verify mouse/touch, wrapped rows, cancellation, undo, loop transitions and MIDI scheduling.
+
+Validation: 180 tests, typecheck/lint, changed-file formatting and production build. Browser checks
+cover exact loop MIDI timestamps, clock wrapping, pause/resume/stop, live toggle changes, recording
+across passes, source/pedal cleanup, a simulated background stall, saved settings and one-row mobile
+transport. Chord-body checks cover click/wiggle editing, snapped moves/ripple/undo, wrapped-row capture,
+cancellation, existing resize handles and touch dragging. Accompaniment/preview/export regressions pass.
+
 ## Mouse chord entry
 
 - [x] Select piano notes with Shift-click and play the simultaneous chord on releasing Shift.

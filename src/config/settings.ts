@@ -26,6 +26,11 @@ export const preferencesSchema = z.object({
     'Browser synth, DAW / MIDI output, both, or silent analysis.',
   ),
   monitor: flag(true, 'Monitor sound', 'Hear incoming notes through the browser synth.'),
+  loopPlayback: flag(
+    false,
+    'Loop playback',
+    'Repeat the current song or performance. The repeat icon beside Play controls this same setting.',
+  ),
   theme: choice(['dark', 'light'], 'dark', 'Theme', 'Appearance of the workspace.'),
   style: choice(
     ['jazz', 'triads'],
@@ -482,6 +487,14 @@ export const editorSchema = z.object({
     'Timeline snap',
     'Spacing in the current meter’s notated beats for dragging, resizing and seeking.',
     'beats',
+  ),
+  dragThresholdPx: integer(
+    6,
+    0,
+    24,
+    'Chord drag threshold',
+    'Pointer movement needed to start dragging a chord. Smaller movements still count as a click to edit.',
+    'px',
   ),
   visibleBars: integer(8, 1, 64, 'Initial timeline length', 'Minimum timeline length; it grows with the song.', 'bars'),
   undoLimit: integer(100, 1, 1000, 'Undo history', 'Maximum sequence edits retained in memory.', 'edits'),

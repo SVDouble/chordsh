@@ -7,6 +7,8 @@
     downloadMidi,
     playSelection,
     pausePlayback,
+    persist,
+    settings,
     recorder,
     startRecording,
     stopPlayback,
@@ -48,6 +50,22 @@
     </button>
     <button type="button" class="icon stop-playback" onclick={stop} aria-label="Stop" title="Stop (Esc)">
       <Icon name="stop" />
+    </button>
+    <button
+      type="button"
+      class="icon"
+      class:active={settings.preferences.loopPlayback}
+      aria-label="Loop playback"
+      aria-pressed={settings.preferences.loopPlayback}
+      title={settings.preferences.loopPlayback
+        ? 'Loop on — repeat the whole song'
+        : 'Loop off — click to repeat the whole song'}
+      onclick={() => {
+        settings.preferences.loopPlayback = !settings.preferences.loopPlayback;
+        persist();
+      }}
+    >
+      <Icon name="loop" />
     </button>
     <button
       type="button"

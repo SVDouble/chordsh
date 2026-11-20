@@ -24,6 +24,8 @@ describe('settings validation and recovery', () => {
       ['segmentation.splitHistory', 8],
       ['segmentation.releaseTailMs', 2000],
       ['harmony.durationWeight', 2],
+      ['editor.dragThresholdPx', -1],
+      ['editor.dragThresholdPx', 25],
     ] as [string, unknown][]) {
       const next = candidate();
       setSetting(next, path, value);
@@ -56,6 +58,8 @@ describe('settings validation and recovery', () => {
     expect(settings.editor.pianoLabelSize).toBe(18);
     expect(settings.editor.pianoChordEntry).toBe(false);
     expect(settings.editor.pianoChordBeats).toBe(2);
+    expect(settings.preferences.loopPlayback).toBe(false);
+    expect(settings.editor.dragThresholdPx).toBe(6);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);
   });

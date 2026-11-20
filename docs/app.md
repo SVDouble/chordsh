@@ -20,8 +20,10 @@ Click an empty beat and type a chord such as `Cmaj7`. Enter or ✓ keeps it. Cli
 change it. Its duration, optional voicing and velocity live in a floating chord popover. It leaves the
 workspace usable; click another chord to move on, or Escape to dismiss it.
 
-- Drag the top handle to move a chord or its right edge to resize. The default snap is a quarter beat;
-  change it in Settings → Editor. Empty spaces are rests. Overlapping later chords move forward.
+- Drag anywhere on a chord block, including its name, to move it; the top handle still works.
+  Click without dragging to edit. Small movements below the drag threshold still count as a click.
+  Drag its right edge to resize. The default snap is a quarter beat; snap and drag threshold are in
+  Settings → Editor. Empty spaces are rests. Overlapping later chords move forward.
 - Open **Voicing** for Full, Shell, Rootless and Drop 2 alternatives. Clicking a choice previews it;
   ✓ saves it as one undoable chord edit. Shell keeps bass and defining tones; Rootless leaves room for
   a separate bass. Drop 2 opens a four-note upper voicing by lowering its second-highest note an octave,
@@ -90,6 +92,8 @@ Seeking belongs to the timeline, with no toolbar seek slider:
 
 - ▶ plays; it becomes Ⅱ while playing. Pause silences output and retains the playhead; ▶ resumes.
 - ■ stops playback, previews, metronome and recording, and returns the playhead to the start.
+- The **repeat icon beside Stop** toggles looping of the whole song/performance. Enable it, then Play.
+  It remains highlighted while enabled. Switching it off during playback finishes the current pass.
 - ● records; pressing it again saves without needing a separate recording area.
 - ↺ resets the current timeline and input analysis, stopping sound. Song name, tempo, meter and key
   remain; **Undo restores the cleared chords**. Other songs are retained.
@@ -99,6 +103,11 @@ The song selector names the current playback source. Changing it while playing s
 while stopped it prepares the source. Click the timeline's bar ruler to seek, or drag along it to scrub.
 A running song resumes at the scrubbed position when released. The bar/beat readout is beside the
 song's tempo controls. Opening the source picker does not restart or interrupt playback.
+
+Looping returns to the start at the written end, with no new playback lead-in. Pause retains the
+current position; Stop cancels further passes while keeping the repeat preference. Recording can
+span multiple passes. The transport button and Settings → Playback & input → Loop playback share
+one saved preference. MIDI export contains one pass of the arrangement.
 
 Escape stops output and any recording. In Settings or a chord popover, Escape dismisses that layer instead. The sound icon
 shows 🔓 when browser audio needs a gesture. Click it or interact with the page to unlock; MIDI input

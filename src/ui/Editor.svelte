@@ -61,12 +61,15 @@
     mode: 'move' | 'resize';
     pointer: number;
     x: number;
+    y: number;
+    active: boolean;
     grab: number;
     original: number;
     originalBeats: number;
     at: number;
     beats: number;
   } | null>(null);
+  let suppressChordClick = false;
   const document = $derived.by(() => {
     void composition.revision;
     return currentSequence();
@@ -123,6 +126,7 @@
     popup = false;
   });
   $effect(() => {
+    if (drag) return;
     const focus = composition.take ? recordingBeat() : playing ? playBeat : (incoming.at(-1)?.start ?? selected?.start);
     if (focus === undefined || !scroller) return;
     const rowStart = Math.floor((focus + 1e-8) / beatsPerRow) * beatsPerRow;
@@ -267,11 +271,12 @@
     voicingPreset = choice.id;
     preview();
   }
-  function beginDrag(e: PointerEvent, s: SequenceStep, mode: 'move' | 'resize') {
-    if (e.button !== 0) return;
-    e.preventDefault();
+  function beginDrag(e: PointerEvent, s: SequenceStep, mode: 'move' | 'resize', body = false) {
+    if (e.button !== 0 || drag || ui.recording) return;
+    if (!body) e.preventDefault();
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).focus({ preventScroll: true });
+    suppressChordClick = false;
     selectStep(s.id);
     popup = false;
     drag = {
@@ -279,6 +284,8 @@
       mode,
       pointer: e.pointerId,
       x: e.clientX,
+      y: e.clientY,
+      active: false,
       grab: pointerBeat(e),
       original: s.start,
       originalBeats: s.beats,
@@ -288,6 +295,12 @@
   }
   function moveDrag(e: PointerEvent) {
     if (!drag || e.pointerId !== drag.pointer) return;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < settings.editor.dragThresholdPx) return;
+      drag.active = true;
+      // The scroller survives row wrapping when the original chord button is moved or unmounted.
+      scroller?.setPointerCapture(e.pointerId);
+    }
     const delta = Math.round((pointerBeat(e) - drag.grab) / snap) * snap;
     if (drag.mode === 'move') drag.at = Math.max(0, drag.original + delta);
     else
@@ -300,6 +313,8 @@
     if (!drag || e.pointerId !== drag.pointer) return;
     const change = $state.snapshot(drag);
     drag = null;
+    if (!change.active) return;
+    suppressChordClick = true;
     if (change.mode === 'move' && change.at !== change.original) {
       const overlap = document.steps.find(
         (s) => s.id !== change.id && s.start < change.at && s.start + s.beats > change.at,
@@ -317,14 +332,20 @@
     editSequence((e) => e.remove(id));
     popup = false;
   }
+  function cancelGestures() {
+    if (drag) suppressChordClick = true;
+    drag = null;
+    scrubbing = null;
+  }
 </script>
 
 <svelte:window
+  onblur={cancelGestures}
   onpointermove={movePointer}
   onpointerup={endPointer}
   onpointercancel={(e) => {
     if (scrubbing?.pointer === e.pointerId) endPointer(e);
-    drag = null;
+    if (drag?.pointer === e.pointerId) cancelGestures();
   }}
 />
 <div class="sequence-editor">
@@ -485,7 +506,12 @@
   {#if composition.error}
     <p class="warn small" role="alert">{composition.error}</p>
   {/if}
-  <div class="timeline-scroll wrapped-timeline" bind:this={scroller} bind:clientWidth={timelineWidth}>
+  <div
+    class="timeline-scroll wrapped-timeline"
+    class:dragging={drag?.active}
+    bind:this={scroller}
+    bind:clientWidth={timelineWidth}
+  >
     {#each rows as rowStart}
       {@const rowEnd = rowStart + beatsPerRow}
       {@const head = composition.take
@@ -585,8 +611,15 @@
                 type="button"
                 class="clip-body f-{chart.chords[i].roman?.func ?? ''}"
                 aria-label={`Edit ${step.symbol} at beat ${+(step.start / unit + 1).toFixed(4)}`}
-                title={`${step.symbol} · ${+(step.beats / unit).toFixed(2)} beats`}
-                onclick={() => openAt(step.start, step)}
+                title={`${step.symbol} · ${+(step.beats / unit).toFixed(2)} beats · drag to move, click to edit`}
+                onpointerdown={(e) => beginDrag(e, step, 'move', true)}
+                onclick={(e) => {
+                  if (e.detail !== 0 && suppressChordClick) {
+                    suppressChordClick = false;
+                    return;
+                  }
+                  void openAt(step.start, step);
+                }}
               >
                 <b>{at < rowStart ? '↳ ' : ''}{step.symbol}</b
                 ><span class="c-roman">{chart.chords[i].roman?.numeral ?? ''}</span>

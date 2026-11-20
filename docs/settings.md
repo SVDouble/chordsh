@@ -97,6 +97,10 @@ key width and twice this label size when root labels are shown. Horizontal scrol
 
 ## Meter and beat units
 
+**Loop playback** in Playback & input is the same saved preference as the repeat icon on the transport.
+**Chord drag threshold** in Editor defaults to 6 px (0–24): movements below it still open chord editing,
+while larger gestures move the block. Snap remains a separate musical beat setting.
+
 The Editor section also contains the **new-song playback style**, accompaniment bass level/octave,
 strum spacing and swing override. These settings control the rhythmic arrangements chosen per song
 or bar. New-song style defaults leave existing songs unchanged; the other performance controls refresh

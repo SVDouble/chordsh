@@ -202,6 +202,15 @@ ranking strength, context/smoothing and visible idea counts.
 
 ## Meter units and interchange
 
+Transport repeats reuse the current rendered piece at its exact duration boundary. Each pass shares
+the original musical schedule without the first-play lead-in, clears completed/pending callbacks
+from the previous pass and retains analysis/recording history. Pause, seek, source changes and Stop
+cancel the active schedule as before; the shared loop preference is read at each boundary.
+
+Chord-body pointer gestures remain clicks until the configured pixel threshold is crossed. Active
+drags capture the timeline scroller so wrapping can move a block between rows without losing pointer
+capture. Only release commits an undoable move/resize; blur and cancellation discard the preview.
+
 `engine/accompaniment.ts` defines the playback style catalogue and renders deterministic timed notes.
 `Sequence.style` is the song default (legacy absence means Once); `barStyles` stores sparse overrides
 by zero-based bar index. These affect performance only, leaving harmonic analysis and written chord

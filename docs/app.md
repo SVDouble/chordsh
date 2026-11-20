@@ -227,7 +227,10 @@ selected chord's bar (or the cursor's), with 1 or 2 chords per bar:
 - **connections**: a badge at each chord change shows **how the chords connect**: ↘ resolves, ≈ glides
   on shared notes, ∼ slides a semitone, → steps, ↗ opens, ⤴ leaps, = stays. ☀ means brighter and ☾
   darker on the circle of fifths. The badge colour shows how natural the move is (motion judge:
-  green, blue or red), and hovering gives the details;
+  green, blue or red), and hovering gives the details. **Between chords show** switches the badges to
+  **habit** (how common the move is in the style's tradition, 0–100, from the study's counts; repeats
+  have none) or to the **style's verdict** on the chord with its neighbours. The tooltip always shows all
+  three;
 - **melody**: a small piano roll with note names, each note coloured by how it sits on its chord;
 - **playback**: the style runs and their markers.
 

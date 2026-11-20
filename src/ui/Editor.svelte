@@ -22,12 +22,16 @@
     newSequence,
     selectStep,
     selectTimeline,
+    assist,
+    habits,
   } from './composition.svelte';
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
   import { runFit } from '../engine/advisor';
   import { melodyFit, motion, noteRole } from '../engine/assist';
+  import { habitScore, statsKey, tokenOf } from '../engine/progressions';
+  import { judgeAll, RULEBOOKS, rulebookVerdict } from '../engine/rules';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
   import { voiceChord } from '../theory/voicing';
@@ -71,6 +75,9 @@
     beats: number;
   } | null>(null);
   let suppressChordClick = false;
+  /** What the badges between chords show: how they move, how common the move is, or the style's verdict. */
+  let lens = $state<'motion' | 'habit' | 'style'>('motion');
+  const TRADITION_OF: Record<string, string> = { pop: 'popular', jazz: 'jazz' };
   const document = $derived.by(() => {
     void composition.revision;
     return currentSequence();
@@ -130,15 +137,45 @@
       if (!s.chord || !n?.chord || Math.abs(n.start - s.end) > 1e-6) return [];
       const key = sequenceKeyAt(document, n.start) ?? chart.key ?? { tonic: 0, mode: 'major' as const };
       const m = motion(s.chord, n.chord, key);
+      // habit: how often the tradition makes this move after these chords (study counts)
+      const tradition = TRADITION_OF[assist.style] ?? 'art';
+      const stats = habits.stats?.traditions[statsKey(key, tradition)];
+      const history = parsedSteps
+        .slice(Math.max(0, i - 2), i + 1)
+        .map((x) => (x.chord ? tokenOf(x.chord, key) : ''))
+        .filter(Boolean);
+      // a repeated chord is not a move (the study folds repeats), so it has no habit
+      const habit =
+        tokenOf(s.chord, key) === tokenOf(n.chord, key) ? null : habitScore(stats, history, tokenOf(n.chord, key));
+      // style: the rulebook's verdict on the second chord with its real neighbours
+      const book = RULEBOOKS.find((b) => b.id === assist.style) ?? RULEBOOKS[0];
+      const verdict = rulebookVerdict(
+        book,
+        judgeAll({
+          key,
+          chord: n.chord,
+          prev: s.chord,
+          next: parsedSteps[i + 2]?.chord ?? null,
+          melody: (document.melody ?? []).map(({ start, beats, pitch }) => ({ start, beats, pitch })),
+          span: { start: n.start, end: n.end },
+          meter: barLength,
+          phraseEnd: false,
+        }),
+      );
+      const style = verdict === null ? null : (verdict + 1) / 2;
+      const value = lens === 'habit' ? habit : lens === 'style' ? style : m.score;
+      const grade = (x: number | null, hi: number, lo: number) =>
+        x === null ? 'plain' : x >= hi ? 'smooth' : x >= lo ? 'plain' : 'rough';
       return [
         {
           at: n.start,
           nextId: document.steps[i + 1].id,
           kind: m.kind,
-          sign: MOTION_SIGN[m.kind] ?? '→',
-          brightness: m.brightness,
-          quality: m.score >= 0.75 ? 'smooth' : m.score >= 0.5 ? 'plain' : 'rough',
-          title: `${document.steps[i].symbol} → ${document.steps[i + 1].symbol}: ${m.text} · ${m.common} shared note${m.common === 1 ? '' : 's'} · natural ${Math.round(100 * m.score)}%`,
+          sign:
+            lens === 'motion' ? (MOTION_SIGN[m.kind] ?? '→') : value === null ? '–' : String(Math.round(100 * value)),
+          brightness: lens === 'motion' ? m.brightness : 0,
+          quality: lens === 'motion' ? grade(m.score, 0.75, 0.5) : grade(value, 0.6, 0.35),
+          title: `${document.steps[i].symbol} → ${document.steps[i + 1].symbol}: ${m.text} · ${m.common} shared note${m.common === 1 ? '' : 's'} · natural ${Math.round(100 * m.score)}%${habit === null ? '' : ` · habit in ${tradition} music ${Math.round(100 * habit)}%`}${style === null ? '' : ` · ${book.name} ${Math.round(100 * style)}%`}`,
         },
       ];
     }),
@@ -886,6 +923,18 @@
       </div>
     {/each}
   </div>
+  <div class="row tight timeline-lens small muted">
+    <label
+      >Between chords show
+      <select aria-label="What the badges between chords show" bind:value={lens}>
+        <option value="motion">how they move</option>
+        <option value="habit" disabled={!habits.stats}>how common the move is (habit)</option>
+        <option value="style">
+          the style's verdict ({(RULEBOOKS.find((b) => b.id === assist.style) ?? RULEBOOKS[0]).name})
+        </option>
+      </select></label
+    >
+  </div>
   <details class="timeline-legend-box small muted">
     <summary>How to read the timeline</summary>
     <div class="timeline-legend">
@@ -896,7 +945,10 @@
         · = stays</span
       >
       <span>☀ brighter · ☾ darker (moves on the circle of fifths)</span>
-      <span><b>Badge colour:</b> green smooth · blue plain · red rough</span>
+      <span
+        ><b>Badge colour:</b> green smooth · blue plain · red rough. With habit or style chosen, the badge shows that
+        score (0–100) instead</span
+      >
       <span><b>Melody notes:</b> green chord tone · blue colour · amber leans · red pulls · hatched no chord</span>
       <span><b>Bottom lane:</b> playback style; click a bar to change the style from there on</span>
     </div>

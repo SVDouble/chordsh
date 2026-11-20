@@ -3,6 +3,7 @@
   import { Pane, PaneGroup, PaneResizer } from 'paneforge';
   import NowPlaying from './NowPlaying.svelte';
   import NextMoves from './NextMoves.svelte';
+  import ChordIdeas from './ChordIdeas.svelte';
   import KeyWheel from './KeyWheel.svelte';
   import Editor from './Editor.svelte';
   const harmony = $derived(settings.panels.now || settings.panels.next || settings.panels.map);
@@ -15,6 +16,7 @@
         {#if settings.panels.now}
           <NowPlaying />
         {/if}
+        <ChordIdeas />
         {#if settings.panels.next}
           <NextMoves />
         {:else if settings.panels.map}

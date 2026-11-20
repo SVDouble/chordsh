@@ -53,3 +53,13 @@ describe('advisor', () => {
     expect(fillGaps(song.document, 'pop', 4)).toEqual(fillGaps(song.document, 'pop', 4));
   });
 });
+
+describe('fill with two chords per bar', () => {
+  it('gives the textbook Twinkle harmony: C C F C F C G C', () => {
+    const song = new SequenceEditor(sequenceFromChart('| C |', 'Twinkle'));
+    song.recordMelody(twinkle);
+    song.remove(song.document.steps[0].id);
+    const filled = fillGaps(song.document, 'functional', 4, 2);
+    expect(filled.map((f) => f.symbol).join(' ')).toBe('C C F C F C G C');
+  });
+});

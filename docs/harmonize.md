@@ -4,6 +4,18 @@
 colour or pull ([harmony model §0](harmony-model.md#0-melody-first)). So chord.sh should start from the
 melody you play and offer harmony as explanations of it: first a basic one, then more developed ones.
 
+## Status (2026-11-20): in the app
+
+The four-stage pipeline below is implemented; see [app.md](app.md#melody-and-chords-for-the-melody):
+
+- a melody lane in songs, recorded from takes;
+- templates from the loop schemas;
+- filling chords under the melody with primary triads, refined with both neighbours known;
+- per-slot ideas from the judges plus a style rulebook.
+
+The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
+[src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).
+
 ## Now: a chord assistant with independent judges
 
 Automatic harmonization (the canvas mock) didn't feel right. For now, chord.sh only **assists**: for a

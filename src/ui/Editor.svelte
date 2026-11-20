@@ -26,6 +26,7 @@
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
+  import { noteRole } from '../engine/assist';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
   import { voiceChord } from '../theory/voicing';
@@ -74,6 +75,32 @@
     return currentSequence();
   });
   const chart = $derived(sequenceChart(document));
+  /** Melody lane: pitch range of the tune and the chord under each note (for rest / colour / lean / pull). */
+  const melodyRange = $derived.by(() => {
+    const pitches = (document.melody ?? []).map((n) => n.pitch);
+    return pitches.length ? [Math.min(...pitches), Math.max(...pitches)] : [60, 72];
+  });
+  const parsedSteps = $derived(
+    document.steps.map((s) => ({ start: s.start, end: s.start + s.beats, chord: parseChordSymbol(s.symbol) })),
+  );
+  function melodyIn(rowStart: number, rowEnd: number) {
+    const [lo, hi] = melodyRange;
+    return (document.melody ?? [])
+      .filter((n) => n.start < rowEnd - 1e-8 && n.start + n.beats > rowStart + 1e-8)
+      .map((n, i) => {
+        const under = parsedSteps.find((s) => s.start <= n.start + 1e-8 && n.start < s.end - 1e-8)?.chord;
+        const role = under ? noteRole(n.pitch, under) : 'none';
+        const from = Math.max(n.start, rowStart);
+        return {
+          id: `${n.start}:${n.pitch}:${i}`,
+          role,
+          left: (from - rowStart) * beatWidth,
+          width: Math.max(3, (Math.min(n.start + n.beats, rowEnd) - from) * beatWidth - 1),
+          top: 3 + 24 * (1 - (n.pitch - lo) / Math.max(1, hi - lo)),
+          title: `${n.pitch} · ${role === 'none' ? 'no chord' : role}`,
+        };
+      });
+  }
   const unit = $derived(beatQuarters(document.denominator));
   const barLength = $derived(barQuarters(document.meter, document.denominator));
   const snap = $derived(notatedQuarters(settings.editor.snapBeats, document.denominator));
@@ -521,7 +548,7 @@
         : playing || ui.playbackPosition > 0
           ? playBeat
           : composition.cursor}
-      <div class="chord-timeline timeline-row" data-start={rowStart}>
+      <div class="chord-timeline timeline-row" class:has-melody={!!document.melody?.length} data-start={rowStart}>
         {#each Array.from({ length: barsPerRow }, (_, i) => Math.round(rowStart / barLength) + i) as bar}
           {@const style = barPlaybackStyle(document, bar)}
           <button
@@ -662,6 +689,23 @@
             </div>
           {/if}
         {/each}
+        {#if document.melody?.length}
+          <div
+            class="melody-lane"
+            role="img"
+            aria-label="Melody: green rests on the chord, blue colours it, amber and red rub"
+          >
+            {#each melodyIn(rowStart, rowEnd) as n (n.id)}
+              <div
+                class="melody-note {n.role}"
+                style:left={`${n.left}px`}
+                style:width={`${n.width}px`}
+                style:top={`${n.top}px`}
+                title={n.title}
+              ></div>
+            {/each}
+          </div>
+        {/if}
         {#each incoming.filter((s) => s.start < rowEnd - 1e-8 && s.start + s.beats > rowStart + 1e-8) as step (step.id)}
           <div
             class="timeline-input"

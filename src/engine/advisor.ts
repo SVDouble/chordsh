@@ -137,18 +137,58 @@ export interface FilledChord {
 }
 
 /**
- * Pipeline step 3: one basic chord per bar wherever the melody sounds but no chord does, chosen left to right
+ * Pipeline step 3: one basic chord per slot (a bar, or half a bar with perBar = 2) wherever the melody sounds but
+ * no chord does, chosen left to right
  * with the previous (and any existing next) chord as context.
  */
-export function fillGaps(song: Sequence, style: StyleId, barQuarters: number): FilledChord[] {
+export function fillGaps(song: Sequence, style: StyleId, barQuarters: number, perBar = 1): FilledChord[] {
   const melody = song.melody ?? [];
   if (!melody.length) return [];
   const end = melody.reduce((e, n) => Math.max(e, n.start + n.beats), 0);
   const chordAt = (beat: number) => song.steps.find((s) => s.start <= beat + 1e-8 && beat < s.start + s.beats - 1e-8);
   const filled: FilledChord[] = [];
   const parsed = (symbol: string) => parseChordSymbol(symbol);
-  for (let bar = 0; bar * barQuarters < end; bar++) {
-    const span = { start: bar * barQuarters, end: (bar + 1) * barQuarters };
+  const choose = (
+    span: { start: number; end: number },
+    _inBar: MelodyNote[],
+    key: Key,
+    phraseEnd: boolean,
+    prev: Chord | null,
+    next: Chord | null,
+  ) => {
+    const ideas = advise({
+      key,
+      prev,
+      next,
+      melody: melody
+        .filter((n) => n.start < span.end + 2 && n.start + n.beats > span.start - 1)
+        .map((n) => ({ pitch: n.pitch, start: n.start, beats: n.beats })),
+      span,
+      meter: barQuarters,
+      style,
+      adventurous: 0,
+      phraseEnd,
+      limit: 40,
+    });
+    // basic chords: the primary triads (I, IV, V; i, iv, V in minor), staying on the tonic when the melody allows
+    const primary = ideas.filter((a) => {
+      const d = mod12(a.chord.root - key.tonic);
+      const minorish = a.chord.quality === 'min';
+      if (a.chord.seventh !== 'none' || a.chord.quality === 'dim' || a.chord.quality === 'aug') return false;
+      if (d === 7) return a.chord.quality === 'maj';
+      if (d === 0 || d === 5)
+        return minorish === (key.mode === 'minor') || (d === 5 && key.mode === 'major' && !minorish);
+      return false;
+    });
+    const tonicBonus = (a: Advice) => (mod12(a.chord.root - key.tonic) === 0 ? 0.06 : 0);
+    const best = [...(primary.length ? primary : ideas)].sort(
+      (a, b) => b.total + tonicBonus(b) - (a.total + tonicBonus(a)),
+    )[0];
+    return best;
+  };
+  const slot = barQuarters / perBar;
+  for (let k = 0; k * slot < end; k++) {
+    const span = { start: k * slot, end: (k + 1) * slot };
     const inBar = melody.filter((n) => n.start < span.end && n.start + n.beats > span.start);
     if (!inBar.length || chordAt(span.start) || chordAt((span.start + span.end) / 2)) continue;
     const before = [...song.steps, ...filled].filter((s) => s.start < span.start).sort((a, b) => b.start - a.start)[0];
@@ -158,21 +198,36 @@ export function fillGaps(song: Sequence, style: StyleId, barQuarters: number): F
     const lastEnd = Math.max(...inBar.map((n) => n.start + n.beats));
     const nextOnset = melody.find((n) => n.start >= lastEnd - 1e-8)?.start;
     const phraseEnd = nextOnset === undefined || nextOnset - lastEnd >= 1 - 1e-8 || lastEnd >= end - 1e-8;
-    const best = advise({
-      key,
-      prev: before ? parsed(before.symbol) : null,
-      next: after && after.start < span.end + 1e-8 ? parsed(after.symbol) : null,
-      melody: melody
-        .filter((n) => n.start < span.end + 2 && n.start + n.beats > span.start - 1)
-        .map((n) => ({ pitch: n.pitch, start: n.start, beats: n.beats })),
+    const best = choose(
       span,
-      meter: barQuarters,
-      style,
-      adventurous: 0,
+      inBar,
+      key,
       phraseEnd,
-      limit: 1,
-    })[0];
-    if (best) filled.push({ start: span.start, beats: barQuarters, symbol: best.name });
+      before ? parsed(before.symbol) : null,
+      after && after.start < span.end + 1e-8 ? parsed(after.symbol) : null,
+    );
+    // never push an existing chord: stop where the next one starts
+    const nextStart = song.steps
+      .filter((x) => x.start > span.start + 1e-8)
+      .reduce((m, x) => Math.min(m, x.start), Infinity);
+    const beats = Math.min(slot, nextStart - span.start);
+    if (best && beats > 0) filled.push({ start: span.start, beats, symbol: best.name });
+  }
+  // second pass: with both neighbours known (e.g. G before the final C), each filled chord is chosen again
+  const all = () =>
+    [...song.steps.map((x) => ({ start: x.start, symbol: x.symbol })), ...filled].sort((a, b) => a.start - b.start);
+  for (const f of filled) {
+    const span = { start: f.start, end: f.start + f.beats };
+    const inBar = melody.filter((n) => n.start < span.end && n.start + n.beats > span.start);
+    const list = all();
+    const i = list.findIndex((x) => x.start === f.start);
+    const lastEnd = Math.max(...inBar.map((n) => n.start + n.beats));
+    const nextOnset = melody.find((n) => n.start >= lastEnd - 1e-8)?.start;
+    const phraseEnd = nextOnset === undefined || nextOnset - lastEnd >= 1 - 1e-8 || lastEnd >= end - 1e-8;
+    const prev = list[i - 1] ? parsed(list[i - 1].symbol) : null;
+    const next = list[i + 1] && list[i + 1].start <= span.end + 1e-8 ? parsed(list[i + 1].symbol) : null;
+    const best = choose(span, inBar, keyAt(song, span.start), phraseEnd, prev, next);
+    if (best) f.symbol = best.name;
   }
   return filled;
 }

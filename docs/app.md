@@ -152,6 +152,41 @@ the insertion position. There are no Next chord / Change key tabs.
 
 Previews do not commit edits. Add/replace actions show a short confirmation with the song and position.
 
+## Melody and chords for the melody
+
+A song can hold a **melody** next to its chords. The **Chords for the melody** panel in the harmony pane
+helps you harmonize it in four steps. Use them in any order:
+
+1. **Start from a template** (optional). It inserts a basic progression at the cursor, one chord per
+   bar, spelled in the song's key: I–V–vi–IV, doo-wop, Mixolydian ♭VII–IV–I, Aeolian, Andalusian,
+   double plagal, blues and more.
+2. **Play the melody.** Press record and play.
+   - **Recording captures** chooses what the take keeps: chords and melody, melody only, or chords only.
+   - With *chords and melody*, notes the analysis hears above your chords become melody.
+   - With *melody only*, the top note of every attack becomes melody and no chords are added.
+3. **Fill chords under the melody.** Every bar (or half bar, with **per bar = 2**) that has melody but
+   no chord gets a basic chord: I, IV or V (i, iv, V in minor), staying on the tonic when the melody
+   allows. Each chord is chosen with its neighbours in mind, and existing chords are never moved.
+   Twinkle Twinkle gives the textbook C C F C F C G C.
+4. **Customize.**
+   - Select a chord, or put the cursor on an empty bar, to see **ranked ideas** for that spot.
+   - Each idea shows a score; what the melody, the context (tension prepared or resolved), the motion
+     rules and the chosen **style** say about it; and short reasons. Hover the reasons for the style
+     rules it satisfies or breaks.
+   - Click an idea to hear it; ✓ replaces the selected chord, + adds at the cursor.
+   - **Style** picks a rulebook: Pop & rock, Jazz, Functional, Counterpoint, Colour or Chromatic.
+     **Expected ↔ Fresh** lets colour chords compete with in-key ones.
+
+On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
+
+- green: rests (a chord tone);
+- blue: colours (a step away);
+- amber: leans into a chord tone from a semitone below;
+- red: pulls (a semitone above a chord tone).
+
+The advice is deterministic and comes from explicit rules: [harmonize.md](harmonize.md) and
+[rules.md](rules.md).
+
 ## Sources, devices and workspace
 
 **The source picker beside playback** searches saved songs, examples, opened performances, recordings

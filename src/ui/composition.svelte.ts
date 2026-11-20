@@ -12,8 +12,11 @@ import {
   sequenceKeyAt,
   sequenceRegions,
   type ChordInput,
+  type MelodyNote,
   type Sequence,
 } from '../engine/sequence';
+import { fillGaps } from '../engine/advisor';
+import type { Recording } from '../io/recorder';
 import { EXAMPLES } from '../engine/chart';
 import { computeReach, type Path } from '../engine/coach';
 import { parseChordSymbol } from '../theory/symbols';
@@ -65,6 +68,12 @@ function restore(): Sequence[] {
             editor.setBarStyle(entry.bar, entry.style);
       if (Array.isArray(raw.regions))
         for (const region of raw.regions) editor.setRegion(region.start, region.key, region.label);
+      if (Array.isArray(raw.melody) && raw.melody.length)
+        try {
+          editor.recordMelody(raw.melody);
+        } catch {
+          /* An unreadable melody is dropped; the chords are kept. */
+        }
       const document = editor.document;
       document.regions?.forEach((region) => {
         const previous = raw.regions?.find((r) => r.start === region.start);
@@ -113,6 +122,14 @@ export const composition = $state({
     heldAtStart: boolean;
     origin: number | null;
   } | null,
+});
+
+/** Chord-advisor choices: the style rulebook, how adventurous ideas are, and what a recording take captures. */
+export const assist = $state({
+  style: 'pop',
+  adventurous: 0.3,
+  recordTarget: 'both' as 'both' | 'melody' | 'chords',
+  perBar: 1 as 1 | 2,
 });
 
 export const currentSequence = () => editor.document;
@@ -583,6 +600,49 @@ recordingHooks.start = () => {
 recordingHooks.noteOn = (t) => {
   if (composition.take && composition.take.origin === null) composition.take.origin = t;
 };
+/**
+ * The melody of a take: notes the session heard as melody (above the chords), or every note's top voice when
+ * recording melody only. Times are aligned like the take's chords (first attack = the insertion cursor).
+ */
+function takeMelody(take: NonNullable<typeof composition.take>, recording: Recording): MelodyNote[] {
+  const offset = (take.origin ?? take.started) - take.started;
+  const ons = recording.input.filter((e) => e.kind === 'on').sort((a, b) => a.t - b.t);
+  let picks: { t: number; note: number; vel: number }[] = [];
+  if (assist.recordTarget === 'melody') {
+    for (let i = 0; i < ons.length; ) {
+      let j = i;
+      let top = ons[i];
+      while (j < ons.length && ons[j].t - ons[i].t < 35) {
+        if (ons[j].note > top.note) top = ons[j];
+        j++;
+      }
+      picks.push({ t: top.t, note: top.note, vel: top.vel });
+      i = j;
+    }
+  } else
+    picks = session.melody
+      .filter((m) => m.t >= take.started - 1)
+      .map((m) => {
+        const rel = m.t - take.started;
+        const on = ons.find((e) => e.note === m.note && Math.abs(e.t - rel) < 80);
+        return { t: on?.t ?? rel, note: m.note, vel: on?.vel ?? settings.editor.velocity };
+      });
+  const beat = (t: number) => take.at + ((t - offset) * take.bpm) / 60000;
+  const snap = (b: number) => Math.round(b * 8) / 8;
+  return picks
+    .map((p, i) => {
+      const off = recording.input.find((e) => e.kind === 'off' && e.note === p.note && e.t > p.t);
+      const end = off?.t ?? picks[i + 1]?.t ?? p.t + 500;
+      return {
+        start: snap(beat(p.t)),
+        beats: Math.max(0.125, snap(beat(end) - beat(p.t))),
+        pitch: p.note,
+        velocity: Math.min(127, Math.max(1, p.vel)),
+      };
+    })
+    .filter((n) => n.start >= take.at - 1e-6);
+}
+
 recordingHooks.stop = (recording) => {
   const take = composition.take;
   if (!take) return;
@@ -590,7 +650,15 @@ recordingHooks.stop = (recording) => {
   if (editor.document.id !== take.songId) selectSequence(take.songId);
   const steps = inputTimeline();
   composition.take = null;
-  if (!recording.input.some((e) => e.kind === 'on') || !steps.length) return;
+  if (!recording.input.some((e) => e.kind === 'on')) return;
+  if (assist.recordTarget !== 'chords') {
+    const melody = takeMelody(take, recording);
+    if (melody.length) {
+      const end = melody.reduce((e, n) => Math.max(e, n.start + n.beats), take.at);
+      editSequence((e) => e.recordMelody(melody, take.at, end));
+    }
+  }
+  if (assist.recordTarget === 'melody' || !steps.length) return;
   selectTimeline(steps[0].start);
   acceptChords(
     steps.map((s, i) => {
@@ -610,6 +678,33 @@ recordingHooks.stop = (recording) => {
     }),
   );
 };
+
+/** Pipeline step 1: start from a chord template (one chord per bar at the cursor). */
+export function insertTemplate(symbols: string[]) {
+  const doc = editor.document;
+  const bar = barQuarters(doc.meter, doc.denominator);
+  acceptChords(symbols.map((symbol) => ({ symbol, beats: bar })));
+}
+
+/** Pipeline step 3: one basic chord per bar wherever the melody has none. */
+export function fillMelodyGaps() {
+  const doc = editor.document;
+  const filled = fillGaps(doc, assist.style, barQuarters(doc.meter, doc.denominator), assist.perBar);
+  if (!filled.length) {
+    notify(doc.melody?.length ? 'Every bar with melody already has a chord.' : 'Record or play a melody first.');
+    return;
+  }
+  editSequence((e) => {
+    for (const f of filled) e.place([{ symbol: f.symbol, beats: f.beats }], f.start);
+  });
+  notify(
+    `Added ${filled.length} chord${filled.length > 1 ? 's' : ''} under the melody: ${filled.map((f) => f.symbol).join(' · ')}`,
+  );
+}
+
+export function clearMelody() {
+  if (editSequence((e) => e.clearMelody())) notify('Melody cleared. Undo brings it back.');
+}
 
 export function refreshCompositionSettings() {
   editor.settings = $state.snapshot(settings.editor);

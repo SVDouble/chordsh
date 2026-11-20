@@ -43,8 +43,13 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
 - The **⋯ song menu** contains transpose, chart paste (`| Dm7 G7 | Cmaj7 |`), duplicate/delete song and piano guide.
   Duplicating makes an independent variation with a distinct title. Deletion offers **Restore**.
 
-Songs save automatically in this browser. The editor shows whether saving succeeded. It retains
+**Songs are saved only when you press Save** (or Ctrl+S / ⌘S). Edits change a working copy, and the
+status next to Save says "Not saved yet", "Unsaved changes" or "Saved". The song list marks unsaved
+songs. Leaving the page with unsaved songs asks first. Saved songs live in this browser. It retains
 existing songs and preferences from the old Musify storage when migrating to chord.sh.
+
+The left column has three tabs: **Circle** (next moves and the circle of fifths), **Chord ideas** and
+**Sequences**. The chosen tab is remembered in this browser.
 
 ## Play into the timeline
 
@@ -112,8 +117,9 @@ Seeking belongs to the timeline, with no toolbar seek slider:
 - The **repeat icon beside Stop** toggles looping of the whole song/performance. Enable it, then Play.
   It remains highlighted while enabled. Switching it off during playback finishes the current pass.
 - ● records; pressing it again saves without needing a separate recording area.
-- ↺ resets the current timeline and input analysis, stopping sound. Song name, tempo, meter and key
-  remain; **Undo restores the cleared chords**. Other songs are retained.
+- ↺ clears **this song's** chords and melody (and the input analysis), stopping sound. The song itself,
+  its name, tempo, meter and key remain; **Undo brings the chords and melody back**. Nothing is saved
+  until you press Save.
 - ⇩ exports the selected song/performance as MIDI.
 
 The song selector names the current playback source. Changing it while playing starts the new source;
@@ -260,7 +266,15 @@ The advice is deterministic and comes from explicit rules: [harmonize.md](harmon
 and every reference collection. There is no separate Library tab. Reference results are paged with explicit counts and Show more; search includes pieces
 beyond the initially displayed page. The active source is marked current.
 
-Click the current source name to browse. Select a row to open it; the play icon explicitly plays it. Changing sources during playback keeps playback running.
+Click the current source name to browse. **Selecting any row opens it in the timeline as a song** with
+chords and melody, unsaved until you press Save:
+
+- **Open-source pieces** (the annotated corpora in `local/data`) bring their annotated chords and key;
+- **recordings** bring the chords the app recognised during the take;
+- **built-in performances and MIDI files** get chords read from their notes.
+
+The melody is the top line of the notes, an approximation for piano pieces. The play icon plays the
+original performance. Changing sources during playback keeps playback running.
 **Import MIDI** opens a performance for listening and analysis. Record it into the timeline to turn its
 inferred chords into editable material. Examples are editable starting points.
 

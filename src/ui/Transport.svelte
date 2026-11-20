@@ -88,8 +88,8 @@
   <button
     type="button"
     class="icon reset-workspace"
-    aria-label="Reset song and input"
-    title="Reset song and input — Undo restores chords"
+    aria-label="Clear this song's chords and melody"
+    title="Clear this song's chords and melody (the song stays; Undo brings them back)"
     onclick={resetWorkspace}
   >
     <Icon name="reset" />

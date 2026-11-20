@@ -2,6 +2,7 @@
   import Icon from './Icon.svelte';
   import Transport from './Transport.svelte';
   import StylePicker from './StylePicker.svelte';
+  import LoadParts from './LoadParts.svelte';
   import { barPlaybackStyle } from '../engine/accompaniment';
   import { DEFAULT_SETTINGS, METER_DENOMINATORS, MUSIC_LIMITS } from '../config/settings';
   import { tick } from 'svelte';
@@ -28,6 +29,8 @@
     dragging,
     dropChords,
     dropTarget,
+    isUnsaved,
+    saveSong,
   } from './composition.svelte';
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
@@ -112,6 +115,7 @@
     return currentSequence();
   });
   const chart = $derived(sequenceChart(document));
+  const unsaved = $derived(isUnsaved(document));
   /** Melody lane: pitch range of the tune and the chord under each note (for rest / colour / lean / pull). */
   const melodyRange = $derived.by(() => {
     const pitches = (document.melody ?? []).map((n) => n.pitch);
@@ -542,6 +546,12 @@
     if (scrubbing?.pointer === e.pointerId) endPointer(e);
     if (drag?.pointer === e.pointerId) cancelGestures();
   }}
+  onkeydown={(e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveSong();
+    }
+  }}
 />
 <div class="sequence-editor">
   <div class="sequence-heading">
@@ -608,14 +618,29 @@
     </div>
   </div>
   <Transport />
-  <div
-    class="song-status small"
-    class:warn={!ui.savedLocally}
-    title={ui.savedLocally
-      ? 'Songs are saved in this browser, on this device.'
-      : 'Browser storage is unavailable. Keep this page open and export MIDI.'}
-  >
-    {ui.savedLocally ? 'Saved on this device' : 'Not saved'}
+  <div class="song-status small row tight" class:warn={!ui.savedLocally}>
+    {#if !ui.savedLocally}
+      <span title="Browser storage is unavailable. Keep this page open and export MIDI."
+        >Can't save in this browser</span
+      >
+    {:else if !composition.saved[document.id]}
+      <span class="muted">Not saved yet</span>
+    {:else if unsaved}
+      <span>Unsaved changes</span>
+    {:else}
+      <span class="muted">Saved</span>
+    {/if}
+    <button
+      type="button"
+      class="save-song"
+      class:primary={unsaved}
+      disabled={!unsaved && !!composition.saved[document.id]}
+      title="Save this song in this browser (Ctrl+S). Nothing is saved until you do."
+      onclick={saveSong}
+    >
+      Save
+    </button>
+    <LoadParts />
   </div>
   <div class="sequence-meta">
     <label title="Tempo"

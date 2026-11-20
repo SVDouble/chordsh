@@ -8,6 +8,28 @@
   import KeyWheel from './KeyWheel.svelte';
   import Editor from './Editor.svelte';
   const harmony = $derived(settings.panels.now || settings.panels.next || settings.panels.map);
+  const circle = $derived(settings.panels.next || settings.panels.map);
+  type Tab = 'circle' | 'ideas' | 'sequences';
+  /** The left column's tab, remembered in this browser (a convenience only). */
+  let tab = $state<Tab>(remembered());
+  function remembered(): Tab {
+    try {
+      const t = localStorage.getItem('chordsh-harmony-tab');
+      if (t === 'circle' || t === 'ideas' || t === 'sequences') return t;
+    } catch {
+      /* storage unavailable: use the default */
+    }
+    return 'circle';
+  }
+  function choose(t: Tab) {
+    tab = t;
+    try {
+      localStorage.setItem('chordsh-harmony-tab', t);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  const shown = $derived(tab === 'circle' && !circle ? 'ideas' : tab);
 </script>
 
 <PaneGroup direction="horizontal" autoSaveId={`chordsh-harmony-v3-${harmony}`} class="workspace">
@@ -17,12 +39,29 @@
         {#if settings.panels.now}
           <NowPlaying />
         {/if}
-        <ChordIdeas />
-        <SequenceIdeas />
-        {#if settings.panels.next}
-          <NextMoves />
-        {:else if settings.panels.map}
-          <KeyWheel compact />
+        <div class="harmony-tabs" role="tablist" aria-label="Harmony tools">
+          {#if circle}
+            <button type="button" role="tab" aria-selected={shown === 'circle'} onclick={() => choose('circle')}>
+              Circle
+            </button>
+          {/if}
+          <button type="button" role="tab" aria-selected={shown === 'ideas'} onclick={() => choose('ideas')}>
+            Chord ideas
+          </button>
+          <button type="button" role="tab" aria-selected={shown === 'sequences'} onclick={() => choose('sequences')}>
+            Sequences
+          </button>
+        </div>
+        {#if shown === 'circle'}
+          {#if settings.panels.next}
+            <NextMoves />
+          {:else}
+            <KeyWheel compact />
+          {/if}
+        {:else if shown === 'ideas'}
+          <ChordIdeas />
+        {:else}
+          <SequenceIdeas />
         {/if}
       </aside>
     </Pane>

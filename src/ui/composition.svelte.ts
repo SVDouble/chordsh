@@ -119,6 +119,8 @@ export const composition = $state({
   selectedId: null as string | null,
   cursor: initial.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0),
   documents: restored.length ? restored : [initial],
+  /** The last saved version of each saved song (JSON); a song is saved only when you press Save. */
+  saved: Object.fromEntries(restored.map((d) => [d.id, JSON.stringify(d)])) as Record<string, string>,
   error: '',
   input: null as PlayedInput<InputTarget> | null,
   take: null as {
@@ -222,8 +224,11 @@ function sync(save = true) {
   preparePiece(sequencePiece(document, $state.snapshot(settings.editor)));
   session.loadSong(sequenceChart(document));
   if (save) {
-    composition.documents = [...composition.documents.filter((s) => s.id !== document.id), document];
-    persist({ sequences: $state.snapshot(composition.documents), activeSequenceId: document.id });
+    // working copy only: nothing is written until the song is saved
+    const at = composition.documents.findIndex((s) => s.id === document.id);
+    composition.documents =
+      at < 0 ? [...composition.documents, document] : composition.documents.map((s, i) => (i === at ? document : s));
+    if (composition.saved[document.id]) persist({ activeSequenceId: document.id });
   }
 }
 
@@ -298,13 +303,21 @@ export function duplicateSequence() {
 
 export function deleteSequence() {
   const removed = editor.document;
+  const savedVersion = composition.saved[removed.id];
   composition.documents = composition.documents.filter((s) => s.id !== removed.id);
+  const { [removed.id]: _gone, ...rest } = composition.saved;
+  composition.saved = rest;
+  persistSaved();
   if (composition.documents.length) selectSequence(composition.documents[0].id);
   else newSequence();
   notify(
     `Deleted ${removed.title}`,
     () => {
       composition.documents = [...composition.documents.filter((s) => s.id !== removed.id), removed];
+      if (savedVersion) {
+        composition.saved = { ...composition.saved, [removed.id]: savedVersion };
+        persistSaved();
+      }
       selectSequence(removed.id);
       notify(`Restored ${removed.title}`);
     },
@@ -577,7 +590,7 @@ export async function resetWorkspace() {
   composition.selectedId = null;
   composition.cursor = 0;
   editSequence((e) => e.clear());
-  notify('Timeline and input reset. Undo restores the chords.');
+  notify(`Cleared ${editor.document.title}: chords and melody. Undo brings them back.`);
 }
 
 recordingHooks.start = () => {
@@ -759,7 +772,7 @@ export function refreshCompositionSettings() {
 export const exportSequenceMidi = () => downloadMidi(sequencePiece(editor.document, $state.snapshot(settings.editor)));
 sync(false);
 if (regroupedSongs) {
-  persist({ sequences: $state.snapshot(composition.documents) });
+  persistSaved();
   notify(
     'Saved songs with unsupported meter denominators now use /4 grouping. Notes and playback timing are unchanged.',
   );
@@ -1042,4 +1055,43 @@ export function dropChords(idea: ChordDrag, beat: number) {
     selectTimeline(target.start);
     acceptChords(inputs);
   }
+}
+
+// ───────────────────────────── saving ─────────────────────────────
+
+/** Write the saved versions (not the working copies) to browser storage. */
+function persistSaved() {
+  const sequences = composition.documents
+    .filter((d) => composition.saved[d.id])
+    .map((d) => JSON.parse(composition.saved[d.id]) as Sequence);
+  persist({ sequences, activeSequenceId: editor.document.id });
+}
+
+/** Unsaved: never saved and not empty, or changed since the last save. */
+export function isUnsaved(doc: Sequence) {
+  const saved = composition.saved[doc.id];
+  return saved ? saved !== JSON.stringify(doc) : doc.steps.length > 0 || !!doc.melody?.length;
+}
+
+export function saveSong() {
+  const doc = editor.document;
+  composition.saved = { ...composition.saved, [doc.id]: JSON.stringify(doc) };
+  persistSaved();
+  if (ui.savedLocally) notify(`Saved ${doc.title} in this browser.`);
+  else composition.error = 'Browser storage is unavailable: export MIDI to keep this song.';
+}
+
+// leaving the page with unsaved songs asks first
+if (typeof window !== 'undefined')
+  window.addEventListener('beforeunload', (e) => {
+    if (composition.documents.some(isUnsaved)) e.preventDefault();
+  });
+
+/** Open a song made from a library entry in the timeline: an unsaved working copy (reopened if already open). */
+export function openSong(song: Sequence) {
+  if (!composition.documents.some((d) => d.id === song.id)) composition.documents = [...composition.documents, song];
+  selectSequence(song.id);
+  notify(
+    `Opened ${song.title}: ${song.steps.length} chords${song.melody?.length ? `, ${song.melody.length} melody notes` : ''}. Not saved until you press Save.`,
+  );
 }

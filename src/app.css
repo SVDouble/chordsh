@@ -3240,3 +3240,26 @@ button.icon {
 .drop-preview.replace {
   border-style: solid;
 }
+/* ── tabs in the harmony column (Workspace.svelte) ── */
+.harmony-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-2);
+}
+.harmony-tabs button {
+  flex: 1;
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+.harmony-tabs button[aria-selected="true"] {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 15%, transparent);
+}

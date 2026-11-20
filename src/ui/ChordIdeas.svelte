@@ -1,6 +1,5 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import LoadParts from './LoadParts.svelte';
   import DragHandle from './DragHandle.svelte';
   import { advise, type Development, developments, keyAt, STYLES, templates, type Advice } from '../engine/advisor';
   import { noteRole } from '../engine/assist';
@@ -234,7 +233,6 @@
     </details>
   {/if}
   <div class="chord-ideas-tools">
-    <LoadParts />
     <label class="small"
       >Start from
       <select

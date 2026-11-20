@@ -5,7 +5,15 @@
   import { choosePerformance, registerPerformance, ui } from './store.svelte';
   import { BUILT_IN, type Piece, fromBenchmark, fromMidi, fromRecording } from '../library/pieces';
   import { midiFileMeta, parseMidiFile } from '../io/midifile';
-  import { composition, exampleSequences, newSequence, selectSequence } from './composition.svelte';
+  import {
+    composition,
+    exampleSequences,
+    isUnsaved,
+    newSequence,
+    openSong,
+    selectSequence,
+  } from './composition.svelte';
+  import { recordedChords, songFromPerformance, songFromReference } from '../library/toSong';
 
   let recordings = $state<string[]>([]);
   let corpora = $state<Record<string, string[]>>({});
@@ -72,6 +80,31 @@
     await choosePerformance(id, play || !!ui.nowPlaying);
     if (!ui.playbackError) onselect();
   }
+  /** Open a library entry in the timeline as a song (already open: just switch to it). */
+  async function openAsSong(id: string, make: () => Promise<import('../engine/sequence').Sequence>) {
+    const open = composition.documents.find((d) => d.id === id);
+    if (open) selectSequence(open.id);
+    else {
+      try {
+        openSong({ ...(await make()), id });
+      } catch (error) {
+        composition.error = `Couldn't open it as a song: ${(error as Error).message}`;
+        return;
+      }
+    }
+    onselect();
+  }
+  const openPerformance = (piece: Piece) => openAsSong(`song:${piece.id}`, async () => songFromPerformance(piece));
+  const openRecording = (file: string) =>
+    openAsSong(`song:recording:${file}`, async () => {
+      const rec = await getJson(`recordings/${file}`);
+      return songFromPerformance(fromRecording(`recording:${file}`, rec), recordedChords(rec.engine));
+    });
+  const openReference = (group: string, id: string) =>
+    openAsSong(`song:${group}/${id}`, async () => {
+      const raw = await getJson(`data/${group}/${id}.json`);
+      return { ...songFromReference(raw), title: `${raw.title ?? id} (${group})` };
+    });
   async function openFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!file) return;
@@ -133,10 +166,13 @@
           >
             <b>{song.title}</b
             ><span class="small muted"
-              >{song.steps.length ? `${song.steps.length} chords · ${song.bpm} BPM` : 'Empty song'}{ui.sourceId ===
-              `sequence:${song.id}`
-                ? ' · current'
-                : ''}</span
+              >{song.steps.length ? `${song.steps.length} chords · ${song.bpm} BPM` : 'Empty song'}{!composition.saved[
+                song.id
+              ]
+                ? ' · not saved'
+                : isUnsaved(song)
+                  ? ' · unsaved changes'
+                  : ''}{ui.sourceId === `sequence:${song.id}` ? ' · current' : ''}</span
             >
           </button>
           <button
@@ -189,7 +225,10 @@
   {/if}
   {#if performances.length || files.length}
     <div class="label">Listen & explore</div>
-    <p class="small muted">Select to open, ▶ to listen. Heard chords can be added to your song.</p>
+    <p class="small muted">
+      Select to open it in the timeline with its chords and melody (not saved until you press Save); ▶ to listen to the
+      original.
+    </p>
     <div class="lib-list">
       {#each performances as piece (piece.id)}
         <div class="lib-row" class:current={ui.sourceId === `piece:${piece.id}`}>
@@ -197,7 +236,7 @@
             type="button"
             class="lib-item"
             aria-current={ui.sourceId === `piece:${piece.id}` ? 'true' : undefined}
-            onclick={() => loadPerformance(async () => piece, piece.id, piece.title)}
+            onclick={() => openPerformance(piece)}
           >
             <b>{piece.title}</b
             ><span class="muted small"
@@ -223,10 +262,7 @@
             type="button"
             class="lib-item"
             aria-current={ui.sourceId === `piece:recording:${file}` ? 'true' : undefined}
-            onclick={async () => {
-              await choosePerformance(`recording:${file}`, !!ui.nowPlaying);
-              if (!ui.playbackError) onselect();
-            }}
+            onclick={() => openRecording(file)}
           >
             <b>{recordingName(file)}</b
             ><span class="muted small">Recording{ui.sourceId === `piece:recording:${file}` ? ' · current' : ''}</span>
@@ -248,9 +284,11 @@
     </div>
   {/if}
   {#if Object.keys(corpora).length}
-    <details class="library-browser" open={!!query.trim() && references.length > 0}>
-      <summary>Reference performances <span class="muted small">{references.length}</span></summary>
-      <p class="small muted">Annotated performances to explore and learn from.</p>
+    <details class="library-browser" open>
+      <summary>Open-source pieces <span class="muted small">{references.length}</span></summary>
+      <p class="small muted">
+        Annotated pieces (local/data). Select to open one in the timeline with its chords and melody; ▶ to listen.
+      </p>
       {#if !query.trim()}
         <label class="row small"
           >Collection
@@ -264,17 +302,7 @@
       <div class="lib-list">
         {#each references.slice(0, shown) as ref (`${ref.group}/${ref.id}`)}
           <div class="lib-row" class:current={ui.sourceId === `piece:${ref.group}/${ref.id}`}>
-            <button
-              type="button"
-              class="lib-item"
-              onclick={() =>
-                loadPerformance(
-                  async () =>
-                    fromBenchmark(`${ref.group}/${ref.id}`, await getJson(`data/${ref.group}/${ref.id}.json`)),
-                  `${ref.group}/${ref.id}`,
-                  ref.id,
-                )}
-            >
+            <button type="button" class="lib-item" onclick={() => openReference(ref.group, ref.id)}>
               <b>{ref.id}</b><span class="small muted">{ref.group}</span>
             </button>
             <button

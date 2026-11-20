@@ -169,6 +169,9 @@ helps you harmonize it in four steps. Use them in any order:
    - **Load chords…** reads a MIDI file's accompaniment, or a chord chart in a `.txt` file. In MIDI,
      each bar is read as one chord and split into halves or beats only where every part is a full chord
      and the harmony changes, so arpeggios still read as one chord. The melody is not touched.
+   - Or **drag and drop** a `.mid` or `.txt` file anywhere on the page. A MIDI file opens the same dialog,
+     with a switch for using it as the melody or the chords. It defaults to the chords when the song
+     has a melody but no chords yet.
    - An empty song takes the file's tempo and meter. A song without chords takes its key from what
      was loaded. Each load is one undo step.
 2. **Play the melody.** Press record and play.

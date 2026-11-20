@@ -3177,3 +3177,22 @@ button.icon {
 .timeline-lens {
   margin-top: 6px;
 }
+.drop-hint {
+  position: fixed;
+  inset: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--accent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.load-role {
+  gap: 12px;
+  margin-bottom: 4px;
+}

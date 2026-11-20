@@ -11,6 +11,7 @@
     loadMelody,
     previewPart,
   } from './composition.svelte';
+  import { notify } from './store.svelte';
 
   type Role = 'melody' | 'chords';
   let role = $state<Role>('melody');
@@ -22,6 +23,36 @@
   /** Melody: the one part to use. Chords: the parts whose notes are read together as chords. */
   let chosenMelody = $state('');
   let chosenChords = $state<string[]>([]);
+
+  /**
+   * Drag and drop anywhere on the page. Without this, Firefox tries to open a dropped file itself
+   * ("may not load or link to file:///"). A MIDI file opens the part dialog, where melody or chords can be chosen.
+   */
+  let dragging = $state(false);
+  const hasFiles = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  function dragOver(e: DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    dragging = true;
+  }
+  function dragLeave(e: DragEvent) {
+    if (!e.relatedTarget) dragging = false;
+  }
+  function drop(e: DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragging = false;
+    const file = e.dataTransfer?.files[0];
+    if (!file) return;
+    if (!/\.(mid|midi|txt)$/i.test(file.name)) {
+      notify(`${file.name}: drop a MIDI file (.mid) or a chord chart (.txt).`);
+      return;
+    }
+    const doc = currentSequence();
+    role = doc.melody?.length && !doc.steps.length ? 'chords' : /\.txt$/i.test(file.name) ? 'chords' : 'melody';
+    opened(file);
+  }
 
   function pick(r: Role) {
     role = r;
@@ -71,6 +102,11 @@
   const noteName = (m: number) => `${NAMES[m % 12]}${Math.floor(m / 12) - 1}`;
 </script>
 
+<svelte:window ondragover={dragOver} ondragleave={dragLeave} ondrop={drop} />
+{#if dragging}
+  <div class="drop-hint" aria-hidden="true">Drop a MIDI file (melody or chords) or a chord chart (.txt)</div>
+{/if}
+
 <div class="row tight load-parts">
   <button type="button" onclick={() => pick('melody')} title="Load a melody from a MIDI file; the chords stay">
     <Icon name="upload" size={14} /> Load melody…
@@ -101,6 +137,11 @@
       load();
     }}
   >
+    <div class="row tight load-role">
+      <span class="small muted">Use this file for</span>
+      <label><input type="radio" name="load-role" value="melody" bind:group={role}> the melody</label>
+      <label><input type="radio" name="load-role" value="chords" bind:group={role}> the chords</label>
+    </div>
     <h3>{role === 'melody' ? 'Which part is the melody?' : 'Which parts make the chords?'}</h3>
     <p class="small muted">
       {fileName}{meta ? ` · ${Math.round(meta.bpm)} BPM · ${meta.beatsPerBar}/${meta.denominator}` : ''}

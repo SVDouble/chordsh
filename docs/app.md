@@ -162,6 +162,15 @@ helps you harmonize it in four steps. Use them in any order:
 1. **Start from a template** (optional). It inserts a basic progression at the cursor, one chord per
    bar, spelled in the song's key: I–V–vi–IV, doo-wop, Mixolydian ♭VII–IV–I, Aeolian, Andalusian,
    double plagal, blues and more.
+   **Or load them separately** (buttons in the ideas panel):
+   - **Load melody…** reads a MIDI file. You pick the part that is the melody; the likely one is
+     preselected (by name, a single line, high register), and 👂 previews each part. Where the part
+     plays several notes at once, the top note is kept. The song's chords are not touched.
+   - **Load chords…** reads a MIDI file's accompaniment, or a chord chart in a `.txt` file. In MIDI,
+     each bar is read as one chord and split into halves or beats only where every part is a full chord
+     and the harmony changes, so arpeggios still read as one chord. The melody is not touched.
+   - An empty song takes the file's tempo and meter. A song without chords takes its key from what
+     was loaded. Each load is one undo step.
 2. **Play the melody.** Press record and play.
    - **Recording captures** chooses what the take keeps: chords and melody, melody only, or chords only.
    - With *chords and melody*, notes the analysis hears above your chords become melody.

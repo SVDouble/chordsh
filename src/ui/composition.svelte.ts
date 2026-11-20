@@ -21,7 +21,7 @@ import type { Recording } from '../io/recorder';
 import { EXAMPLES } from '../engine/chart';
 import { computeReach, type Path } from '../engine/coach';
 import { parseChordSymbol } from '../theory/symbols';
-import { chordName, identify } from '../theory/chords';
+import { type Chord, chordName, identify } from '../theory/chords';
 import { analyzeRoman } from '../theory/roman';
 import { type Key, keyIndex, keyLong } from '../theory/scales';
 import {
@@ -860,4 +860,110 @@ export function previewSequence(span: { start: number; end: number }, names: str
     .filter(([at]) => at >= from - 1 && at < to - 1)
     .map(([at, d, n, v]): [number, number, number, number] => [at - from, Math.min(d, to - at), n, v]);
   previewArrangement({ ...piece, notes, durationMs: to - from }, names.join(' → '));
+}
+
+// ───────────────────────────── loading a melody and chords separately ─────────────────────────────
+
+export interface FileMeta {
+  bpm: number;
+  beatsPerBar: number;
+  denominator: number;
+}
+
+/** An empty song takes the file's tempo and meter. */
+function adoptMeta(e: SequenceEditor, meta: FileMeta | null) {
+  const doc = e.document;
+  if (!meta || doc.steps.length || doc.melody?.length) return;
+  e.update({ bpm: Math.round(meta.bpm), meter: meta.beatsPerBar, denominator: meta.denominator });
+}
+
+/** Replace the song's melody (its chords stay). */
+export function loadMelody(notes: MelodyNote[], meta: FileMeta | null, from: string) {
+  if (!notes.length) {
+    notify(`No notes in ${from}.`);
+    return;
+  }
+  let key: Key | null = null;
+  const done = editSequence((e) =>
+    e.batch(() => {
+      adoptMeta(e, meta);
+      e.recordMelody(notes);
+      key = keyFromMelody(e);
+    }),
+  );
+  if (done)
+    notify(
+      `Loaded ${notes.length} melody notes from ${from}${key ? `; key ${keyLong(key)} from the melody` : ''}. Chords unchanged.`,
+    );
+}
+
+/** Replace the song's chords (its melody stays). */
+export function loadChords(
+  chords: { start: number; beats: number; symbol: string }[],
+  meta: FileMeta | null,
+  from: string,
+) {
+  if (!chords.length) {
+    notify(`No chords found in ${from}.`);
+    return;
+  }
+  let key: Key | null = null;
+  const done = editSequence((e) =>
+    e.batch(() => {
+      const hadChords = e.document.steps.length > 0;
+      adoptMeta(e, meta);
+      for (const s of e.document.steps) e.remove(s.id);
+      for (const c of [...chords].sort((a, b) => a.start - b.start))
+        e.place([{ symbol: c.symbol, beats: c.beats }], c.start);
+      // a song that had no chords takes its key from the loaded chords (and the melody, if any)
+      const doc = e.document;
+      if (!hadChords && (doc.regions?.length ?? 0) <= 1) {
+        const parsed = chords.map((c) => parseChordSymbol(c.symbol)).filter((c): c is Chord => !!c);
+        const found = estimateKey(doc.melody ?? [], parsed);
+        if (!doc.key || keyIndex(doc.key) !== keyIndex(found)) {
+          e.update({ key: found });
+          key = found;
+        }
+      }
+    }),
+  );
+  if (done) {
+    composition.selectedId = null;
+    notify(`Loaded ${chords.length} chords from ${from}${key ? ` in ${keyLong(key)}` : ''}. Melody unchanged.`);
+  }
+}
+
+/** Chords from a chord chart (text), placed from the start of the song. */
+export function chordsFromChart(text: string) {
+  const doc = editor.document;
+  const imported = sequenceFromChart(text, doc.title, undefined, {
+    numerator: doc.meter,
+    denominator: doc.denominator ?? 4,
+  });
+  return imported.steps.map((s) => ({ start: s.start, beats: s.beats, symbol: s.symbol }));
+}
+
+/** Hear the notes of a file part (before loading it). */
+export function previewPart(
+  notes: { start: number; beats: number; pitch: number; velocity: number }[],
+  bpm: number,
+  label: string,
+) {
+  const ms = 60000 / bpm;
+  const first = notes.length ? Math.min(...notes.map((n) => n.start)) : 0;
+  const shown = notes.filter((n) => n.start < first + 16);
+  previewArrangement(
+    {
+      id: `part:${label}`,
+      title: label,
+      source: 'midi file',
+      notes: shown.map((n): [number, number, number, number] => [
+        (n.start - first) * ms,
+        n.beats * ms,
+        n.pitch,
+        n.velocity,
+      ]),
+    },
+    label,
+  );
 }

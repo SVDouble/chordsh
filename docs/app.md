@@ -181,7 +181,9 @@ helps you harmonize it in four steps. Use them in any order:
    - **Develop the chords** lists, for the whole song, one way to enrich each chord: add the 7th, a
      tonic substitute, a secondary dominant or ii–V before it, a tritone sub, a passing or common-tone
      °7, a borrowed iv. Only ideas that leave no melody note clashing are kept. The first chord keeps
-     its root at the start and the last at the end, and the list varies the kind of idea. 👂 hears the
+     its root at the start and the last at the end, and the list varies the kind of idea. **How much**:
+     *light* keeps one chord per slot (7ths, substitutes), *rich* also adds chords (secondary
+     dominants, ii–V, passing °7). 👂 hears the
      replacement, ✓ uses it, and **Use all** applies the whole list. **Hear as it is** and **Hear
      developed** compare the whole song before and after (A/B) without changing it. Each is one undo step, as is
      filling.

@@ -287,7 +287,14 @@ export interface Development {
  * at home). At most one idea per chord, in song order: the best fitting one, and among close fits (within 0.05)
  * the kind of idea used least so far, so the song is not developed the same way everywhere.
  */
-export function developments(song: Sequence, meter: number, minBeats = MUSIC_LIMITS.minChordBeats): Development[] {
+export type DevelopLevel = 'light' | 'rich';
+
+export function developments(
+  song: Sequence,
+  meter: number,
+  level: DevelopLevel = 'rich',
+  minBeats = MUSIC_LIMITS.minChordBeats,
+): Development[] {
   const chart = sequenceChart(song);
   const melody = song.melody ?? [];
   const out: Development[] = [];
@@ -301,6 +308,7 @@ export function developments(song: Sequence, meter: number, minBeats = MUSIC_LIM
     const base = own ? runFit([own], melody, span, meter, after) : null;
     const candidates: Development[] = [];
     for (const h of hints) {
+      if (level === 'light' && h.chords.length > 1) continue;
       if (step.beats / h.chords.length < minBeats - 1e-9) continue;
       if (own && i === 0 && mod12(h.chords[0].root - own.root) !== 0) continue;
       if (own && i === song.steps.length - 1 && mod12(h.chords.at(-1)!.root - own.root) !== 0) continue;

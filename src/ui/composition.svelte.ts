@@ -131,6 +131,7 @@ export const assist = $state({
   adventurous: 0.3,
   recordTarget: 'both' as 'both' | 'melody' | 'chords',
   perBar: 1 as 1 | 2,
+  developLevel: 'rich' as 'light' | 'rich',
 });
 
 export const currentSequence = () => editor.document;

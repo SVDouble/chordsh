@@ -17,7 +17,8 @@ The four-stage pipeline below is implemented; see [app.md](app.md#melody-and-cho
   melody fit too.
 
 Whole-song A/B listening (as it is / developed) and **Use all** (every move at once, one undo step) are in.
-Not yet: several develop levels (light, rich) or saved versions to switch between.
+Two develop levels: light (one chord per slot) and rich (inserted chords too). Not yet: saved versions
+to switch between.
 
 The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
 [src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).

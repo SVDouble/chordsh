@@ -67,7 +67,7 @@
   /** Pipeline step 4: ways to develop the basic chords that keep the melody intact. */
   const develop = $derived.by(() => {
     void composition.revision;
-    return developments(v.doc, v.bar);
+    return developments(v.doc, v.bar, assist.developLevel);
   });
   function hearDevelopment(d: Development) {
     const step = v.doc.steps.find((s) => s.id === d.stepId);
@@ -171,12 +171,19 @@
       </li>
     {/each}
   </ol>
-  {#if develop.length}
+  {#if v.doc.steps.length}
     <details class="develop">
       <summary class="small">
         <span class="label">Develop the chords</span>
         <span class="muted">{develop.length} idea{develop.length > 1 ? 's' : ''} that keep the melody</span>
       </summary>
+      <label class="small"
+        >How much
+        <select aria-label="How much to develop" bind:value={assist.developLevel}>
+          <option value="light">light: one chord per slot (7ths, substitutes)</option>
+          <option value="rich">rich: also add chords (secondary dominants, ii–V, passing °7)</option>
+        </select></label
+      >
       <ol class="develop-list">
         {#each develop as d (d.stepId)}
           <li class="develop-idea" title={d.why}>
@@ -210,12 +217,15 @@
         </button>
         <button
           type="button"
+          disabled={!develop.length}
           onclick={() => previewDevelopment(develop)}
           title="B: with every idea above, without changing the song"
         >
           Hear developed
         </button>
-        <button type="button" onclick={() => developAll(develop)}>Use all {develop.length}</button>
+        <button type="button" disabled={!develop.length} onclick={() => developAll(develop)}>
+          Use all {develop.length}
+        </button>
       </div>
     </details>
   {/if}

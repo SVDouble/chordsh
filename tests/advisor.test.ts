@@ -90,4 +90,12 @@ describe('fill with two chords per bar', () => {
     for (const d of ideas) kinds.set(d.label, (kinds.get(d.label) ?? 0) + 1);
     expect(Math.max(...kinds.values())).toBeLessThanOrEqual(ideas.length / 2);
   });
+  it('light development keeps one chord per slot', () => {
+    const song = new SequenceEditor(sequenceFromChart('| C C | F C | F C | G C |', 'Twinkle'));
+    song.recordMelody(twinkle);
+    const light = developments(song.document, 4, 'light');
+    expect(light.length).toBeGreaterThan(0);
+    expect(light.every((d) => d.chords.length === 1)).toBe(true);
+    expect(developments(song.document, 4, 'rich').some((d) => d.chords.length > 1)).toBe(true);
+  });
 });

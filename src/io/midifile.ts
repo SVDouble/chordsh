@@ -12,6 +12,9 @@ interface RawMidiEvent {
   kind: 'on' | 'off' | 'pedal' | 'tempo' | 'signature';
   a: number;
   b: number;
+  /** Track index and MIDI channel (0–15) of note events; -1 for meta events. */
+  track: number;
+  channel: number;
 }
 
 /** Parse events structurally so metadata-like bytes inside text/SysEx cannot masquerade as a meter. */
@@ -42,6 +45,7 @@ function scanMidiFile(buf: ArrayBuffer) {
   if (division & 0x8000) throw new Error('SMPTE-timed MIDI files are not supported');
 
   const raw: RawMidiEvent[] = [];
+  const names: Record<number, string> = {};
   for (let tr = 0; tr < tracks && p < buf.byteLength; tr++) {
     const id = str(4);
     p += 4;
@@ -67,8 +71,12 @@ function scanMidiFile(buf: ArrayBuffer) {
             kind: 'tempo',
             a: (d.getUint8(p) << 16) | (d.getUint8(p + 1) << 8) | d.getUint8(p + 2),
             b: 0,
+            track: -1,
+            channel: -1,
           });
-        if (type === 0x58 && n >= 4) raw.push({ tick, kind: 'signature', a: d.getUint8(p), b: 2 ** d.getUint8(p + 1) });
+        if (type === 0x58 && n >= 4)
+          raw.push({ tick, kind: 'signature', a: d.getUint8(p), b: 2 ** d.getUint8(p + 1), track: -1, channel: -1 });
+        if (type === 0x03 && n > 0) names[tr] = str(n).trim();
         p += n;
       } else if (s === 0xf0 || s === 0xf7) {
         const length = vlq();
@@ -78,15 +86,16 @@ function scanMidiFile(buf: ArrayBuffer) {
         const type = s & 0xf0;
         const a = d.getUint8(p++),
           b = type === 0xc0 || type === 0xd0 ? 0 : d.getUint8(p++);
-        if (type === 0x90 && b > 0) raw.push({ tick, kind: 'on', a, b });
-        else if (type === 0x80 || type === 0x90) raw.push({ tick, kind: 'off', a, b });
-        else if (type === 0xb0 && a === 64) raw.push({ tick, kind: 'pedal', a: b >= 64 ? 1 : 0, b });
+        const at = { tick, track: tr, channel: s & 0x0f };
+        if (type === 0x90 && b > 0) raw.push({ ...at, kind: 'on', a, b });
+        else if (type === 0x80 || type === 0x90) raw.push({ ...at, kind: 'off', a, b });
+        else if (type === 0xb0 && a === 64) raw.push({ ...at, kind: 'pedal', a: b >= 64 ? 1 : 0, b });
       }
     }
     p = end;
   }
   raw.sort((x, y) => x.tick - y.tick);
-  return { raw, division };
+  return { raw, division, names };
 }
 
 /** Minimal SMF reader: notes and sustain, merged across tracks and timed through tempo changes. */
@@ -116,4 +125,77 @@ export function midiFileMeta(buf: ArrayBuffer): { bpm: number; beatsPerBar: numb
   const denominator = signature?.b ?? 4;
   validateMeter(beatsPerBar, denominator);
   return { bpm, beatsPerBar, denominator };
+}
+
+export interface MidiPart {
+  /** "track:channel". */
+  id: string;
+  name: string;
+  channel: number;
+  /** Notes in quarter-note beats (from ticks, so tempo changes do not matter). */
+  notes: { start: number; beats: number; pitch: number; velocity: number }[];
+  meanPitch: number;
+  /** Share of note time during which another note of the part also sounds (0 = a single line). */
+  overlap: number;
+}
+
+/**
+ * The file's instrument parts (one per track and channel, drums on channel 10 left out), for choosing which part is
+ * the melody and which the chords.
+ */
+export function midiParts(buf: ArrayBuffer): MidiPart[] {
+  const { raw, division, names } = scanMidiFile(buf);
+  const parts = new Map<string, MidiPart>();
+  const open = new Map<string, { start: number; velocity: number }[]>();
+  for (const e of raw) {
+    if ((e.kind !== 'on' && e.kind !== 'off') || e.channel === 9) continue;
+    const id = `${e.track}:${e.channel}`;
+    let part = parts.get(id);
+    if (!part) {
+      part = {
+        id,
+        name: names[e.track] || `Track ${e.track + 1}`,
+        channel: e.channel,
+        notes: [],
+        meanPitch: 0,
+        overlap: 0,
+      };
+      parts.set(id, part);
+    }
+    const key = `${id}:${e.a}`;
+    const stack = open.get(key) ?? [];
+    open.set(key, stack);
+    const beat = e.tick / division;
+    if (e.kind === 'on') stack.push({ start: beat, velocity: e.b });
+    else {
+      const on = stack.shift();
+      if (on && beat > on.start)
+        part.notes.push({ start: on.start, beats: beat - on.start, pitch: e.a, velocity: on.velocity });
+    }
+  }
+  const out = [...parts.values()].filter((p) => p.notes.length);
+  for (const p of out) {
+    p.notes.sort((a, b) => a.start - b.start || b.pitch - a.pitch);
+    p.meanPitch = p.notes.reduce((s, n) => s + n.pitch, 0) / p.notes.length;
+    let total = 0;
+    let shared = 0;
+    for (const [i, n] of p.notes.entries()) {
+      total += n.beats;
+      const end = n.start + n.beats;
+      let covered = 0;
+      for (let j = i + 1; j < p.notes.length && p.notes[j].start < end; j++)
+        covered = Math.max(covered, Math.min(end, p.notes[j].start + p.notes[j].beats) - p.notes[j].start);
+      shared += covered;
+    }
+    p.overlap = total ? shared / total : 0;
+  }
+  return out;
+}
+
+/** The part most likely to be the melody: a single line (little overlap), high, and with enough notes. */
+export function melodyPart(parts: MidiPart[]): MidiPart | null {
+  const named = parts.find((p) => /melod|vocal|voice|lead|sing|soprano|tune/i.test(p.name));
+  if (named) return named;
+  const score = (p: MidiPart) => p.meanPitch - 40 * p.overlap + Math.min(10, p.notes.length / 8);
+  return [...parts].sort((a, b) => score(b) - score(a))[0] ?? null;
 }

@@ -263,6 +263,27 @@ pedal phrases, undo/cancellation/source changes, shared saved settings, recordin
 continuity, playback analysis without capture, accepting an idea during idle, context/voicing alignment,
 desktop/mobile and stationary piano. Loop transport and chord-body drag regressions also pass.
 
+## Synth consistency follow-up
+
+- [x] Reproduce changing sound with real audio output, including repeated notes and interrupted previews.
+- [x] Fix voice/envelope lifecycle issues and keep timbre stable across input paths.
+- [x] Expose relevant sound controls in shared Settings and verify autosave does not alter the patch.
+- [x] Verify rendered audio, sustained/retriggered notes, Stop, preview switching and browser workflows.
+
+Cancelled future previews previously exposed a gain of one (rendered peak 0.671 versus 0.094 for a
+normal live note). They now render exactly silent. Released tails remain tracked and crossfade on
+repeated pitches; expired voices are reclaimed by audio time even if ended callbacks arrive late.
+Velocity controls loudness with fixed default brightness, and output compression is reserved for
+limiting loud peaks. Shared Browser synth settings change tone explicitly without recreating the
+context or resetting held notes. Real input takes over an ear preview.
+
+Validation: 209 tests, typecheck, lint, production build and changed-file formatting. Real Chromium
+offline renders verify cancelled/Stop silence, live/preview consistency, velocity-normalised output
+and repeated-note tails. A genuinely hidden page with simulated MIDI stays on one running audio
+context, retains fixed brightness across velocities, handles sustain/retriggers and auto-saves chords
+without leftover voices. Settings controls, held-note continuity, auto-entry and loop browser
+regressions pass. QA evidence is under `local/audio-consistency/`.
+
 ## Mouse chord entry
 
 - [x] Select piano notes with Shift-click and play the simultaneous chord on releasing Shift.

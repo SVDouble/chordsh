@@ -18,6 +18,61 @@ const choice = <T extends string>(values: readonly T[], value: T, title: string,
 const flag = (value: boolean, title: string, description: string) =>
   z.boolean().default(value).meta({ title, description });
 
+export const audioSchema = z.object({
+  volume: number(0.5, 0, 1, 'Synth volume', 'Browser instrument output level; MIDI output is unaffected.', '', 0.01),
+  brightnessHz: integer(
+    4000,
+    100,
+    18000,
+    'Synth brightness',
+    'Initial low-pass cutoff of the browser instrument.',
+    'Hz',
+  ),
+  velocityTone: number(
+    0,
+    0,
+    1,
+    'Velocity brightness',
+    'Zero keeps timbre fixed while velocity changes volume. Increase to make stronger notes brighter.',
+    '',
+    0.05,
+  ),
+  tailBrightnessHz: integer(
+    900,
+    50,
+    18000,
+    'Sustained brightness',
+    'Cutoff reached while holding a note, capped at its initial brightness.',
+    'Hz',
+  ),
+  toneDecayMs: integer(
+    1200,
+    0,
+    5000,
+    'Brightness decay',
+    'Time for a held note to mellow. Zero keeps brightness constant.',
+    'ms',
+  ),
+  releaseMs: integer(80, 5, 500, 'Note release', 'Exponential release time after a key is lifted.', 'ms'),
+  retriggerMs: integer(
+    8,
+    1,
+    30,
+    'Repeated-note crossfade',
+    'Quickly fades a previous attack of the same pitch so old tails do not build up.',
+    'ms',
+  ),
+  limiterThresholdDb: number(
+    -3,
+    -24,
+    0,
+    'Output limiting threshold',
+    'Protects against unusually loud polyphony; the default leaves ordinary playing uncompressed.',
+    'dB',
+    1,
+  ),
+});
+
 export const preferencesSchema = z.object({
   sound: choice(
     ['synth', 'midi', 'both', 'off'],
@@ -518,6 +573,7 @@ export const editorSchema = z.object({
 export const settingsSchema = z
   .object({
     preferences: preferencesSchema.prefault({}),
+    audio: audioSchema.prefault({}),
     panels: z
       .object({
         now: flag(true, 'Chord inspector', 'Show the focused chord and its harmonic function.'),
@@ -554,6 +610,7 @@ export const settingsSchema = z
       issue(['segmentation', 'releaseTailMs'], 'Release tail must not exceed release analysis time.');
   });
 export type Settings = z.output<typeof settingsSchema>;
+export type AudioSettings = Settings['audio'];
 export type BeatSettings = Settings['beats'];
 export type AccentSettings = Settings['accents'];
 export type SegmentationSettings = Settings['segmentation'];
@@ -562,6 +619,7 @@ export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
 
 export const SETTINGS_SECTIONS = [
   { id: 'preferences', title: 'Playback & input', advanced: false },
+  { id: 'audio', title: 'Browser synth', advanced: false },
   { id: 'panels', title: 'Workspace', advanced: false },
   { id: 'editor', title: 'Editor', advanced: false },
   { id: 'prediction', title: 'Chord suggestions', advanced: false },
@@ -626,6 +684,7 @@ export function restoreSettings(raw: unknown): { settings: Settings; warnings: s
     // Group-level relationships are checked after recovering the individual values.
     const schemas = {
       preferences: preferencesSchema,
+      audio: audioSchema,
       beats: beatSchema,
       accents: accentSchema,
       segmentation: segmentationSchema,

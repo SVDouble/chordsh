@@ -36,6 +36,7 @@ export const settingsWarnings = restored.warnings;
 /** Bridge between the framework-free engine and Svelte: one throttled tick per frame. */
 export const session = new Session($state.snapshot(settings));
 export const synth = new Synth();
+synth.configure($state.snapshot(settings.audio));
 /** Everything you play (MIDI, computer keys, on-screen piano) goes through here: analysis + optional sound. */
 export const recorder = new Recorder();
 /** Only physical/interactive input enters the sketch editor; scheduled performances bypass these hooks. */
@@ -55,6 +56,7 @@ export const live = {
     forward = true,
     playback = false,
   ) => {
+    if (!playback && ui.preview) stopAudition();
     if (!playback) inputHooks.noteOn(n, v);
     ui.inputSerial++;
     inputAttacks.set(n, ui.inputSerial);
@@ -204,6 +206,7 @@ export function applySettings(value: unknown) {
   }
   midi.outputId = next.preferences.output;
   synth.setMuted(!next.preferences.monitor);
+  synth.configure(next.audio);
   if (engineChanged || timingChanged) setBars(next.preferences.bars);
   ui.tick++;
   persist();

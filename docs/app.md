@@ -196,9 +196,15 @@ export. **Once** keeps the existing held-chord playback. See [the style catalogu
 Chord previews, live notes and timeline playback use the same synth voice and MIDI-velocity curve.
 Previews use the focused chord's velocity; manually entered chords use the editor's default unless
 changed. Kept input preserves its played velocity, and captured chord blocks average their recorded
-attacks. Different velocities intentionally change loudness and brightness. The oscillator/filter
-patch is unchanged. Development updates silence and close the previous audio engine before replacing
-it, so old voices cannot accumulate across code reloads.
+attacks. Velocity changes loudness; filter brightness stays consistent by default. **Settings → Browser
+synth** controls volume, brightness, optional velocity brightness, tone decay, release, repeated-note
+crossfade and output limiting. Only explicit sound settings change the patch; automatic chord saving
+does not create audio or reset the instrument.
+
+Repeated pitches fade the previous attack quickly, including released and pedal-held tails. Cancelled
+future previews never sound, and real input ends an active ear preview before playing. Audio envelopes
+and note cleanup use the audio clock, independently of UI frames and background-tab timer throttling.
+Development updates silence and close the previous audio engine before replacing it.
 
 ## Time signatures
 

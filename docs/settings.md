@@ -27,6 +27,7 @@ and now comes from the shared schema.
 | Section                  | Controls                                                                                                                                 |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Playback & input         | output mode, monitor, MIDI devices, theme, chord style, key lock, hand split, metronome tempo/meter numerator/denominator/click          |
+| Browser synth            | volume, brightness, velocity brightness, sustained brightness/decay, release, repeated-note crossfade and output limiting                |
 | Workspace                | visibility of the chord inspector, ideas, key exploration and piano                                                                      |
 | Chord suggestions        | learned/rule ranking blend, two-chord context, rare-context smoothing and main/colour idea counts                                        |
 | Editor                   | new-song tempo/meter, timeline snap/length, piano labels/width, chord-entry mode/duration, undo depth, chord velocity and note gate      |
@@ -35,6 +36,20 @@ and now comes from the shared schema.
 | Chord & melody detection | chord grouping, rolled chords, released-note memory, hand-split evidence and analysis release timing                                     |
 | Harmonic model           | chord/key change costs, learned transitions, note fit, priors, bass weights, held-note decay and passing-note weighting                  |
 | Analysis & history       | refresh/stability delays, history lengths, alternative-key count and modal-colour evidence decay                                         |
+
+## Browser synth
+
+Live MIDI, computer keys, the on-screen piano, ear previews and timeline playback share one instrument.
+Velocity changes volume while **Velocity brightness** defaults to zero, keeping the same tone across
+soft and hard attacks. Increase it to opt into brighter strong notes. **Synth brightness** starts at
+4,000 Hz and mellows to **Sustained brightness** (900 Hz) over **Brightness decay** (1,200 ms); set the
+decay to zero for constant brightness while held.
+
+**Note release** is an exponential time constant (80 ms), with silence after 7.5 constants. Repeated
+attacks crossfade the old same-pitch voice using **Repeated-note crossfade** (8 ms), preventing old
+release tails from building up. **Synth volume** defaults to 0.5 and **Output limiting threshold** to
+−3 dB. These controls affect browser audio only. Applying them retains held voices and analysis;
+new notes use the changed tone. Automatic chord saving never changes these settings.
 
 ## Beat and bar detection
 

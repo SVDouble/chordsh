@@ -26,6 +26,11 @@ describe('settings validation and recovery', () => {
       ['harmony.durationWeight', 2],
       ['editor.dragThresholdPx', -1],
       ['editor.dragThresholdPx', 25],
+      ['audio.volume', 1.1],
+      ['audio.brightnessHz', 0],
+      ['audio.velocityTone', -1],
+      ['audio.releaseMs', 0],
+      ['audio.retriggerMs', 0],
     ] as [string, unknown][]) {
       const next = candidate();
       setSetting(next, path, value);
@@ -62,6 +67,7 @@ describe('settings validation and recovery', () => {
     expect(settings.editor.dragThresholdPx).toBe(6);
     expect(settings.editor.autoCaptureChords).toBe(true);
     expect(settings.editor.inputIdleMs).toBe(600);
+    expect(settings.audio).toEqual(DEFAULT_SETTINGS.audio);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);
   });
@@ -72,6 +78,24 @@ describe('settings validation and recovery', () => {
     expect(settings.editor.gate).toBe(0.7);
     expect(warnings.length).toBeGreaterThan(0);
     expect(restoreSettings(null).settings).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('restores explicit sound controls while recovering invalid audio fields independently', () => {
+    const { settings, warnings } = restoreSettings({
+      audio: { brightnessHz: 3600, velocityTone: 0.5, volume: 2, toneDecayMs: 0 },
+    });
+    expect(settings.audio).toEqual({
+      ...DEFAULT_SETTINGS.audio,
+      brightnessHz: 3600,
+      velocityTone: 0.5,
+      toneDecayMs: 0,
+    });
+    expect(warnings).toHaveLength(1);
+    expect(SETTINGS_FIELDS.find((f) => f.path === 'audio.velocityTone')).toMatchObject({
+      minimum: 0,
+      maximum: 1,
+      default: 0,
+    });
   });
 
   it('supplies help and real limits for generated controls, including nested model priors', () => {

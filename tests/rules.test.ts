@@ -221,8 +221,12 @@ describe('modern rules, by hand', () => {
   });
   it('C → C♯° → Dm passes; C → C♯° → C does not', () => {
     const r = rule('passing-chord');
-    expect(r.judge(ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(2, 'min') }))).toBe(1);
-    expect(r.judge(ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(0, 'maj') }))).toBe(-0.5);
-    expect(r.judge(ctx(chordOf(9, 'min'), { prev: chordOf(0, 'maj'), next: chordOf(5, 'maj') }))).toBe(0);
+    const passing = ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(2, 'min') });
+    expect(r.judge(passing)).toBe(0);
+    expect(r.concerns?.(passing)).toBe(true);
+    expect(r.judge(ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(0, 'maj') }))).toBe(-1);
+    const plain = ctx(chordOf(9, 'min'), { prev: chordOf(0, 'maj'), next: chordOf(5, 'maj') });
+    expect(r.judge(plain)).toBe(0);
+    expect(r.concerns?.(plain)).toBe(false);
   });
 });

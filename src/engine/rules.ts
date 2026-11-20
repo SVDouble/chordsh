@@ -126,6 +126,12 @@ export const SCHEMAS: { name: string; degrees: string[] }[] = [
   { name: 'blues I–IV–I–V–IV–I', degrees: ['0', '5', '0', '7', '5', '0'] },
   { name: 'pentatonic I–♭III–IV', degrees: ['0', '3', '5'] },
 ];
+/** Diminished, augmented or with a note outside the key: a chord that needs a reason. */
+const unstable = (ctx: RuleContext) =>
+  ctx.chord.quality === 'dim' ||
+  ctx.chord.quality === 'aug' ||
+  chordPcs(ctx.chord).some((p) => !keyPcSet(ctx.key).has(p));
+
 const SCHEMA_TRIPLES = new Set(
   SCHEMAS.flatMap(({ degrees }) => {
     const out: string[] = [];
@@ -682,22 +688,20 @@ export const RULES: Rule[] = [
     id: 'passing-chord',
     family: 'voice leading',
     statement:
-      'A dissonant or chromatic chord is fine when it passes: its bass connects the neighbouring chords by step in one direction.',
+      'A diminished, augmented or chromatic chord passes: its bass connects the neighbouring chords by step in one direction.',
     source: 'Aldwell & Schachter 2011 (passing chords); the study’s V → ♯iv° and v → IV (docs/rules.md)',
     formula:
-      'diminished, augmented or out-of-key chord whose bass is reached and left by step (1–2 semitones) in the same direction +1; such a chord not passing −0.5; consonant in-key chords 0',
-    kind: 'preference',
+      'constraint — concerns diminished, augmented or out-of-key chords with both neighbours; bass reached and left by step (1–2 semitones) in the same direction 0, else −1',
+    kind: 'constraint',
+    concerns: (ctx) => !!ctx.prev && !!ctx.next && unstable(ctx),
     judge: (ctx) => {
-      const scale = keyPcSet(ctx.key);
-      const unstable =
-        ctx.chord.quality === 'dim' || ctx.chord.quality === 'aug' || chordPcs(ctx.chord).some((p) => !scale.has(p));
-      if (!unstable || !ctx.prev || !ctx.next) return 0;
+      if (!ctx.prev || !ctx.next || !unstable(ctx)) return 0;
       const step = (a: number, b: number) => {
         const d = mod12(b - a);
         return d === 1 || d === 2 ? 1 : d === 11 || d === 10 ? -1 : 0;
       };
       const into = step(ctx.prev.bass, ctx.chord.bass);
-      return into !== 0 && into === step(ctx.chord.bass, ctx.next.bass) ? 1 : -0.5;
+      return into !== 0 && into === step(ctx.chord.bass, ctx.next.bass) ? 0 : -1;
     },
   },
 

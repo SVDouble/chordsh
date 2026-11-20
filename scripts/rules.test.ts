@@ -24,6 +24,7 @@ import { judgeAll, PIECE_RULES, RULEBOOKS, RULES, rulebookVerdict } from '../src
 import { type Chord, chordName, chordOf, type KindName } from '../src/theory/chords';
 import { mod12 } from '../src/theory/pitch';
 import { numeralOf } from '../src/theory/roman';
+import { type ProgressionStats, statsKey, tokenOf } from '../src/engine/progressions';
 import type { Key } from '../src/theory/scales';
 
 type Tradition = 'art' | 'jazz' | 'popular' | 'reference';
@@ -414,6 +415,15 @@ it('harmony rules study', () => {
       examples: unknown[];
     }
   >();
+  // exceptions: where real chords break a constraint, by context (previous → chord → next, in the local key)
+  const breaks = new Map<
+    string,
+    { tradition: string; rule: string; context: string; count: number; examples: unknown[] }
+  >();
+  const concerned: Record<string, number> = {};
+  // progression patterns (1–4 chords, scale-degree tokens) per key mode and tradition, for the sequence engine
+  const grams = new Map<string, Map<string, number>>();
+  const gramMoves: Record<string, number> = {};
   const transitions: Record<string, number> = {};
   const functionalBook = RULEBOOKS.find((b) => b.id === 'functional');
   for (const source of SOURCES) {
@@ -511,6 +521,25 @@ it('harmony rules study', () => {
           g.piece[r.id].sum += v;
         }
       }
+      {
+        const toks: { t: string; k: string }[] = [];
+        for (const pc of chords) {
+          const t = tokenOf(pc.chord, pc.key);
+          const k = statsKey(pc.key, source.tradition);
+          if (toks.at(-1)?.t !== t || toks.at(-1)?.k !== k) toks.push({ t, k });
+        }
+        toks.forEach((x, i) => {
+          const m = grams.get(x.k) ?? new Map<string, number>();
+          grams.set(x.k, m);
+          gramMoves[x.k] = (gramMoves[x.k] ?? 0) + 1;
+          for (let n = 1; n <= 4 && i - n + 1 >= 0; n++) {
+            const run = toks.slice(i - n + 1, i + 1);
+            if (run.some((r) => r.k !== x.k)) break;
+            const gram = run.map((r) => r.t).join(' ');
+            m.set(gram, (m.get(gram) ?? 0) + 1);
+          }
+        });
+      }
       const phraseEnds = new Set(phrases.map((p) => p.last));
       const vocab = piece.full ? FULL : TRIADS;
       const perChord: Record<string, number | null>[] = [];
@@ -585,7 +614,34 @@ it('harmony rules study', () => {
           const cm = g.compliance[r.id];
           if (r.concerns?.({ ...ctx, chord: pc.chord })) {
             cm.real++;
+            const tr = `${source.tradition}|${r.id}`;
+            concerned[tr] = (concerned[tr] ?? 0) + 1;
             if ((real[r.id] ?? 0) >= -1e-9) cm.realOk++;
+            else {
+              const num = (c: typeof pc.chord | null) => (c ? numeralOf(c, pc.key) : '·');
+              const context = `${num(prev)} → [${num(pc.chord)}] → ${num(next)}`;
+              const id = `${tr}|${context}`;
+              let b = breaks.get(id);
+              if (!b) {
+                b = { tradition: source.tradition, rule: r.id, context, count: 0, examples: [] };
+                breaks.set(id, b);
+              }
+              b.count++;
+              if (b.examples.length < 2 && (b.count === 1 || b.count % 53 === 0)) {
+                b.examples.push({
+                  title: piece.title,
+                  year: piece.year,
+                  key: `${chordName(chord(pc.key.tonic, pc.key.mode === 'minor' ? 'min' : 'maj'), pc.key)}${pc.key.mode === 'minor' ? '' : ' major'}`,
+                  chords: chords.slice(Math.max(0, i - 2), Math.min(chords.length, i + 3)).map((c) => ({
+                    name: chordName(c.chord, c.key),
+                    roman: numeralOf(c.chord, c.key),
+                    pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
+                    root: c.chord.root,
+                    focus: c === pc,
+                  })),
+                });
+              }
+            }
           }
           altCtx.forEach((a, k) => {
             if (r.concerns?.(a)) {
@@ -784,7 +840,38 @@ it('harmony rules study', () => {
   typed.forEach((p, i) => {
     p.pc = styles.scores[i];
   });
+  // the most frequent ways each constraint is broken, per tradition: share of that rule's concerned chords
+  const exceptionsList = [...breaks.values()]
+    .map((b) => {
+      const n = concerned[`${b.tradition}|${b.rule}`] ?? 1;
+      return { ...b, share: r3(b.count / n), concerned: n };
+    })
+    .filter((b) => b.count >= 20)
+    .sort((a, b) => b.count - a.count);
+  const exceptionTotals: Record<string, { broken: number; concerned: number }> = {};
+  for (const b of breaks.values()) {
+    const k = `${b.tradition}|${b.rule}`;
+    exceptionTotals[k] ??= { broken: 0, concerned: concerned[k] ?? 0 };
+    exceptionTotals[k].broken += b.count;
+  }
   fs.mkdirSync('local/assist', { recursive: true });
+  // aggregate counts only (patterns seen at least 5 times), no songs: the input of the sequence engine
+  const progressionStats: ProgressionStats = {
+    generated: new Date().toISOString(),
+    traditions: Object.fromEntries(
+      [...grams].map(([k, m]) => [
+        k,
+        {
+          moves: gramMoves[k] ?? 0,
+          grams: Object.fromEntries([...m].filter(([, c]) => c >= 5).sort((a, b) => b[1] - a[1])),
+        },
+      ]),
+    ),
+    idioms: exceptionsList
+      .filter((b) => (b.share ?? 0) >= 0.01)
+      .map(({ tradition, rule, context, count, share }) => ({ tradition, rule, context, count, share: share ?? 0 })),
+  };
+  fs.writeFileSync('local/assist/progressions.json', JSON.stringify(progressionStats));
   fs.writeFileSync(
     'local/assist/study.json',
     JSON.stringify({
@@ -798,9 +885,15 @@ it('harmony rules study', () => {
       pca: { features: featureNames, components: styles.components, correlation: styles.correlation },
       tricks: tricksByTradition,
       modes,
+      exceptions: exceptionsList,
     }),
   );
   const pct = (x: number | null | undefined) => (typeof x === 'number' ? `${Math.round(100 * x)}%` : '–');
+  console.log('\nEXCEPTIONS: constraint | tradition | broken / concerned');
+  for (const [k, t] of Object.entries(exceptionTotals).sort((a, b) => b[1].broken - a[1].broken))
+    console.log(`EXC ${k} | ${t.broken} / ${t.concerned} = ${pct(t.broken / Math.max(1, t.concerned))}`);
+  for (const b of exceptionsList.slice(0, 120))
+    console.log(`EXCTOP ${b.tradition} | ${b.rule} | ${b.context} | ${b.count} | ${pct(b.share)}`);
   console.log(
     `\n${pieces.length} pieces, ${summaries.reduce((s, g) => s + g.chords, 0)} chords, ${summaries.length} groups`,
   );

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { advise, keyAt, STYLES, templates, type Advice } from '../engine/advisor';
+  import { advise, type Development, developments, keyAt, STYLES, templates, type Advice } from '../engine/advisor';
   import { noteRole } from '../engine/assist';
   import { barQuarters, meterPosition } from '../theory/meter';
   import { keyLong } from '../theory/scales';
@@ -14,6 +14,7 @@
     currentSequence,
     fillMelodyGaps,
     insertTemplate,
+    selectStep,
   } from './composition.svelte';
   import { audition, settings, ui } from './store.svelte';
 
@@ -61,6 +62,27 @@
       hasMelody: !!doc.melody?.length,
     };
   });
+  /** Pipeline step 4: ways to develop the basic chords that keep the melody intact. */
+  const develop = $derived.by(() => {
+    void composition.revision;
+    return developments(v.doc, v.bar);
+  });
+  function hearDevelopment(d: Development) {
+    const step = v.doc.steps.find((s) => s.id === d.stepId);
+    const each = (step?.beats ?? v.bar) / d.chords.length;
+    let prev = step?.notes ?? null;
+    const voiced = d.chords.map((c) => (prev = voiceChord(c, prev)));
+    audition(voiced, `develop:${d.stepId}`, each, `${d.from} → ${d.names.join(' ')}`, settings.editor.velocity);
+  }
+  function applyDevelopment(d: Development) {
+    const step = v.doc.steps.find((s) => s.id === d.stepId);
+    if (!step) return;
+    selectStep(d.stepId);
+    acceptChords(
+      d.names.map((symbol) => ({ symbol, beats: step.beats / d.names.length })),
+      true,
+    );
+  }
   const percent = (x: number | null) => (x === null ? '–' : `${Math.round(100 * x)}%`);
   function voicing(idea: Advice) {
     return voiceChord(idea.chord, v.prevNotes);
@@ -147,6 +169,41 @@
       </li>
     {/each}
   </ol>
+  {#if develop.length}
+    <details class="develop">
+      <summary class="small">
+        <span class="label">Develop the chords</span>
+        <span class="muted">{develop.length} idea{develop.length > 1 ? 's' : ''} that keep the melody</span>
+      </summary>
+      <ol class="develop-list">
+        {#each develop as d (d.stepId)}
+          <li class="develop-idea" title={d.why}>
+            <span class="small muted">bar {meterPosition(d.start, v.doc.meter, v.doc.denominator).bar}</span>
+            <span><b>{d.from}</b> → {d.names.join(' ')}</span>
+            <span class="small muted">{d.label}</span>
+            <button
+              type="button"
+              class="icon"
+              aria-label={`Hear ${d.names.join(' ')}`}
+              title="Hear it"
+              onclick={() => hearDevelopment(d)}
+            >
+              <Icon name="ear" size={14} />
+            </button>
+            <button
+              type="button"
+              class="icon"
+              aria-label={`Replace ${d.from} with ${d.names.join(' ')}`}
+              title="Use it"
+              onclick={() => applyDevelopment(d)}
+            >
+              <Icon name="check" size={14} />
+            </button>
+          </li>
+        {/each}
+      </ol>
+    </details>
+  {/if}
   <div class="chord-ideas-tools">
     <label class="small"
       >Start from

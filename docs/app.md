@@ -178,6 +178,11 @@ helps you harmonize it in four steps. Use them in any order:
    - Click an idea to hear it; ✓ replaces the selected chord, + adds at the cursor.
    - **Style** picks a rulebook: Pop & rock, Jazz, Functional, Counterpoint, Colour or Chromatic.
      **Expected ↔ Fresh** lets colour chords compete with in-key ones.
+   - **Develop the chords** lists, for the whole song, one way to enrich each chord: add the 7th, a
+     tonic substitute, a secondary dominant or ii–V before it, a tritone sub, a passing or common-tone
+     °7, a borrowed iv. Only ideas that leave no melody note clashing are kept. The first chord keeps
+     its root at the start and the last at the end, and the list varies the kind of idea. 👂 hears the
+     replacement, ✓ uses it (one undo step).
 
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
 

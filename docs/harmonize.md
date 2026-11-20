@@ -11,7 +11,12 @@ The four-stage pipeline below is implemented; see [app.md](app.md#melody-and-cho
 - a melody lane in songs, recorded from takes;
 - templates from the loop schemas;
 - filling chords under the melody with primary triads, refined with both neighbours known;
-- per-slot ideas from the judges plus a style rulebook.
+- per-slot ideas from the judges plus a style rulebook;
+- **develop**: one rewriting move per chord from [reharm.ts](../src/engine/reharm.ts), kept only when no
+  melody note clashes (`developments()` in advisor.ts); reharm ideas in the chord popover show their
+  melody fit too.
+
+Not yet: A/B versions of a whole song, and develop "levels" (applying several moves at once).
 
 The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
 [src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).

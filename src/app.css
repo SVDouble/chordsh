@@ -2933,3 +2933,32 @@ button.icon {
 .idea-chip.clashes .idea-fit {
   color: var(--D);
 }
+.chord-ideas .develop {
+  margin: 10px 0;
+}
+.chord-ideas .develop summary {
+  cursor: pointer;
+}
+.chord-ideas .develop summary .label {
+  display: inline;
+  margin-right: 6px;
+}
+.develop-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.develop-idea {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.develop-idea > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

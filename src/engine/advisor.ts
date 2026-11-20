@@ -3,14 +3,16 @@
  * assist.ts plus a style rulebook from rules.ts, chord templates (loop schemas) and “fill chords under the
  * melody”. Deterministic: the same song and settings always give the same advice. See docs/harmonize.md.
  */
+import { MUSIC_LIMITS } from '../config/settings';
 import { type Chord, chordName, chordOf } from '../theory/chords';
 import { mod12 } from '../theory/pitch';
 import type { Key } from '../theory/scales';
 import { parseChordSymbol } from '../theory/symbols';
 import { type MelodyNote as AssistNote, melodyFit, type SlotSuggestion, suggestForSlot } from './assist';
+import { reharmHints } from './reharm';
 import { judgeAll, RULEBOOKS, RULES, rulebookVerdict, SCHEMAS } from './rules';
 import type { MelodyNote, Sequence } from './sequence';
-import { sequenceKeyAt } from './sequence';
+import { sequenceChart, sequenceKeyAt } from './sequence';
 
 export const STYLES = RULEBOOKS.map((b) => ({ id: b.id, name: b.name, idea: b.idea }));
 export type StyleId = string;
@@ -260,4 +262,70 @@ export function runFit(
     clashes += fit.clashes;
   });
   return weight ? { score: total / weight, clashes } : null;
+}
+
+// ───────────────────────────── develop: pipeline step 4 ─────────────────────────────
+
+export interface Development {
+  stepId: string;
+  start: number;
+  /** The chord being developed. */
+  from: string;
+  label: string;
+  why: string;
+  names: string[];
+  chords: Chord[];
+  /** Melody fit of the replacement and of the original chord (null without melody). */
+  fit: number | null;
+  base: number | null;
+}
+
+/**
+ * Ways to develop basic chords (reharm.ts: 7ths, secondary dominants, ii–V, tritone subs, passing °7, borrowed
+ * iv…), kept only when they leave no melody note clashing and fit the melody almost as well as the original.
+ * The first chord keeps its root at the start and the last its root at the end (the song still begins and closes
+ * at home). At most one idea per chord, in song order: the best fitting one, and among close fits (within 0.05)
+ * the kind of idea used least so far, so the song is not developed the same way everywhere.
+ */
+export function developments(song: Sequence, meter: number, minBeats = MUSIC_LIMITS.minChordBeats): Development[] {
+  const chart = sequenceChart(song);
+  const melody = song.melody ?? [];
+  const out: Development[] = [];
+  const used = new Map<string, number>();
+  song.steps.forEach((step, i) => {
+    const key = keyAt(song, step.start);
+    const hints = reharmHints({ ...chart, key }, i);
+    const span = { start: step.start, end: step.start + step.beats };
+    const after = parseChordSymbol(song.steps[i + 1]?.symbol ?? '');
+    const own = parseChordSymbol(step.symbol);
+    const base = own ? runFit([own], melody, span, meter, after) : null;
+    const candidates: Development[] = [];
+    for (const h of hints) {
+      if (step.beats / h.chords.length < minBeats - 1e-9) continue;
+      if (own && i === 0 && mod12(h.chords[0].root - own.root) !== 0) continue;
+      if (own && i === song.steps.length - 1 && mod12(h.chords.at(-1)!.root - own.root) !== 0) continue;
+      const fit = runFit(h.chords, melody, span, meter, after);
+      if (fit && (fit.clashes > 0 || fit.score < (base?.score ?? 0) - 0.1)) continue;
+      candidates.push({
+        stepId: step.id,
+        start: step.start,
+        from: step.symbol,
+        label: h.label,
+        why: h.why,
+        names: h.names,
+        chords: h.chords,
+        fit: fit?.score ?? null,
+        base: base?.score ?? null,
+      });
+    }
+    const top = Math.max(...candidates.map((c) => c.fit ?? 0));
+    const best = candidates
+      .filter((c) => (c.fit ?? 0) >= top - 0.05)
+      .sort((a, b) => (used.get(a.label) ?? 0) - (used.get(b.label) ?? 0))[0];
+    if (best) {
+      out.push(best);
+      used.set(best.label, (used.get(best.label) ?? 0) + 1);
+    }
+  });
+  return out;
 }

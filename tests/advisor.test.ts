@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advise, estimateKey, fillGaps, runFit, templates } from '../src/engine/advisor';
+import { advise, developments, estimateKey, fillGaps, runFit, templates } from '../src/engine/advisor';
 import { type MelodyNote, sequenceFromChart, SequenceEditor } from '../src/engine/sequence';
 import { chordOf } from '../src/theory/chords';
 import type { Key } from '../src/theory/scales';
@@ -70,5 +70,24 @@ describe('fill with two chords per bar', () => {
     expect(db7.clashes).toBeGreaterThan(0);
     expect(c.score).toBeGreaterThan(db7.score);
     expect(runFit([chordOf(0, 'maj')], twinkle, { start: 20, end: 24 }, 4)).toBeNull();
+  });
+  it('develops basic chords only in ways the melody allows', () => {
+    const song = new SequenceEditor(sequenceFromChart('| C C | F C | F C | G C |', 'Twinkle'));
+    song.recordMelody(twinkle);
+    const ideas = developments(song.document, 4);
+    expect(ideas.length).toBeGreaterThan(0);
+    for (const d of ideas) {
+      expect(d.fit).not.toBeNull();
+      expect(d.fit!).toBeGreaterThanOrEqual(d.base! - 0.1);
+    }
+    // the song still starts and ends on C
+    const first = ideas.find((d) => d.start === 0);
+    const last = ideas.find((d) => d.start === 14);
+    if (first) expect(first.chords[0].root % 12).toBe(0);
+    if (last) expect(last.chords.at(-1)!.root % 12).toBe(0);
+    // ideas vary: no kind of development is used for most chords
+    const kinds = new Map<string, number>();
+    for (const d of ideas) kinds.set(d.label, (kinds.get(d.label) ?? 0) + 1);
+    expect(Math.max(...kinds.values())).toBeLessThanOrEqual(ideas.length / 2);
   });
 });

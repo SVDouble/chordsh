@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Icon from './Icon.svelte';
   import { keyAt } from '../engine/advisor';
   import { suggestSequences, type SequenceIdea, type Tradition } from '../engine/sequences';
   import { barQuarters, meterPosition } from '../theory/meter';
   import { parseChordSymbol } from '../theory/symbols';
   import type { Chord } from '../theory/chords';
-  import { assist, composition, currentSequence, habits, previewSequence, useSequence } from './composition.svelte';
+  import DragHandle from './DragHandle.svelte';
+  import { assist, composition, currentSequence, habits, previewInContext, useSequence } from './composition.svelte';
 
   let bars = $state(2);
   let perBar = $state(1);
@@ -72,7 +72,9 @@
     <span class="small muted"
       >{habits.status === 'ready'
         ? `rules + ${v.trad} habits`
-        : habits.status === 'loading' ? 'loading habits…' : 'rules only (no habit data found)'}</span
+        : habits.status === 'loading'
+          ? 'loading habits…'
+          : 'rules only (no habit data found)'}</span
     >
   </div>
   <p class="small muted">Bars {v.from}–{v.from + bars - 1}{v.after ? `, leading into ${v.after}` : ''}</p>
@@ -112,8 +114,8 @@
         <button
           type="button"
           class="sequence-main"
-          title="Hear it with the melody"
-          onclick={() => previewSequence(v.span, s.names)}
+          title="Hear it in context: the chord before, these bars with the melody, the chord after (Shift: these bars only)"
+          onclick={(e) => previewInContext(v.span, s.names, e.shiftKey)}
         >
           <b>{s.names.join(' ')}</b>
           <span class="c-roman">{s.numerals.join(' ')}</span>
@@ -121,15 +123,11 @@
             ><span style:width={`${Math.round(100 * s.score)}%`}></span></span
           >
         </button>
-        <button
-          type="button"
-          class="icon"
-          aria-label={`Use ${s.names.join(' ')}`}
-          title="Place it (replaces the chords in these bars)"
-          onclick={() => useSequence(v.span, s.names)}
-        >
-          <Icon name="check" size={14} />
-        </button>
+        <DragHandle
+          idea={{ kind: 'run', names: s.names, beats: v.span.end - v.span.start }}
+          label={s.names.join(' ')}
+          onplace={() => useSequence(v.span, s.names)}
+        />
         <div class="idea-judges small muted">
           melody {percent(s.melody)} · rules {percent(s.rules)} · habit {percent(s.habit)}
         </div>

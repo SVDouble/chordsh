@@ -848,8 +848,12 @@ export function useSequence(span: { start: number; end: number }, names: string[
   }
 }
 
-/** Hear a sequence with the melody of its span, without changing the song. */
-export function previewSequence(span: { start: number; end: number }, names: string[]) {
+/**
+ * Hear chords in context: the span is replaced by `names` in a copy of the song (nothing changes), and the
+ * passage plays from the chord before to the chord after (each at most a bar), with the melody and the playback
+ * style, so the idea is heard as a move, not on its own. `alone` plays just the span.
+ */
+export function previewInContext(span: { start: number; end: number }, names: string[], alone = false) {
   const options = $state.snapshot(settings.editor);
   const copy = new SequenceEditor(editor.document, options);
   try {
@@ -858,14 +862,23 @@ export function previewSequence(span: { start: number; end: number }, names: str
     composition.error = (error as Error).message;
     return;
   }
-  const piece = sequencePiece(copy.document, options);
-  const ms = 60000 / copy.document.bpm;
-  const from = span.start * ms;
-  const to = span.end * ms;
+  const doc = copy.document;
+  const bar = barQuarters(doc.meter, doc.denominator);
+  const before = doc.steps.filter((s) => s.start + s.beats <= span.start + 1e-8).at(-1);
+  const after = doc.steps.find((s) => s.start >= span.end - 1e-8);
+  const fromBeat = alone || !before ? span.start : Math.max(before.start, span.start - bar);
+  const toBeat = alone || !after ? span.end : Math.min(after.start + after.beats, span.end + bar);
+  const piece = sequencePiece(doc, options);
+  const ms = 60000 / doc.bpm;
+  const from = fromBeat * ms;
+  const to = toBeat * ms;
   const notes = piece.notes
     .filter(([at]) => at >= from - 1 && at < to - 1)
     .map(([at, d, n, v]): [number, number, number, number] => [at - from, Math.min(d, to - at), n, v]);
-  previewArrangement({ ...piece, notes, durationMs: to - from }, names.join(' → '));
+  const label = [!alone && before ? before.symbol : null, `[${names.join(' ')}]`, !alone && after ? after.symbol : null]
+    .filter(Boolean)
+    .join(' → ');
+  previewArrangement({ ...piece, notes, durationMs: to - from }, label);
 }
 
 // ───────────────────────────── loading a melody and chords separately ─────────────────────────────
@@ -972,4 +985,61 @@ export function previewPart(
     },
     label,
   );
+}
+
+// ───────────────────────────── dragging ideas into the timeline ─────────────────────────────
+
+/** An idea being dragged: one slot's chords (they share the slot they land on) or a run of fixed length. */
+export interface ChordDrag {
+  kind: 'slot' | 'run';
+  names: string[];
+  /** Run length in quarter notes. */
+  beats?: number;
+}
+export const DRAG_TYPE = 'application/x-chordsh-chords';
+/** The idea being dragged (drag data is unreadable until the drop, so the timeline reads this to preview). */
+export const dragging = $state<{ idea: ChordDrag | null }>({ idea: null });
+
+export function startChordDrag(e: DragEvent, idea: ChordDrag) {
+  dragging.idea = idea;
+  e.dataTransfer?.setData(DRAG_TYPE, JSON.stringify(idea));
+  e.dataTransfer?.setData('text/plain', idea.names.join(' '));
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+}
+
+/**
+ * Where a dragged idea lands at `beat`: on a chord it replaces that chord (a run starts there); in a gap it fills
+ * up to the next chord or one bar.
+ */
+export function dropTarget(idea: ChordDrag, beat: number): { start: number; beats: number; replaceId: string | null } {
+  const doc = editor.document;
+  const bar = barQuarters(doc.meter, doc.denominator);
+  const under = doc.steps.find((s) => s.start <= beat + 1e-8 && beat < s.start + s.beats - 1e-8) ?? null;
+  const start = under ? under.start : beat;
+  if (idea.kind === 'run') return { start, beats: idea.beats ?? bar, replaceId: under?.id ?? null };
+  if (under) return { start, beats: under.beats, replaceId: under.id };
+  const next = doc.steps
+    .filter((s) => s.start > beat + 1e-8)
+    .reduce((m, s) => Math.min(m, s.start), Number.POSITIVE_INFINITY);
+  return { start, beats: Math.min(bar, next - beat), replaceId: null };
+}
+
+export function dropChords(idea: ChordDrag, beat: number) {
+  const target = dropTarget(idea, beat);
+  if (target.beats / idea.names.length < MUSIC_LIMITS.minChordBeats - 1e-9) {
+    composition.error = 'Not enough room there: drop on a chord to replace it, or on a wider gap.';
+    return;
+  }
+  if (idea.kind === 'run') {
+    useSequence({ start: target.start, end: target.start + target.beats }, idea.names);
+    return;
+  }
+  const inputs = idea.names.map((symbol) => ({ symbol, beats: target.beats / idea.names.length }));
+  if (target.replaceId) {
+    selectStep(target.replaceId);
+    acceptChords(inputs, true);
+  } else {
+    selectTimeline(target.start);
+    acceptChords(inputs);
+  }
 }

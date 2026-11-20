@@ -24,6 +24,10 @@
     selectTimeline,
     assist,
     habits,
+    DRAG_TYPE,
+    dragging,
+    dropChords,
+    dropTarget,
   } from './composition.svelte';
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
@@ -75,6 +79,31 @@
     beats: number;
   } | null>(null);
   let suppressChordClick = false;
+  /** Where a dragged idea would land (shown as a dashed box while dragging over the timeline). */
+  let dropAt = $state<{ start: number; beats: number; replaceId: string | null } | null>(null);
+  const draggingChords = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes(DRAG_TYPE);
+  function dropBeat(e: DragEvent, rowStart: number) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const beat = rowStart + (e.clientX - rect.left) / beatWidth;
+    return Math.max(0, Math.floor(beat / snap + 1e-8) * snap);
+  }
+  function chordDragOver(e: DragEvent, rowStart: number) {
+    if (!draggingChords(e) || !dragging.idea) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    dropAt = dropTarget(dragging.idea, dropBeat(e, rowStart));
+  }
+  function chordDragLeave(e: DragEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) dropAt = null;
+  }
+  function chordDrop(e: DragEvent, rowStart: number) {
+    if (!draggingChords(e)) return;
+    e.preventDefault();
+    const idea = dragging.idea ?? JSON.parse(e.dataTransfer?.getData(DRAG_TYPE) || 'null');
+    if (idea) dropChords(idea, dropBeat(e, rowStart));
+    dropAt = null;
+    dragging.idea = null;
+  }
   /** What the badges between chords show: how they move, how common the move is, or the style's verdict. */
   let lens = $state<'motion' | 'habit' | 'style'>('motion');
   const TRADITION_OF: Record<string, string> = { pop: 'popular', jazz: 'jazz' };
@@ -682,7 +711,25 @@
         : playing || ui.playbackPosition > 0
           ? playBeat
           : composition.cursor}
-      <div class="chord-timeline timeline-row" class:has-melody={!!document.melody?.length} data-start={rowStart}>
+      <section
+        class="chord-timeline timeline-row"
+        class:has-melody={!!document.melody?.length}
+        data-start={rowStart}
+        aria-label={`Bars ${positionAt(rowStart).bar}–${positionAt(rowEnd - 1e-6).bar}`}
+        ondragover={(e) => chordDragOver(e, rowStart)}
+        ondragleave={chordDragLeave}
+        ondrop={(e) => chordDrop(e, rowStart)}
+      >
+        {#if dropAt && dragging.idea && dropAt.start < rowEnd - 1e-8 && dropAt.start + dropAt.beats > rowStart + 1e-8}
+          <div
+            class="drop-preview"
+            class:replace={!!dropAt.replaceId}
+            style:left={`${(Math.max(dropAt.start, rowStart) - rowStart) * beatWidth + 2}px`}
+            style:width={`${(Math.min(dropAt.start + dropAt.beats, rowEnd) - Math.max(dropAt.start, rowStart)) * beatWidth - 4}px`}
+          >
+            <span>{dropAt.replaceId ? 'replace with' : 'add'} {dragging.idea.names.join(' ')}</span>
+          </div>
+        {/if}
         <div class="playback-lane">
           {#each styleRuns(Math.round(rowStart / barLength), barsPerRow) as run (run.bar)}
             <div
@@ -920,7 +967,7 @@
             aria-hidden="true"
           ></div>
         {/if}
-      </div>
+      </section>
     {/each}
   </div>
   <div class="row tight timeline-lens small muted">

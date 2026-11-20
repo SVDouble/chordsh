@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import LoadParts from './LoadParts.svelte';
+  import DragHandle from './DragHandle.svelte';
   import { advise, type Development, developments, keyAt, STYLES, templates, type Advice } from '../engine/advisor';
   import { noteRole } from '../engine/assist';
   import { barQuarters, meterPosition } from '../theory/meter';
@@ -15,12 +16,13 @@
     currentSequence,
     developAll,
     developAsVersion,
+    previewInContext,
     previewDevelopment,
     fillMelodyGaps,
     insertTemplate,
     selectStep,
   } from './composition.svelte';
-  import { audition, settings, ui } from './store.svelte';
+  import { ui } from './store.svelte';
 
   /** The slot being harmonised: the selected chord, or the bar at the insertion cursor. */
   const v = $derived.by(() => {
@@ -71,12 +73,10 @@
     void composition.revision;
     return developments(v.doc, v.bar, assist.developLevel);
   });
-  function hearDevelopment(d: Development) {
+  /** Hear a development in context: the chord before, the new chords with the melody, the chord after. */
+  function hearDevelopment(d: Development, alone = false) {
     const step = v.doc.steps.find((s) => s.id === d.stepId);
-    const each = (step?.beats ?? v.bar) / d.chords.length;
-    let prev = step?.notes ?? null;
-    const voiced = d.chords.map((c) => (prev = voiceChord(c, prev)));
-    audition(voiced, `develop:${d.stepId}`, each, `${d.from} → ${d.names.join(' ')}`, settings.editor.velocity);
+    if (step) previewInContext({ start: step.start, end: step.start + step.beats }, d.names, alone);
   }
   function applyDevelopment(d: Development) {
     const step = v.doc.steps.find((s) => s.id === d.stepId);
@@ -91,8 +91,9 @@
   function voicing(idea: Advice) {
     return voiceChord(idea.chord, v.prevNotes);
   }
-  function preview(idea: Advice) {
-    audition([voicing(idea)], `idea:${idea.name}`, 2, `${idea.name} · ${idea.roman}`, settings.editor.velocity);
+  /** Hear the idea in context (the chord before → the idea, with the melody → the chord after); Shift: alone. */
+  function preview(idea: Advice, alone: boolean) {
+    previewInContext(v.span, [idea.name], alone);
   }
   function use(idea: Advice) {
     const input = { symbol: idea.name, notes: voicing(idea), beats: v.span.end - v.span.start };
@@ -142,21 +143,18 @@
   <ol class="chord-idea-list">
     {#each v.ideas as idea (idea.name)}
       <li class="chord-idea">
-        <button type="button" class="chord-idea-main" onclick={() => preview(idea)} title="Preview">
+        <button
+          type="button"
+          class="chord-idea-main"
+          onclick={(e) => preview(idea, e.shiftKey)}
+          title="Hear it in context: the chord before → this chord with the melody → the chord after (Shift: alone)"
+        >
           <b>{idea.name}</b> <span class="c-roman">{idea.roman}</span>
           <span class="idea-meter" role="img" aria-label={`Score ${percent(idea.total)}`}
             ><span style:width={`${Math.round(100 * idea.total)}%`}></span></span
           >
         </button>
-        <button
-          type="button"
-          class="icon"
-          aria-label={v.selected ? `Replace with ${idea.name}` : `Add ${idea.name}`}
-          title={v.selected ? 'Replace the selected chord' : 'Add at the cursor'}
-          onclick={() => use(idea)}
-        >
-          <Icon name={v.selected ? 'check' : 'plus'} size={14} />
-        </button>
+        <DragHandle idea={{ kind: 'slot', names: [idea.name] }} label={idea.name} onplace={() => use(idea)} />
         <div class="idea-judges small muted">
           melody {percent(idea.verdicts.melody)} · context {percent(idea.verdicts.context)} · motion
           {percent(idea.verdicts.rules)}
@@ -196,20 +194,16 @@
               type="button"
               class="icon"
               aria-label={`Hear ${d.names.join(' ')}`}
-              title="Hear it"
-              onclick={() => hearDevelopment(d)}
+              title="Hear it in context (Shift: alone)"
+              onclick={(e) => hearDevelopment(d, e.shiftKey)}
             >
               <Icon name="ear" size={14} />
             </button>
-            <button
-              type="button"
-              class="icon"
-              aria-label={`Replace ${d.from} with ${d.names.join(' ')}`}
-              title="Use it"
-              onclick={() => applyDevelopment(d)}
-            >
-              <Icon name="check" size={14} />
-            </button>
+            <DragHandle
+              idea={{ kind: 'slot', names: d.names }}
+              label={d.names.join(' ')}
+              onplace={() => applyDevelopment(d)}
+            />
           </li>
         {/each}
       </ol>

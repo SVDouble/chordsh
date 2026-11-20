@@ -28,8 +28,13 @@
     void ui.tick;
     const doc = currentSequence();
     const bar = barQuarters(doc.meter, doc.denominator);
-    const selected = doc.steps.find((s) => s.id === composition.selectedId) ?? null;
-    const start = selected ? selected.start : Math.floor(composition.cursor / bar + 1e-8) * bar;
+    // the selected chord, else the chord already in the cursor's bar (an occupied bar is replaced, not added to)
+    const barStart = Math.floor(composition.cursor / bar + 1e-8) * bar;
+    const selected =
+      doc.steps.find((s) => s.id === composition.selectedId) ??
+      doc.steps.find((s) => s.start <= barStart + 1e-8 && barStart < s.start + s.beats - 1e-8) ??
+      null;
+    const start = selected ? selected.start : barStart;
     const span = { start, end: selected ? selected.start + selected.beats : start + bar };
     const prevStep = doc.steps.filter((s) => s.start + s.beats <= span.start + 1e-8).at(-1) ?? null;
     const nextStep = doc.steps.find((s) => s.start >= span.end - 1e-8) ?? null;
@@ -86,6 +91,12 @@
     );
   }
   const percent = (x: number | null) => (x === null ? '–' : `${Math.round(100 * x)}%`);
+  /** "melody 85% · motion 70%": only the judges that had something to say. */
+  const judges = (list: [string, number | null | undefined][]) =>
+    list
+      .filter(([, x]) => x !== null && x !== undefined)
+      .map(([name, x]) => `${name} ${percent(x ?? null)}`)
+      .join(' · ');
   function voicing(idea: Advice) {
     return voiceChord(idea.chord, v.prevNotes);
   }
@@ -95,6 +106,7 @@
   }
   function use(idea: Advice) {
     const input = { symbol: idea.name, notes: voicing(idea), beats: v.span.end - v.span.start };
+    if (v.selected) selectStep(v.selected.id);
     acceptChords([input], !!v.selected);
   }
   /** “3 rest, 1 pull”: how the melody sits on the selected chord. */
@@ -154,9 +166,12 @@
         </button>
         <DragHandle idea={{ kind: 'slot', names: [idea.name] }} label={idea.name} onplace={() => use(idea)} />
         <div class="idea-judges small muted">
-          melody {percent(idea.verdicts.melody)} · context {percent(idea.verdicts.context)} · motion
-          {percent(idea.verdicts.rules)}
-          · style {percent(idea.style)}
+          {judges([
+            ['melody', idea.verdicts.melody],
+            ['context', idea.verdicts.context],
+            ['motion', idea.verdicts.rules],
+            ['style', idea.style],
+          ])}
         </div>
         <div
           class="idea-why small"

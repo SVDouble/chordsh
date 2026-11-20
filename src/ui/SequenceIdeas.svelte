@@ -64,6 +64,12 @@
     };
   });
   const percent = (x: number | null) => (x === null ? '–' : `${Math.round(100 * x)}%`);
+  /** "melody 85% · rules 70%": only the judges that had something to say. */
+  const judges = (list: [string, number | null][]) =>
+    list
+      .filter(([, x]) => x !== null)
+      .map(([name, x]) => `${name} ${percent(x)}`)
+      .join(' · ');
 </script>
 
 <div class="card sequence-ideas">
@@ -129,7 +135,11 @@
           onplace={() => useSequence(v.span, s.names)}
         />
         <div class="idea-judges small muted">
-          melody {percent(s.melody)} · rules {percent(s.rules)} · habit {percent(s.habit)}
+          {judges([
+            ['melody', s.melody],
+            ['rules', s.rules],
+            ['habit', s.habit],
+          ])}
         </div>
         {#if s.reasons.length}
           <div class="idea-why small">{s.reasons.join(' · ')}</div>

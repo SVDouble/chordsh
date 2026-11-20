@@ -9,7 +9,12 @@
     compositionContext,
     suggestionDestination,
     focusedChord,
+    composition,
+    currentSequence,
+    previewInContext,
   } from './composition.svelte';
+  import DragHandle from './DragHandle.svelte';
+  import { barQuarters } from '../theory/meter';
   import { suggestNext, suggestPaths, type NextMove, type Path } from '../engine/coach';
   type Idea = { id: string; kind: 'chord'; move: NextMove } | { id: string; kind: 'route'; path: Path; to: Key };
   const destination = $derived(suggestionDestination());
@@ -38,8 +43,17 @@
       practice: practice ? { ...practice, steps: practice.path.steps } : null,
     };
   });
-  function preview(idea: Idea) {
-    if (idea.kind === 'chord') audition([idea.move.voicing], idea.id, 2, idea.move.name, v.velocity);
+  const names = (idea: Idea) => (idea.kind === 'chord' ? [idea.move.name] : idea.path.steps.map((s) => s.name));
+  /** A bar per chord from the cursor: what the idea would fill when placed there. */
+  function span(idea: Idea) {
+    const doc = currentSequence();
+    const bar = barQuarters(doc.meter, doc.denominator);
+    return { start: composition.cursor, end: composition.cursor + bar * names(idea).length };
+  }
+  /** Hear the idea after the chord before it (with the melody); Shift: the idea alone. */
+  function preview(idea: Idea, alone: boolean) {
+    if (!alone) previewInContext(span(idea), names(idea));
+    else if (idea.kind === 'chord') audition([idea.move.voicing], idea.id, 2, idea.move.name, v.velocity);
     else
       audition(
         idea.path.steps.map((s) => s.voicing),
@@ -71,7 +85,8 @@
     {/if}
   </div>
   <p class="suggestion-destination small muted">
-    {destination.position} · {v.target ? 'Routes from the focused chord' : 'Click to preview · + to keep'}
+    {destination.position} ·
+    {v.target ? 'Routes from the focused chord' : 'Click to hear it after the chord before · drag ⠿ into the timeline'}
   </p>
   {#if !settings.panels.map}
     <select
@@ -106,21 +121,19 @@
             class="move idea-preview f-{idea.kind === 'chord' ? idea.move.func : 'route'}"
             aria-label={`Preview ${name}`}
             title={why}
-            onclick={() => preview(idea)}
+            onclick={(e) => preview(idea, e.shiftKey)}
           >
             <span class="m-name">{name}</span>
             <span class="m-roman">{idea.kind === 'chord' ? idea.move.roman : `→ ${keyShort(idea.to)}`}</span>
             <span class="m-why">{idea.kind === 'chord' ? why : idea.path.technique}</span>
           </button>
-          <button
-            type="button"
-            class="icon accept-move"
-            title={`Add ${name} at ${destination.position}`}
-            aria-label={`Add ${name} to sequence`}
-            onclick={() => add(idea)}
-          >
-            <Icon name="plus" />
-          </button>
+          <DragHandle
+            idea={idea.kind === 'chord'
+              ? { kind: 'slot', names: names(idea) }
+              : { kind: 'run', names: names(idea), beats: span(idea).end - span(idea).start }}
+            label={name}
+            onplace={() => add(idea)}
+          />
         </div>
         {#if idea.kind === 'route'}
           <details class="idea-detail">

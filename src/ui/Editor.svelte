@@ -121,6 +121,8 @@
   });
   const chart = $derived(sequenceChart(document));
   const unsaved = $derived(isUnsaved(document));
+  /** Rows after the melody's last note need no melody lane. */
+  const melodyEnd = $derived((document.melody ?? []).reduce((e, n) => Math.max(e, n.start + n.beats), 0));
   /** Melody lane: pitch range of the tune and the chord under each note (for rest / colour / lean / pull). */
   const melodyRange = $derived.by(() => {
     const pitches = (document.melody ?? []).map((n) => n.pitch);
@@ -782,7 +784,7 @@
           : composition.cursor}
       <section
         class="chord-timeline timeline-row"
-        class:has-melody={!!document.melody?.length}
+        class:has-melody={rowStart < melodyEnd - 1e-8}
         data-start={rowStart}
         aria-label={`Bars ${positionAt(rowStart).bar}–${positionAt(rowEnd - 1e-6).bar}`}
         ondragover={(e) => chordDragOver(e, rowStart)}
@@ -982,7 +984,7 @@
             </button>
           {/each}
         </div>
-        {#if document.melody?.length}
+        {#if rowStart < melodyEnd - 1e-8}
           <div class="melody-lane">
             <span class="lane-label">Melody</span>
             {#each melodyIn(rowStart, rowEnd) as n (n.id)}

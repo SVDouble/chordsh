@@ -41,6 +41,25 @@ function recordings(): Plugin {
 
 const ls = (d: string) => (fs.existsSync(d) ? fs.readdirSync(d) : []);
 
+/** A piece's title from the first bytes of its JSON (cached per file and modification time). */
+const titleCache = new Map<string, { mtime: number; title: string }>();
+function titleOf(file: string): string {
+  try {
+    const mtime = fs.statSync(file).mtimeMs;
+    const hit = titleCache.get(file);
+    if (hit?.mtime === mtime) return hit.title;
+    const fd = fs.openSync(file, 'r');
+    const head = Buffer.alloc(600);
+    fs.readSync(fd, head, 0, 600, 0);
+    fs.closeSync(fd);
+    const title = /"title"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head.toString('utf8'))?.[1] ?? '';
+    titleCache.set(file, { mtime, title: title ? JSON.parse(`"${title}"`) : '' });
+    return titleCache.get(file)!.title;
+  } catch {
+    return '';
+  }
+}
+
 /** Dev-only library: list and serve pieces from ./local (your recordings and the benchmark corpora). */
 function library(): Plugin {
   const root = path.resolve('local');
@@ -61,6 +80,12 @@ function library(): Plugin {
                   .map((f) => f.slice(0, -5)),
               ]),
           );
+          const titles = Object.fromEntries(
+            Object.entries(corpora).map(([d, ids]) => [
+              d,
+              Object.fromEntries(ids.map((id) => [id, titleOf(path.join(root, 'data', d, `${id}.json`))])),
+            ]),
+          );
           res.end(
             JSON.stringify({
               recordings: ls(path.join(root, 'recordings'))
@@ -68,6 +93,7 @@ function library(): Plugin {
                 .sort()
                 .reverse(),
               corpora,
+              titles,
             }),
           );
           return;

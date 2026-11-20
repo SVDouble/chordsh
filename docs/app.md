@@ -213,8 +213,8 @@ helps you harmonize it in four steps. Use them in any order:
      the chord after, in the song's playback style. Shift-click plays it alone.
    - **Drag an idea into the timeline** by its handle (⠿). Dropped on a chord, it replaces it; dropped
      in a gap, it fills up to the next chord or one bar. A dashed box shows where it will land. Click or
-     Enter on the handle places the idea at the selected chord or the cursor. Develop ideas and
-     sequences drag the same way.
+     Enter on the handle places the idea at the selected chord or the cursor. Develop ideas,
+     sequences and the next-move ideas in the Circle tab drag the same way.
    - **Style** picks a rulebook: Pop & rock, Jazz, Functional, Counterpoint, Colour or Chromatic.
      **Expected ↔ Fresh** lets colour chords compete with in-key ones.
    - **Develop the chords** lists, for the whole song, one way to enrich each chord: add the 7th, a

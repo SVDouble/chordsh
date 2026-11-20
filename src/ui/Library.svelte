@@ -17,6 +17,7 @@
 
   let recordings = $state<string[]>([]);
   let corpora = $state<Record<string, string[]>>({});
+  let titles = $state<Record<string, Record<string, string>>>({});
   let corpus = $state('');
   let opened = $state<Piece[]>([]);
   let query = $state('');
@@ -34,7 +35,9 @@
     Object.entries(corpora).flatMap(([group, ids]) =>
       !query.trim() && group !== corpus
         ? []
-        : ids.filter((id) => matches(`${group} ${id}`)).map((id) => ({ group, id })),
+        : ids
+            .filter((id) => matches(`${group} ${id} ${titles[group]?.[id] ?? ''}`))
+            .map((id) => ({ group, id, title: titles[group]?.[id] || id })),
     ),
   );
   const hasMatches = $derived(
@@ -61,6 +64,7 @@
           fromRecording(`recording:${file}`, await getJson(`recordings/${file}`)),
         );
       corpora = j.corpora;
+      titles = j.titles ?? {};
       corpus ||= Object.keys(j.corpora)[0] ?? '';
     } catch {
       /* The local library is optional outside the dev server. */
@@ -303,7 +307,7 @@
         {#each references.slice(0, shown) as ref (`${ref.group}/${ref.id}`)}
           <div class="lib-row" class:current={ui.sourceId === `piece:${ref.group}/${ref.id}`}>
             <button type="button" class="lib-item" onclick={() => openReference(ref.group, ref.id)}>
-              <b>{ref.id}</b><span class="small muted">{ref.group}</span>
+              <b>{ref.title}</b><span class="small muted">{ref.group}{ref.title !== ref.id ? ` · ${ref.id}` : ''}</span>
             </button>
             <button
               type="button"

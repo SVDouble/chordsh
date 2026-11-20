@@ -202,10 +202,10 @@ Rulebook AUC is pooled by chords, and piece rules are averaged over pieces:
   same picture as the instrumental top line. Years are approximate, so the songs only count as
   "Romantic", not as evidence for a finer trend.
 - **Style dimensions (PCA over per-piece harmony profiles):**
-  1. PC1 (20%): key discipline (diatonic, colour explained, consonant).
-  2. PC2 (16%): fifth-based, common-tone motion versus parallel planing and walking bass.
-  3. PC3 (9%): plagal versus dominant direction, the axis that separates rock from common practice.
-  4. PC4 (8%): dominants resolve and voices move little, versus loops and phrase-end cadences.
+  1. PC1 (20%): key discipline (diatonic, colour explained, consonant; unstable chords pass).
+  2. PC2 (15%): fifth-based, common-tone motion versus parallel planing and walking bass.
+  3. PC3 (8%): plagal versus dominant direction, the axis that separates rock from common practice.
+  4. PC4 (7%): dominants resolve and voices move little, versus loops and phrase-end cadences.
 
 ## Keys and modes
 

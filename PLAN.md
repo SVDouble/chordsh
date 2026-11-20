@@ -234,6 +234,16 @@ across passes, source/pedal cleanup, a simulated background stall, saved setting
 transport. Chord-body checks cover click/wiggle editing, snapped moves/ripple/undo, wrapped-row capture,
 cancellation, existing resize handles and touch dragging. Accompaniment/preview/export regressions pass.
 
+## Stable piano view
+
+- [x] Remove automatic following of played, previewed and selected notes, including resize recentering.
+- [x] Start near middle C once and leave subsequent horizontal positioning to the user.
+- [x] Verify stable positioning during mouse/MIDI input, chord entry, selection, playback and resizing.
+
+Validation: 180 tests, production build, lint/typecheck and browser checks for unchanged scroll position
+across live attacks/releases, previews, timeline selection, transport, held mouse notes, Shift chord
+entry/clear, manual scrolling and mobile resize.
+
 ## Mouse chord entry
 
 - [x] Select piano notes with Shift-click and play the simultaneous chord on releasing Shift.

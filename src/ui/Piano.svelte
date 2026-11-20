@@ -33,7 +33,6 @@
     Math.max(settings.editor.pianoKeyWidth, settings.editor.pianoRootLabels ? settings.editor.pianoLabelSize * 2 : 0),
   );
   const drawWidth = $derived(Math.max(width, keyWidth * 52));
-  const noteSignature = $derived(activeNotes.join(','));
   let winH = $state(900);
   let hovered = $state<number | null>(null);
   let draft = $state<number[]>([]);
@@ -164,20 +163,6 @@
       }
   });
 
-  let previousWidth = 0;
-  let previousDrawWidth = 0;
-  $effect(() => {
-    const resized = width !== previousWidth || drawWidth !== previousDrawWidth;
-    previousWidth = width;
-    previousDrawWidth = drawWidth;
-    if (draft.length && !resized) return; // Keep keys still while picking; reveal the selection after resizing.
-    const notes = draft.length ? draft : noteSignature ? noteSignature.split(',').map(Number) : [60];
-    const positions = notes.map((n) => keys.get(n)?.x).filter((n): n is number => n !== undefined);
-    if (!keyboard || !positions.length || drawWidth <= width) return;
-    const middle = (Math.min(...positions) + Math.max(...positions)) / 2;
-    keyboard.scrollLeft = Math.max(0, middle - width / 2);
-  });
-
   const pointers = new Map<number, number>();
   const releases = new Map<number, () => void>();
   const releasePointers = () => {
@@ -249,6 +234,10 @@
   };
 
   onMount(() => {
+    // Start near middle C once. Notes, previews and playback never move the user's keyboard view.
+    const initialView = requestAnimationFrame(() => {
+      if (keyboard) keyboard.scrollLeft = Math.max(0, (keys.get(60)?.x ?? 0) - keyboard.clientWidth / 2);
+    });
     const blocked = (e: KeyboardEvent) =>
       e.defaultPrevented ||
       e.ctrlKey ||
@@ -280,6 +269,7 @@
     window.addEventListener('keyup', keyUp, true);
     document.addEventListener('visibilitychange', visibility);
     return () => {
+      cancelAnimationFrame(initialView);
       cancelInput();
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);

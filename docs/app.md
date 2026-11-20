@@ -77,7 +77,8 @@ the raised leading tone). Accidentals sit above the Roman numeral on narrow blac
 
 **Note names are hidden by default**, but remain available on hover. Panels → Piano note names toggles
 them; Settings → Editor has the same choice plus label size. Keys widen to keep Roman labels readable,
-and the piano scrolls horizontally when needed. Optional **Piano chord tones** adds the focused chord's
+and you can scroll the piano horizontally. It starts near middle C and stays where you put it while
+playing, previewing or editing chords. Optional **Piano chord tones** adds the focused chord's
 intervals above the root map, with its full chord name on root notes. It is off by default. These are
 separate references: G is the root of V in C major, while it is the third of a focused Em chord.
 

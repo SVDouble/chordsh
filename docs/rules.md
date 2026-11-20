@@ -107,7 +107,7 @@ dominant motion.
 | Counterpoint & voice leading | Fux 1725 | tension prepared or resolved; tritone and 7th resolve; leading tone; parsimony; common tones; ornaments; consonance |
 | Functional harmony | Rameau 1722, Riemann 1893 | T → S → D order; dominants and applied chords resolve; fifth relation; dominant direction; cadences; in key |
 | Melody and chord agree | all styles | strong-beat chord tones; stable tones; ornaments resolve; no ♭9 clash |
-| Colour & modal mixture | Romantic → jazz → pop | colour has a name and persists; brightness moves in small steps; stepwise bass |
+| Colour & modal mixture | Romantic → jazz → pop | colour has a name; brightness moves in small steps; stepwise bass |
 | Pop & rock practice | 1950s → today | plagal motion; flat-side colour (♭VII, ♭VI, ♭III); schema membership (I–V–vi–IV, doo-wop, Mixolydian, Aeolian, Andalusian, double plagal…); planing; the modal (minor) fifth; consonance; in key |
 | Jazz harmony | 1920s → today | ii–V pairs; seventh chords by default; tritone substitutes; chains of dominants; the backdoor ♭VII7 → I; dominants resolve; fifth relation |
 | Chromatic triadic | late Romantic, film | chromatic mediants; parsimony; common tones; consonant triads |
@@ -233,9 +233,53 @@ Rulebook AUC is pooled by chords, and piece rules are averaged over pieces:
   "Romantic", not as evidence for a finer trend.
 - **Style dimensions (PCA over per-piece harmony profiles):**
   1. PC1 (20%): key discipline (diatonic, colour explained, consonant; unstable chords pass).
-  2. PC2 (15%): fifth-based, common-tone motion versus parallel planing and walking bass.
+  2. PC2 (14%): fifth-based, common-tone motion versus parallel planing and walking bass.
   3. PC3 (8%): plagal versus dominant direction, the axis that separates rock from common practice.
   4. PC4 (7%): dominants resolve and voices move little, versus loops and phrase-end cadences.
+
+## Exceptions: where real music breaks the rules
+
+For every constraint, the study records the contexts in which real chords clearly break it (verdict ≤ −0.5), as
+previous → [chord] → next in numerals, per tradition (`exceptions` in study.json, `EXC` lines in the log).
+The first pass showed that most "exceptions" were the rules' fault, not the music's:
+
+| what the data showed | fix in the rule |
+| --- | --- |
+| The most common "unresolved dominant" in art music was V → [V] → V7: the dominant simply continues | **Prolongation**: when the next chord has the same root, the resolution rules (dominant, applied chord, tritone, 7th, tension) judge the chord where the harmony changes |
+| V → [V7] → i in minor (2,087 times) broke tritone-resolves, because F → E♭ is a whole step | The tritone resolves when **one note rises a half step and the other falls a half or whole step** (V7 → I, V7 → i, subV7 → I); a whole step also counts 0.8 (was 0.5) in the tension judge |
+| ii7 → [V7] → Imaj7 broke it in jazz: the leading tone stays as the major 7th | A tritone note **held as the 7th or an extension** of the next chord is fine |
+| I → [♭VII] → I, i → [IV] → i and blues IV7 broke applied-chord-target 79% of the time in popular music | Chords **borrowed from the parallel mode** are colours, not applied dominants |
+| ♯iv°7 → V and I → I+ → IV were "colour without a name" in art music | Named: the **leading-tone diminished chord** (root a semitone below the next root) and the **passing augmented triad** (♯5 rises into the next chord) |
+| colour-persists was broken 76–88% of the time, passing-chord 92–95% | Both are **reported statistics** only; neither is in a rulebook |
+
+**Compliance** (the share of the chords a rule concerns that fully satisfy it), real chords against random
+alternatives, before → after:
+
+| constraint | real | alternatives |
+| --- | --- | --- |
+| tritone-resolves | 47% → **76%** | 18% → 38% |
+| applied-chord-target | 30% → **44%** (156k → 89k chords concerned) | 7% → 8% |
+| dominant-resolves | 57% → **62%** | 11% → 12% |
+| seventh-falls | 76% → **80%** | 53% → 55% |
+| colour-has-a-name | 85% → **88%** | 33% → 39% |
+| tension-explained | 43% → 44% | 30% → 30% |
+
+The rulebooks moved by a few points: Functional +1–2, Jazz +1–3, Colour −3–5. The drop in Colour is the
+removal of colour-persists, which separated real music from random chords without being a norm.
+
+tension-explained barely moved. It is a graded measure (how much of the tension is explained), and full
+compliance is strict, so treat it as a measure, not a norm.
+
+**What remains are style idioms**, and the suggestion engine treats them as such: a break that makes up at
+least 1% of a rule's chords in a tradition is forgiven in that exact context, and the suggestion says so.
+
+- **Popular:**
+  - the rock retrogression I → V → IV (8,506 times, 6% of all popular dominants);
+  - IV → V → IV shuttles;
+  - the Lydian II (I → II → I, 1,616);
+  - blues sevenths I7 → IV7 → I7, whose 7ths are blue notes, not tendency tones.
+- **Jazz:** blues sevenths (I7 → IV7 → I7, 673).
+- **Art music:** only small remnants, e.g. II7 → V → II7 (275) and ♭V7 → V, an augmented-sixth sound to review.
 
 ## Keys and modes
 

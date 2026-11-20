@@ -229,7 +229,7 @@ function tensionContextOf(chord: Chord, key: Key, prev: Chord | null, next: Chor
       let best = 0;
       for (const o of others) {
         const d = Math.min(mod12(o - pc), mod12(pc - o));
-        const v = d === 1 ? 1 : d === 2 ? 0.5 : d === 0 ? (scale.has(pc) ? 0.6 : 0.2) : 0;
+        const v = d === 1 ? 1 : d === 2 ? 0.8 : d === 0 ? (scale.has(pc) ? 0.6 : 0.2) : 0;
         best = Math.max(best, scale.has(o) || d === 0 ? v : v * 0.3);
       }
       return best;

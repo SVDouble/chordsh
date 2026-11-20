@@ -69,6 +69,23 @@ const mean = (xs: (number | null)[]) => {
   return n ? sum / n : null;
 };
 const has = (c: Chord, pc: number) => chordPcs(c).includes(mod12(pc));
+/**
+ * The harmony continues: the next chord has the same root (V → V7, V → V6). A resolution is then judged where the
+ * harmony changes, not here (exceptions study, docs/rules.md: V → V7 was the most frequent "unresolved" dominant).
+ */
+const prolongs = (ctx: RuleContext) => !!ctx.next && mod12(ctx.next.root - ctx.chord.root) === 0;
+/**
+ * An applied (secondary) dominant candidate: an out-of-key major chord that is not modal mixture (♭VII, Dorian IV
+ * and the blues IV7 are borrowed colours, not dominants of anything), and not prolonged.
+ */
+const applied = (ctx: RuleContext) =>
+  ctx.chord.quality === 'maj' && !isDiatonic(ctx.chord, ctx.key) && !borrowed(ctx.chord, ctx.key) && !prolongs(ctx);
+/** All of the chord's notes come from the parallel mode (or, in minor, melodic minor): modal mixture. */
+function borrowed(c: Chord, key: Key): boolean {
+  const parallel = scalePcSet(key.tonic, key.mode === 'major' ? 'aeolian' : 'ionian');
+  const melodic = key.mode === 'minor' ? scalePcSet(key.tonic, 'melodicMinor') : null;
+  return chordPcs(c).every((p) => parallel.has(p) || melodic?.has(p));
+}
 const dist = (a: number, b: number) => Math.min(mod12(a - b), mod12(b - a));
 /** Root interval (0–11) for both neighbouring transitions, each scored by `f`, averaged. */
 const sides = (ctx: RuleContext, f: (d: number, from: Chord, to: Chord) => number | null) => {
@@ -309,16 +326,17 @@ export const RULES: Rule[] = [
     statement: 'A dominant goes to the chord a fifth below (or deceptively one step up).',
     source: 'Rameau 1722; authentic and deceptive resolution in every harmony textbook',
     formula:
-      'constraint — a dominant (V7, or a major triad on 5̂) followed by: root a fifth below 0, a step up (deceptive) −0.3, anything else −1',
+      'constraint — a dominant (V7, or a major triad on 5̂) followed by: root a fifth below 0, a step up (deceptive) −0.3, anything else −1; not concerned while the harmony continues (same root next)',
     kind: 'constraint',
     concerns: (ctx) =>
       !!ctx.next &&
+      !prolongs(ctx) &&
       (isDominant(ctx.chord) || (ctx.chord.quality === 'maj' && mod12(ctx.chord.root - ctx.key.tonic) === 7)),
     judge: (ctx) => {
       const c = ctx.chord;
       const dominant = isDominant(c) || (c.quality === 'maj' && mod12(c.root - ctx.key.tonic) === 7);
       if (!ctx.next) return null;
-      if (!dominant) return 0;
+      if (!dominant || prolongs(ctx)) return 0;
       const d = mod12(ctx.next.root - c.root);
       return d === 5 ? 0 : d === 2 ? -0.3 : -1;
     },
@@ -328,13 +346,14 @@ export const RULES: Rule[] = [
     family: 'function',
     statement: 'An applied (secondary) dominant is followed by the chord it applies to.',
     source: 'Secondary dominants / tonicization (Schenker; Aldwell & Schachter)',
-    formula: 'constraint — an out-of-key major or dominant-7th chord: next root a fifth below 0, otherwise −1',
+    formula:
+      'constraint — an out-of-key major or dominant-7th chord that is not borrowed from the parallel mode: next root a fifth below 0, otherwise −1; not concerned while the harmony continues',
     kind: 'constraint',
-    concerns: (ctx) => !!ctx.next && ctx.chord.quality === 'maj' && !isDiatonic(ctx.chord, ctx.key),
+    concerns: (ctx) => !!ctx.next && applied(ctx),
     judge: (ctx) => {
       const c = ctx.chord;
       if (!ctx.next) return null;
-      if (!(c.quality === 'maj') || isDiatonic(c, ctx.key)) return 0;
+      if (!applied(ctx)) return 0;
       return mod12(ctx.next.root - c.root) === 5 ? 0 : -1;
     },
   },
@@ -346,11 +365,15 @@ export const RULES: Rule[] = [
     statement: 'Each unstable note of a chord is prepared by the chord before or resolved by step into the next.',
     source: 'Preparation – dissonance – resolution (Fux 1725, suspensions); our context judge (docs/harmony-model.md)',
     formula:
-      'constraint — −(unexplained tension) ÷ (tension + 1); tension = outside notes ×1, tritone notes ×0.6, sevenths/extensions ×0.4; explained = resolved by step into the next chord or prepared in the previous one',
+      'constraint — −(unexplained tension) ÷ (tension + 1); tension = outside notes ×1, tritone notes ×0.6, sevenths/extensions ×0.4; explained = resolved by step into the next chord (half step 1, whole step 0.8) or prepared in the previous one; not concerned while the harmony continues',
     kind: 'constraint',
-    concerns: (ctx) => (!!ctx.prev || !!ctx.next) && tensionContext(ctx.chord, ctx.key, ctx.prev, ctx.next).tension > 0,
+    concerns: (ctx) =>
+      (!!ctx.prev || !!ctx.next) &&
+      !prolongs(ctx) &&
+      tensionContext(ctx.chord, ctx.key, ctx.prev, ctx.next).tension > 0,
     judge: (ctx) => {
       if (!ctx.prev && !ctx.next) return null;
+      if (prolongs(ctx)) return 0;
       const t = tensionContext(ctx.chord, ctx.key, ctx.prev, ctx.next);
       return t.score - 1; // = −(unexplained tension) ÷ (tension + 1); a plain chord or a fully explained one 0
     },
@@ -361,20 +384,31 @@ export const RULES: Rule[] = [
     statement: 'If a chord holds a tritone, both of its notes move by step into the next chord.',
     source: 'Resolution of the dominant-seventh tritone (common practice; Piston, Harmony)',
     formula:
-      'constraint — mean over the two tritone notes of: semitone step 0, whole step −0.3, held −0.5, otherwise −1; no tritone 0',
+      'constraint — one tritone note rises a half step and the other falls a half or whole step 0 (V7 → I, V7 → i, subV7 → I), both step otherwise −0.3; otherwise the mean over the two notes of: a step 0, held as a 7th or extension of the next chord 0 (jazz: the leading tone stays as the maj7 of Imaj7), held otherwise −0.5, a leap −1; no tritone, or the harmony continues, 0',
     kind: 'constraint',
-    concerns: (ctx) => !!ctx.next && chordPcs(ctx.chord).some((p, _i, all) => all.includes(mod12(p + 6))),
+    concerns: (ctx) =>
+      !!ctx.next && !prolongs(ctx) && chordPcs(ctx.chord).some((p, _i, all) => all.includes(mod12(p + 6))),
     judge: (ctx) => {
       if (!ctx.next) return null;
       const pcs = chordPcs(ctx.chord);
       const pair = pcs.find((p) => pcs.includes(mod12(p + 6)));
-      if (pair === undefined) return 0;
-      const next = chordPcs(ctx.next);
-      const move = (p: number) => {
-        const d = Math.min(...next.map((q) => dist(p, q)));
-        return d === 1 ? 0 : d === 2 ? -0.3 : d === 0 ? -0.5 : -1;
+      if (pair === undefined || prolongs(ctx)) return 0;
+      const nextChord = ctx.next;
+      const next = chordPcs(nextChord);
+      const roleIn = (p: number) => nextChord.tones.find((t) => mod12(nextChord.root + t.interval) === mod12(p))?.role;
+      // the steps (signed semitones, ±1 or ±2) each tritone note can take into the next chord
+      const steps = (p: number) => [-2, -1, 1, 2].filter((x) => next.includes(mod12(p + x)));
+      const a = steps(pair);
+      const b = steps(pair + 6);
+      // resolved: one note rises a half step (the leading tone), the other falls a half or whole step (the 7th)
+      const resolves = (up: number[], down: number[]) => up.includes(1) && down.some((x) => x < 0);
+      if (a.length && b.length) return resolves(a, b) || resolves(b, a) ? 0 : -0.3;
+      const other = (p: number, own: number[]) => {
+        if (own.length) return 0;
+        if (next.includes(mod12(p))) return ['1', '3', 'b3', '5'].includes(roleIn(p) ?? '1') ? -0.5 : 0;
+        return -1;
       };
-      return (move(pair) + move(pair + 6)) / 2;
+      return (other(pair, a) + other(pair + 6, b)) / 2;
     },
   },
   {
@@ -400,13 +434,14 @@ export const RULES: Rule[] = [
     family: 'tension',
     statement: 'A chord’s minor seventh resolves down by step in the next chord.',
     source: 'Common-practice resolution of chordal sevenths (Aldwell & Schachter; Piston)',
-    formula: 'constraint — a chord with a ♭7 or °7: next has the note a step below 0, keeps it −0.3, otherwise −1',
+    formula:
+      'constraint — a chord with a ♭7 or °7: next has the note a step below 0, keeps it −0.3, otherwise −1; not concerned while the harmony continues',
     kind: 'constraint',
-    concerns: (ctx) => !!ctx.next && ctx.chord.tones.some((x) => x.role === 'b7' || x.role === 'bb7'),
+    concerns: (ctx) => !!ctx.next && !prolongs(ctx) && ctx.chord.tones.some((x) => x.role === 'b7' || x.role === 'bb7'),
     judge: (ctx) => {
       const t = ctx.chord.tones.find((x) => x.role === 'b7' || x.role === 'bb7');
       if (!ctx.next) return null;
-      if (!t) return 0;
+      if (!t || prolongs(ctx)) return 0;
       const s = ctx.chord.root + t.interval;
       return has(ctx.next, s - 1) || has(ctx.next, s - 2) ? 0 : has(ctx.next, s) ? -0.3 : -1;
     },
@@ -500,18 +535,19 @@ export const RULES: Rule[] = [
     statement:
       'Out-of-key chords are explainable: borrowed from the parallel mode, an applied dominant, or a tritone sub.',
     source: 'Modal mixture, applied dominants, tritone substitution (Aldwell & Schachter; Levine)',
-    formula: 'constraint — a chord outside the key that is none of those three −1; otherwise 0',
+    formula:
+      'constraint — a chord outside the key that is none of: borrowed, an applied dominant, a tritone sub, a leading-tone diminished chord (root a semitone below the next root, e.g. ♯iv°7 → V), or an augmented triad whose ♯5 rises into the next chord (I → I+ → IV) −1; otherwise 0',
     kind: 'constraint',
     concerns: (ctx) => !isDiatonic(ctx.chord, ctx.key),
     judge: (ctx) => {
       const c = ctx.chord;
       if (isDiatonic(c, ctx.key)) return 0;
-      const parallel = scalePcSet(ctx.key.tonic, ctx.key.mode === 'major' ? 'aeolian' : 'ionian');
-      const melodic = ctx.key.mode === 'minor' ? scalePcSet(ctx.key.tonic, 'melodicMinor') : null;
-      const borrowed = chordPcs(c).every((p) => parallel.has(p) || melodic?.has(p));
-      const applied = c.quality === 'maj' && (c.seventh === 'none' || c.seventh === 'b7');
+      const dominant = c.quality === 'maj' && (c.seventh === 'none' || c.seventh === 'b7');
       const tritoneSub = isDominant(c) && !!ctx.next && mod12(ctx.next.root - c.root) === 11;
-      return borrowed || applied || tritoneSub ? 0 : -1;
+      const leadingTone = c.quality === 'dim' && !!ctx.next && mod12(ctx.next.root - c.root) === 1;
+      // an augmented triad whose ♯5 rises a half step into the next chord: chromatic passing (I → I+ → IV / vi)
+      const passingAug = c.quality === 'aug' && !!ctx.next && has(ctx.next, c.root + 9);
+      return borrowed(c, ctx.key) || dominant || tritoneSub || leadingTone || passingAug ? 0 : -1;
     },
   },
   {
@@ -960,8 +996,8 @@ export const RULEBOOKS: Rulebook[] = [
     id: 'colour',
     name: 'Colour & modal mixture',
     era: 'Romantic → jazz → pop',
-    idea: 'Out-of-key chords are named colours (borrowed, applied, substituted) that persist and shift brightness gently; the bass walks.',
-    rules: ['colour-has-a-name', 'colour-persists', 'brightness-small-steps', 'bass-stepwise'],
+    idea: 'Out-of-key chords are named colours (borrowed, applied, substituted) that shift brightness gently; the bass walks.',
+    rules: ['colour-has-a-name', 'brightness-small-steps', 'bass-stepwise'],
     pieceRules: ['loops'],
   },
   {

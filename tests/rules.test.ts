@@ -230,3 +230,34 @@ describe('modern rules, by hand', () => {
     expect(r.concerns?.(plain)).toBe(false);
   });
 });
+
+describe('rules after the exceptions study', () => {
+  it('a dominant that continues (G → G7) is judged where the harmony changes', () => {
+    const r = rule('dominant-resolves');
+    const g = ctx(chordOf(7, 'maj'), { next: chordOf(7, '7') });
+    expect(r.concerns?.(g)).toBe(false);
+    expect(r.judge(g)).toBe(0);
+    expect(r.judge(ctx(chordOf(7, 'maj'), { next: chordOf(5, 'maj') }))).toBe(-1);
+  });
+  it('the tritone resolves when the leading tone rises and the 7th falls, by half or whole step', () => {
+    const r = rule('tritone-resolves');
+    expect(r.judge(ctx(chordOf(7, '7'), { key: { tonic: 0, mode: 'minor' }, next: chordOf(0, 'min') }))).toBe(0);
+    expect(r.judge(ctx(chordOf(1, '7'), { next: chordOf(0, 'maj') }))).toBe(0); // D♭7 → C
+    expect(r.judge(ctx(chordOf(7, '7'), { next: chordOf(0, 'maj7') }))).toBe(0); // jazz: B rises to C, held B is the maj7
+    expect(r.judge(ctx(chordOf(7, '7'), { next: chordOf(3, 'maj') }))).toBe(-0.3); // G7 → E♭: both fall
+  });
+  it('♭VII and the minor-key IV are borrowed colours, not applied dominants', () => {
+    const r = rule('applied-chord-target');
+    expect(r.concerns?.(ctx(chordOf(10, 'maj'), { next: chordOf(0, 'maj') }))).toBe(false);
+    const dorian = ctx(chordOf(5, 'maj'), { key: { tonic: 0, mode: 'minor' }, next: chordOf(0, 'min') });
+    expect(r.concerns?.(dorian)).toBe(false);
+    expect(r.judge(ctx(chordOf(9, 'maj'), { next: chordOf(2, 'min') }))).toBe(0); // A → Dm: V/ii resolves
+    expect(r.judge(ctx(chordOf(9, 'maj'), { next: chordOf(5, 'maj') }))).toBe(-1);
+  });
+  it('a leading-tone °7 and a passing augmented triad are named colours', () => {
+    const r = rule('colour-has-a-name');
+    expect(r.judge(ctx(chordOf(6, 'dim7'), { next: chordOf(7, 'maj') }))).toBe(0); // F♯°7 → G
+    expect(r.judge(ctx(chordOf(0, 'aug'), { next: chordOf(5, 'maj') }))).toBe(0); // C+ → F: G♯ rises to A
+    expect(r.judge(ctx(chordOf(0, 'aug'), { next: chordOf(7, 'maj') }))).toBe(-1);
+  });
+});

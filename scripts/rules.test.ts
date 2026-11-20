@@ -621,8 +621,10 @@ it('harmony rules study', () => {
           cm.real++;
           const tr = `${source.tradition}|${r.id}`;
           concerned[tr] = (concerned[tr] ?? 0) + 1;
-          if ((real[r.id] ?? 0) >= -1e-9) cm.realOk++;
-          else {
+          const verdict = real[r.id] ?? 0;
+          if (verdict >= -1e-9) cm.realOk++;
+          // exceptions: only clear breaks (≤ −0.5); partial penalties (a deceptive cadence, a held 7th) are not
+          if (verdict <= -0.5) {
             const num = (c: typeof pc.chord | null) => (c ? numeralOf(c, pc.key) : '·');
             const context = `${num(prev)} → [${num(pc.chord)}] → ${num(next)}`;
             const id = `${tr}|${context}`;

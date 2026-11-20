@@ -70,7 +70,16 @@ const sides = (ctx: RuleContext, f: (d: number, from: Chord, to: Chord) => numbe
     ctx.next ? f(mod12(ctx.next.root - ctx.chord.root), ctx.chord, ctx.next) : null,
   ]);
 /** Melody notes overlapping the slot, with the overlap length and whether they start on a strong beat. */
+const slotMemo = new WeakMap<MelodyNote[], { span: Span; meter: number; v: ReturnType<typeof slotNotesOf> }>();
+/** The melody notes of the slot, memoised per melody and span (they do not depend on the chord being judged). */
 function slotNotes(ctx: RuleContext) {
+  const m = slotMemo.get(ctx.melody);
+  if (m && m.span === ctx.span && m.meter === ctx.meter) return m.v;
+  const v = slotNotesOf(ctx);
+  slotMemo.set(ctx.melody, { span: ctx.span, meter: ctx.meter, v });
+  return v;
+}
+function slotNotesOf(ctx: RuleContext) {
   const out: { note: MelodyNote; w: number; strong: boolean; index: number }[] = [];
   const sorted = [...ctx.melody].sort((a, b) => a.start - b.start);
   sorted.forEach((note, index) => {

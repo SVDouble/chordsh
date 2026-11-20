@@ -22,7 +22,16 @@ export interface Span {
 }
 export type NoteRole = 'rest' | 'colour' | 'lean' | 'pull';
 
-export const chordPcs = (c: Chord): number[] => [...new Set(c.tones.map((t) => mod12(c.root + t.interval)))];
+const pcsMemo = new WeakMap<Chord, readonly number[]>();
+/** The chord's pitch classes (memoised per chord object; the array is frozen, so callers cannot change it). */
+export const chordPcs = (c: Chord): number[] => {
+  let pcs = pcsMemo.get(c);
+  if (!pcs) {
+    pcs = Object.freeze([...new Set(c.tones.map((t) => mod12(c.root + t.interval)))]);
+    pcsMemo.set(c, pcs);
+  }
+  return pcs as number[];
+};
 
 /** rest = chord tone; lean/pull = a semitone under/over a chord tone; colour = anything else (a step away). */
 export function noteRole(pitch: number, chord: Chord): NoteRole {
@@ -193,7 +202,16 @@ export interface ContextVerdict {
  * unstable note of a complex chord should be prepared (already sounding before) or resolved (step into the
  * next chord). A weird chord followed by the chord it resolves into is in context; left hanging, it sticks out.
  */
+const tensionMemo = new WeakMap<Chord, { key: Key; prev: Chord | null; next: Chord | null; v: ContextVerdict }>();
+/** Memoised on the last call per chord: the rules ask the same question several times per chord. */
 export function tensionContext(chord: Chord, key: Key, prev: Chord | null, next: Chord | null): ContextVerdict {
+  const m = tensionMemo.get(chord);
+  if (m && m.key === key && m.prev === prev && m.next === next) return m.v;
+  const v = tensionContextOf(chord, key, prev, next);
+  tensionMemo.set(chord, { key, prev, next, v });
+  return v;
+}
+function tensionContextOf(chord: Chord, key: Key, prev: Chord | null, next: Chord | null): ContextVerdict {
   const scale = keyPcSet(key);
   const pcs = chordPcs(chord);
   const tones: TensionTone[] = [];

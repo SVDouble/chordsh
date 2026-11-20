@@ -20,6 +20,30 @@ Whole-song A/B listening (as it is / developed) and **Use all** (every move at o
 Two develop levels: light (one chord per slot) and rich (inserted chords too). Developed versions can be
 kept as separate songs next to the basic one.
 
+**Sequences** ([src/engine/sequences.ts](../src/engine/sequences.ts)) fill a span with several chords at
+once:
+
+- **Search:** a beam of 48 partial sequences grows one chord at a time. Each chord is scored when its
+  successor is chosen, so the rules always see both real neighbours. The last chord is scored against
+  the existing chord after the span.
+- **Score** per chord = 0.45 melody fit + 0.3 style rulebook + 0.25 habit. Without melody the melody
+  weight drops out; without statistics the rules take 0.55.
+- **Adjustments:**
+  - colour chords −0.08 × (1 − adventurous);
+  - repeats inside the span −0.1;
+  - the *frame* rule: a song starts and ends on the tonic, +0.12 / +0.15, and +0.05 when the end is
+    reached from V.
+- **Habit** ([src/engine/progressions.ts](../src/engine/progressions.ts)): stupid back-off over 4-, 3- and
+  2-chord patterns of scale-degree tokens ("7:7 0:maj" = V7 → I), counted by the study per key mode
+  and tradition, on a log scale (p = 0.1 → 0.67).
+- **Idioms:** the study also records the most frequent contexts in which real chords break each
+  constraint. A break that makes up at least 1% of the chords the rule concerns, in a tradition, is
+  forgiven in that context and reported as "↺ idiom".
+- **Variety:** each listed idea differs from every earlier one in at least a quarter of its chords.
+
+The counts are aggregate statistics over the corpora (patterns seen at least 5 times). They stay in
+`local/`, like the study, because some corpora are licensed for non-commercial use only.
+
 The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
 [src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).
 

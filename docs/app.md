@@ -192,6 +192,23 @@ helps you harmonize it in four steps. Use them in any order:
      copies the song as “… (developed)” and develops the copy, so both versions stay in the song list. Each is one undo step, as is
      filling.
 
+**Sequences** (under the chord ideas) suggest whole runs of chords for 1, 2 or 4 bars from the
+selected chord's bar (or the cursor's), with 1 or 2 chords per bar:
+
+- Each idea shows its chords, their numerals, a score, and what the three judges say: **melody**
+  (does it explain the notes), **rules** (the style rulebook, with real neighbours on both sides,
+  including the chord after the bars) and **habit** (how common the moves are in the chosen
+  tradition).
+- Reasons name known patterns (the four-chord loop, the double plagal…), the resolution into the next
+  chord, and colour chords.
+- **↺ idiom** lines name rule breaks that are forgiven because the tradition makes them often in that
+  very context.
+- Click an idea to hear it **with the melody of those bars**; ✓ places it, replacing the chords that
+  start in those bars (one undo step).
+- **Habits of** follows the style (Pop → popular music, Jazz → jazz, others → art music) or can be
+  chosen. Habits need `local/assist/progressions.json`, written by `npm run study:rules` and
+  served by the dev server. Without it the panel says "rules only".
+
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
 
 - green: rests (a chord tone);

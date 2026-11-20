@@ -17,7 +17,8 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 | [src/engine/rules.ts](../src/engine/rules.ts) | Rule catalogue (36 chord rules, 10 piece rules) and 7 rulebooks. |
 | [src/engine/features.ts](../src/engine/features.ts) | Phrases, cadences, named progressions, sequences, pedal points. Phrases come from expert annotations, else fermatas, else melodic pauses. |
 | [scripts/fetch_assist_data.py](../scripts/fetch_assist_data.py) | Corpora with real melodies and years, pinned to commits or checksums. |
-| [scripts/rules.test.ts](../scripts/rules.test.ts) | The study. It writes `local/assist/study.json`. |
+| [scripts/rules.test.ts](../scripts/rules.test.ts) | The study. It writes `local/assist/study.json` and the pattern counts for the sequence engine (`progressions.json`). |
+| [scripts/study.mjs](../scripts/study.mjs) | Runs the study as 48 shards in parallel, then merges their counts. |
 | [lab/rules.html](../lab/rules.html) | Local page: trends by year, collections, constraints, every rule, playable pieces. |
 | [tests/rules.test.ts](../tests/rules.test.ts) | Hand-worked examples, e.g. G7 → C resolves its tritone and 7th, and I–IV–V–I is not a sequence. |
 
@@ -25,9 +26,20 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 
 ```sh
 npm run fetch-assist-data   # chorales, DCML, Lieder, RS200, Billboard, Chordonomicon, WJazzD, POP909 — one-off, ~1 hour
-npm run study:rules         # ~12 minutes; writes local/assist/study.json
+npm run study:rules         # ~2.5 minutes in parallel; writes local/assist/study.json and progressions.json
 npm run lab                 # local lab → "Rules of harmony"
 ```
+
+**Speed.** The study judges every real chord against about 36 alternatives with every rule, around
+1.7 billion verdicts. It used to take 12 minutes; now it takes about 2.5:
+
+- memoised chord pitch classes, slot notes and tension context, and allocation-free helpers (same
+  output);
+- 48 shards in parallel processes, merged exactly. The shard count is fixed, so the output does not
+  depend on the machine; 16 and 48 shards give identical results.
+
+`STUDY_JOBS=n` sets the number of parallel processes (default: cores − 1), and `LIMIT=n` takes only the
+first n files of each source for a quick run.
 
 ## Data
 

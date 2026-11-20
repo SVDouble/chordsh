@@ -426,277 +426,377 @@ it('harmony rules study', () => {
   const gramMoves: Record<string, number> = {};
   const transitions: Record<string, number> = {};
   const functionalBook = RULEBOOKS.find((b) => b.id === 'functional');
-  for (const source of SOURCES) {
-    let list = files(source.dir);
-    if (limit) list = list.slice(0, limit);
-    for (const file of list) {
-      const piece = load(source, file);
-      if (!piece) continue;
-      let g = groups.get(piece.group);
-      if (!g) {
-        g = {
-          source,
-          years: [],
-          pieces: 0,
-          chords: 0,
-          rule: Object.fromEntries(RULES.map((r) => [r.id, tally()])),
-          book: Object.fromEntries(RULEBOOKS.map((b) => [b.id, tally()])),
-          piece: Object.fromEntries(PIECE_RULES.map((r) => [r.id, { n: 0, sum: 0 }])),
-          cadences: { authentic: 0, plagal: 0, half: 0, deceptive: 0, none: 0 },
-          compliance: Object.fromEntries(constraints.map((r) => [r.id, { real: 0, realOk: 0, alt: 0, altOk: 0 }])),
-          examples: [],
-        };
-        groups.set(piece.group, g);
-      }
-      g.pieces++;
-      if (piece.year !== null) g.years.push(piece.year);
-      const { chords, melody, meter } = piece;
-      const phrases = phrasesOf(chords, melody, meter, piece.phraseEnds);
-      const features = [...featuresOf(chords), ...sequencesOf(chords), ...pedalsOf(chords, piece.bass)];
-      // keys & modes: degrees relative to the main key (longest), melody by duration + chord tones at half weight
-      const keyTime = new Map<string, number>();
-      for (const c of chords)
-        keyTime.set(
-          `${c.key.tonic}:${c.key.mode}`,
-          (keyTime.get(`${c.key.tonic}:${c.key.mode}`) ?? 0) + c.end - c.start,
-        );
-      const [mainTonic, mainMode] = [...keyTime.entries()].sort((a, b) => b[1] - a[1])[0][0].split(':');
-      const tonicPc = Number(mainTonic);
-      const hist = Array<number>(12).fill(0);
-      // relative to each chord's local key, so modulations don't read as chromaticism
-      const keyAt = (t: number) =>
-        (chords.find((c) => c.start <= t + 1e-6 && t < c.end - 1e-6) ?? chords[chords.length - 1]).key.tonic;
-      for (const n of melody) hist[mod12(n.pitch - keyAt(n.start))] += n.beats;
-      for (const c of chords)
-        for (const t of c.chord.tones) hist[mod12(c.chord.root + t.interval - c.key.tonic)] += 0.5 * (c.end - c.start);
-      const reading = readMode(hist);
-      const splits = registerSplits(
-        melody.map((n) => ({ pitch: n.pitch, weight: n.beats })),
-        tonicPc,
-      );
-      let ms = modeStats.get(source.id);
-      if (!ms) {
-        ms = { pieces: 0, minor: 0, tonics: Array(12).fill(0), modes: {}, sizes: {}, unusual: [], splits: [] };
-        modeStats.set(source.id, ms);
-      }
-      ms.pieces++;
-      if (mainMode === 'minor') ms.minor++;
-      ms.tonics[tonicPc]++;
-      ms.modes[reading.best.id] = (ms.modes[reading.best.id] ?? 0) + 1;
-      ms.sizes[reading.used.length] = (ms.sizes[reading.used.length] ?? 0) + 1;
-      const odd =
-        !['ionian', 'aeolian', 'harmonic-minor', 'melodic-minor'].includes(reading.best.id) ||
-        reading.used.length !== 7;
-      if (odd && ms.unusual.length < 400)
-        ms.unusual.push({
-          title: piece.title,
-          year: piece.year,
-          group: piece.group,
-          mode: reading.best.id,
-          used: reading.used,
-          coverage: r3(reading.coverage),
-          outside: reading.outside,
-          tonic: tonicPc,
-        });
-      if (splits.length && ms.splits.length < 100)
-        ms.splits.push({ title: piece.title, year: piece.year, group: piece.group, tonic: tonicPc, splits });
-      for (const ph of phrases) g.cadences[ph.cadence]++;
-      // our cadence finder against the experts (DCML cadence labels)
-      for (const [t, label] of piece.expertCadences) {
-        const want = EXPERT_CADENCE[label];
-        if (!want || want === 'none') continue;
-        const i = chords.findIndex((c) => c.start <= t + 1e-6 && t < c.end - 1e-6);
-        if (i < 0) continue;
-        const got = cadenceAt(chords, i);
-        validation.expert++;
-        if (got === want) validation.matched++;
-        validation.confusion[`${want}→${got}`] = (validation.confusion[`${want}→${got}`] ?? 0) + 1;
-      }
-      const pieceValues: Record<string, number | null> = {};
-      for (const r of PIECE_RULES) {
-        const v = !piece.durations && DURATION_RULES.has(r.id) ? null : r.judge({ chords, phrases, features });
-        pieceValues[r.id] = r3(v === null ? null : (v + 1) / 2);
-        if (v !== null) {
-          g.piece[r.id].n++;
-          g.piece[r.id].sum += v;
-        }
-      }
-      {
-        const toks: { t: string; k: string }[] = [];
-        for (const pc of chords) {
-          const t = tokenOf(pc.chord, pc.key);
-          const k = statsKey(pc.key, source.tradition);
-          if (toks.at(-1)?.t !== t || toks.at(-1)?.k !== k) toks.push({ t, k });
-        }
-        toks.forEach((x, i) => {
-          const m = grams.get(x.k) ?? new Map<string, number>();
-          grams.set(x.k, m);
-          gramMoves[x.k] = (gramMoves[x.k] ?? 0) + 1;
-          for (let n = 1; n <= 4 && i - n + 1 >= 0; n++) {
-            const run = toks.slice(i - n + 1, i + 1);
-            if (run.some((r) => r.k !== x.k)) break;
-            const gram = run.map((r) => r.t).join(' ');
-            m.set(gram, (m.get(gram) ?? 0) + 1);
-          }
-        });
-      }
-      const phraseEnds = new Set(phrases.map((p) => p.last));
-      const vocab = piece.full ? FULL : TRIADS;
-      const perChord: Record<string, number | null>[] = [];
-      const pieceBooks: Record<string, Tally> = Object.fromEntries(RULEBOOKS.map((b) => [b.id, tally()]));
-      chords.forEach((pc, i) => {
-        const prev = chords[i - 1]?.chord ?? null;
-        const next = chords[i + 1]?.chord ?? null;
-        const near = melody.filter((n) => n.start < pc.end + 2 && n.start + n.beats > pc.start - 1);
-        const ctx = {
-          key: pc.key,
-          prev,
-          next,
-          melody: near,
-          span: { start: pc.start, end: pc.end },
-          meter,
-          phraseEnd: phraseEnds.has(i),
-        };
-        const real = judgeAll({ ...ctx, chord: pc.chord });
-        perChord.push(real);
-        if (prev && functionalBook) {
-          const lab = `${numeralOf(prev, pc.key)} → ${numeralOf(pc.chord, pc.key)}`;
-          const id = `${source.tradition}|${lab}`;
-          transitions[source.tradition] = (transitions[source.tradition] ?? 0) + 1;
-          let mv = moves.get(id);
-          if (!mv) {
-            mv = { tradition: source.tradition, label: lab, count: 0, functional: 0, rules: {}, examples: [] };
-            moves.set(id, mv);
-          }
-          mv.count++;
-          mv.functional += rulebookVerdict(functionalBook, real) ?? 0;
-          for (const r of RULES) mv.rules[r.id] = (mv.rules[r.id] ?? 0) + (real[r.id] ?? 0);
-          if (mv.examples.length < 4 && (mv.count === 1 || mv.count % 37 === 0)) {
-            const ctxChords = chords.slice(Math.max(0, i - 2), Math.min(chords.length, i + 2));
-            mv.examples.push({
-              title: piece.title,
-              year: piece.year,
-              key: `${chordName(chord(pc.key.tonic, pc.key.mode === 'minor' ? 'min' : 'maj'), pc.key)}${pc.key.mode === 'minor' ? '' : ' major'}`,
-              chords: ctxChords.map((c) => ({
-                name: chordName(c.chord, c.key),
-                roman: numeralOf(c.chord, c.key),
-                pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
-                root: c.chord.root,
-                focus: c === pc || c.chord === prev,
-              })),
-            });
-          }
-        }
-        g.chords++;
-        const altCtx: Parameters<typeof judgeAll>[0][] = [];
-        for (let r = 0; r < 12; r++)
-          vocab.forEach((k, ki) => {
-            if ((i * 31 + r * 7 + ki * 13) % 3 !== 0) return; // fixed, deterministic third of the vocabulary
-            const c = chord(r, k);
-            if (sameChord(c, pc.chord) || (prev && sameChord(c, prev)) || (next && sameChord(c, next))) return;
-            altCtx.push({ ...ctx, chord: c });
-          });
-        const alts = altCtx.map(judgeAll);
-        for (const rule of RULES)
-          addTally(
-            g.rule[rule.id],
-            real[rule.id],
-            alts.map((a) => a[rule.id]),
-          );
-        for (const b of RULEBOOKS) {
-          const rv = rulebookVerdict(b, real);
-          const av = alts.map((a) => rulebookVerdict(b, a));
-          addTally(g.book[b.id], rv, av);
-          addTally(pieceBooks[b.id], rv, av);
-        }
-        // constraint compliance: of the chords a constraint concerns, how many satisfy it (real vs. alternatives)?
-        for (const r of constraints) {
-          const cm = g.compliance[r.id];
-          if (r.concerns?.({ ...ctx, chord: pc.chord })) {
-            cm.real++;
-            const tr = `${source.tradition}|${r.id}`;
-            concerned[tr] = (concerned[tr] ?? 0) + 1;
-            if ((real[r.id] ?? 0) >= -1e-9) cm.realOk++;
-            else {
-              const num = (c: typeof pc.chord | null) => (c ? numeralOf(c, pc.key) : '·');
-              const context = `${num(prev)} → [${num(pc.chord)}] → ${num(next)}`;
-              const id = `${tr}|${context}`;
-              let b = breaks.get(id);
-              if (!b) {
-                b = { tradition: source.tradition, rule: r.id, context, count: 0, examples: [] };
-                breaks.set(id, b);
-              }
-              b.count++;
-              if (b.examples.length < 2 && (b.count === 1 || b.count % 53 === 0)) {
-                b.examples.push({
-                  title: piece.title,
-                  year: piece.year,
-                  key: `${chordName(chord(pc.key.tonic, pc.key.mode === 'minor' ? 'min' : 'maj'), pc.key)}${pc.key.mode === 'minor' ? '' : ' major'}`,
-                  chords: chords.slice(Math.max(0, i - 2), Math.min(chords.length, i + 3)).map((c) => ({
-                    name: chordName(c.chord, c.key),
-                    roman: numeralOf(c.chord, c.key),
-                    pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
-                    root: c.chord.root,
-                    focus: c === pc,
-                  })),
-                });
-              }
-            }
-          }
-          altCtx.forEach((a, k) => {
-            if (r.concerns?.(a)) {
-              cm.alt++;
-              if ((alts[k][r.id] ?? 0) >= -1e-9) cm.altOk++;
-            }
-          });
-        }
-      });
-      // the piece's harmonic profile: mean verdict of each harmony rule over the composer's chords (for the PCA)
-      const profile: Record<string, number | null> = {};
-      for (const r of PROFILE_RULES) {
-        const vs = perChord.map((v) => v[r.id]).filter((v): v is number => v !== null);
-        profile[r.id] = vs.length ? r3(vs.reduce((a, b) => a + b, 0) / vs.length) : null;
-      }
-      pieces.push({
-        profile,
-        id: piece.id,
-        group: piece.group,
-        source: source.id,
-        tradition: source.tradition,
-        year: piece.year,
+  // one job per file; with SHARD=i/N this process takes the i-th contiguous slice (scripts/study.mjs runs them in
+  // parallel and a final MERGE=N run combines the shards, so the output does not depend on the number of cores)
+  const jobs = SOURCES.flatMap((source) => {
+    const list = files(source.dir);
+    return (limit ? list.slice(0, limit) : list).map((file) => ({ source, file }));
+  });
+  const shard = process.env.SHARD?.split('/').map(Number) ?? null;
+  const mine = shard
+    ? jobs.slice(Math.floor((jobs.length * shard[0]) / shard[1]), Math.floor((jobs.length * (shard[0] + 1)) / shard[1]))
+    : process.env.MERGE
+      ? []
+      : jobs;
+  for (const { source, file } of mine) {
+    const piece = load(source, file);
+    if (!piece) continue;
+    let g = groups.get(piece.group);
+    if (!g) {
+      g = {
+        source,
+        years: [],
+        pieces: 0,
+        chords: 0,
+        rule: Object.fromEntries(RULES.map((r) => [r.id, tally()])),
+        book: Object.fromEntries(RULEBOOKS.map((b) => [b.id, tally()])),
+        piece: Object.fromEntries(PIECE_RULES.map((r) => [r.id, { n: 0, sum: 0 }])),
+        cadences: { authentic: 0, plagal: 0, half: 0, deceptive: 0, none: 0 },
+        compliance: Object.fromEntries(constraints.map((r) => [r.id, { real: 0, realOk: 0, alt: 0, altOk: 0 }])),
+        examples: [],
+      };
+      groups.set(piece.group, g);
+    }
+    g.pieces++;
+    if (piece.year !== null) g.years.push(piece.year);
+    const { chords, melody, meter } = piece;
+    const phrases = phrasesOf(chords, melody, meter, piece.phraseEnds);
+    const features = [...featuresOf(chords), ...sequencesOf(chords), ...pedalsOf(chords, piece.bass)];
+    // keys & modes: degrees relative to the main key (longest), melody by duration + chord tones at half weight
+    const keyTime = new Map<string, number>();
+    for (const c of chords)
+      keyTime.set(`${c.key.tonic}:${c.key.mode}`, (keyTime.get(`${c.key.tonic}:${c.key.mode}`) ?? 0) + c.end - c.start);
+    const [mainTonic, mainMode] = [...keyTime.entries()].sort((a, b) => b[1] - a[1])[0][0].split(':');
+    const tonicPc = Number(mainTonic);
+    const hist = Array<number>(12).fill(0);
+    // relative to each chord's local key, so modulations don't read as chromaticism
+    const keyAt = (t: number) =>
+      (chords.find((c) => c.start <= t + 1e-6 && t < c.end - 1e-6) ?? chords[chords.length - 1]).key.tonic;
+    for (const n of melody) hist[mod12(n.pitch - keyAt(n.start))] += n.beats;
+    for (const c of chords)
+      for (const t of c.chord.tones) hist[mod12(c.chord.root + t.interval - c.key.tonic)] += 0.5 * (c.end - c.start);
+    const reading = readMode(hist);
+    const splits = registerSplits(
+      melody.map((n) => ({ pitch: n.pitch, weight: n.beats })),
+      tonicPc,
+    );
+    let ms = modeStats.get(source.id);
+    if (!ms) {
+      ms = { pieces: 0, minor: 0, tonics: Array(12).fill(0), modes: {}, sizes: {}, unusual: [], splits: [] };
+      modeStats.set(source.id, ms);
+    }
+    ms.pieces++;
+    if (mainMode === 'minor') ms.minor++;
+    ms.tonics[tonicPc]++;
+    ms.modes[reading.best.id] = (ms.modes[reading.best.id] ?? 0) + 1;
+    ms.sizes[reading.used.length] = (ms.sizes[reading.used.length] ?? 0) + 1;
+    const odd =
+      !['ionian', 'aeolian', 'harmonic-minor', 'melodic-minor'].includes(reading.best.id) || reading.used.length !== 7;
+    if (odd && ms.unusual.length < 400)
+      ms.unusual.push({
         title: piece.title,
-        composer: piece.composer,
-        chords: chords.length,
-        books: Object.fromEntries(RULEBOOKS.map((b) => [b.id, r3(auc(pieceBooks[b.id]))])),
-        pieceRules: pieceValues,
+        year: piece.year,
+        group: piece.group,
+        mode: reading.best.id,
+        used: reading.used,
+        coverage: r3(reading.coverage),
+        outside: reading.outside,
+        tonic: tonicPc,
       });
-      if (g.examples.length < 2 && chords.length >= 12 && (source.melody === 'none' || melody.length >= 8)) {
-        const cut = Math.min(chords.length, 40);
-        const end = chords[cut - 1].end;
-        g.examples.push({
-          id: piece.id,
-          title: piece.title,
-          year: piece.year,
-          meter,
-          melody: melody
-            .filter((n) => n.start < end)
-            .map((n) => [+n.start.toFixed(3), +n.beats.toFixed(3), n.pitch, n.fermata ? 1 : 0]),
-          chords: chords.slice(0, cut).map((c, i) => ({
-            name: chordName(c.chord, c.key),
-            roman: numeralOf(c.chord, c.key),
-            root: c.chord.root,
-            pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
-            start: +c.start.toFixed(3),
-            end: +c.end.toFixed(3),
-            rules: Object.fromEntries(
-              Object.entries(perChord[i]).map(([k, v]) => [k, v === null ? null : +v.toFixed(2)]),
-            ),
-          })),
-          phrases: phrases
-            .filter((p) => p.last < cut)
-            .map((p) => ({ start: +p.start.toFixed(3), end: +p.end.toFixed(3), cadence: p.cadence, by: p.by })),
-          features: features.filter((f) => f.to < cut),
+    if (splits.length && ms.splits.length < 100)
+      ms.splits.push({ title: piece.title, year: piece.year, group: piece.group, tonic: tonicPc, splits });
+    for (const ph of phrases) g.cadences[ph.cadence]++;
+    // our cadence finder against the experts (DCML cadence labels)
+    for (const [t, label] of piece.expertCadences) {
+      const want = EXPERT_CADENCE[label];
+      if (!want || want === 'none') continue;
+      const i = chords.findIndex((c) => c.start <= t + 1e-6 && t < c.end - 1e-6);
+      if (i < 0) continue;
+      const got = cadenceAt(chords, i);
+      validation.expert++;
+      if (got === want) validation.matched++;
+      validation.confusion[`${want}→${got}`] = (validation.confusion[`${want}→${got}`] ?? 0) + 1;
+    }
+    const pieceValues: Record<string, number | null> = {};
+    for (const r of PIECE_RULES) {
+      const v = !piece.durations && DURATION_RULES.has(r.id) ? null : r.judge({ chords, phrases, features });
+      pieceValues[r.id] = r3(v === null ? null : (v + 1) / 2);
+      if (v !== null) {
+        g.piece[r.id].n++;
+        g.piece[r.id].sum += v;
+      }
+    }
+    {
+      const toks: { t: string; k: string }[] = [];
+      for (const pc of chords) {
+        const t = tokenOf(pc.chord, pc.key);
+        const k = statsKey(pc.key, source.tradition);
+        if (toks.at(-1)?.t !== t || toks.at(-1)?.k !== k) toks.push({ t, k });
+      }
+      toks.forEach((x, i) => {
+        const m = grams.get(x.k) ?? new Map<string, number>();
+        grams.set(x.k, m);
+        gramMoves[x.k] = (gramMoves[x.k] ?? 0) + 1;
+        for (let n = 1; n <= 4 && i - n + 1 >= 0; n++) {
+          const run = toks.slice(i - n + 1, i + 1);
+          if (run.some((r) => r.k !== x.k)) break;
+          const gram = run.map((r) => r.t).join(' ');
+          m.set(gram, (m.get(gram) ?? 0) + 1);
+        }
+      });
+    }
+    const phraseEnds = new Set(phrases.map((p) => p.last));
+    const vocab = piece.full ? FULL : TRIADS;
+    const perChord: Record<string, number | null>[] = [];
+    const pieceBooks: Record<string, Tally> = Object.fromEntries(RULEBOOKS.map((b) => [b.id, tally()]));
+    chords.forEach((pc, i) => {
+      const prev = chords[i - 1]?.chord ?? null;
+      const next = chords[i + 1]?.chord ?? null;
+      const near = melody.filter((n) => n.start < pc.end + 2 && n.start + n.beats > pc.start - 1);
+      const ctx = {
+        key: pc.key,
+        prev,
+        next,
+        melody: near,
+        span: { start: pc.start, end: pc.end },
+        meter,
+        phraseEnd: phraseEnds.has(i),
+      };
+      const real = judgeAll({ ...ctx, chord: pc.chord });
+      perChord.push(real);
+      if (prev && functionalBook) {
+        const lab = `${numeralOf(prev, pc.key)} → ${numeralOf(pc.chord, pc.key)}`;
+        const id = `${source.tradition}|${lab}`;
+        transitions[source.tradition] = (transitions[source.tradition] ?? 0) + 1;
+        let mv = moves.get(id);
+        if (!mv) {
+          mv = { tradition: source.tradition, label: lab, count: 0, functional: 0, rules: {}, examples: [] };
+          moves.set(id, mv);
+        }
+        mv.count++;
+        mv.functional += rulebookVerdict(functionalBook, real) ?? 0;
+        for (const r of RULES) mv.rules[r.id] = (mv.rules[r.id] ?? 0) + (real[r.id] ?? 0);
+        if (mv.examples.length < 4 && (mv.count === 1 || mv.count % 37 === 0)) {
+          const ctxChords = chords.slice(Math.max(0, i - 2), Math.min(chords.length, i + 2));
+          mv.examples.push({
+            title: piece.title,
+            year: piece.year,
+            key: `${chordName(chord(pc.key.tonic, pc.key.mode === 'minor' ? 'min' : 'maj'), pc.key)}${pc.key.mode === 'minor' ? '' : ' major'}`,
+            chords: ctxChords.map((c) => ({
+              name: chordName(c.chord, c.key),
+              roman: numeralOf(c.chord, c.key),
+              pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
+              root: c.chord.root,
+              focus: c === pc || c.chord === prev,
+            })),
+          });
+        }
+      }
+      g.chords++;
+      const altCtx: Parameters<typeof judgeAll>[0][] = [];
+      for (let r = 0; r < 12; r++)
+        vocab.forEach((k, ki) => {
+          if ((i * 31 + r * 7 + ki * 13) % 3 !== 0) return; // fixed, deterministic third of the vocabulary
+          const c = chord(r, k);
+          if (sameChord(c, pc.chord) || (prev && sameChord(c, prev)) || (next && sameChord(c, next))) return;
+          altCtx.push({ ...ctx, chord: c });
         });
+      const alts = altCtx.map(judgeAll);
+      for (const rule of RULES)
+        addTally(
+          g.rule[rule.id],
+          real[rule.id],
+          alts.map((a) => a[rule.id]),
+        );
+      for (const b of RULEBOOKS) {
+        const rv = rulebookVerdict(b, real);
+        const av = alts.map((a) => rulebookVerdict(b, a));
+        addTally(g.book[b.id], rv, av);
+        addTally(pieceBooks[b.id], rv, av);
+      }
+      // constraint compliance: of the chords a constraint concerns, how many satisfy it (real vs. alternatives)?
+      for (const r of constraints) {
+        const cm = g.compliance[r.id];
+        if (r.concerns?.({ ...ctx, chord: pc.chord })) {
+          cm.real++;
+          const tr = `${source.tradition}|${r.id}`;
+          concerned[tr] = (concerned[tr] ?? 0) + 1;
+          if ((real[r.id] ?? 0) >= -1e-9) cm.realOk++;
+          else {
+            const num = (c: typeof pc.chord | null) => (c ? numeralOf(c, pc.key) : '·');
+            const context = `${num(prev)} → [${num(pc.chord)}] → ${num(next)}`;
+            const id = `${tr}|${context}`;
+            let b = breaks.get(id);
+            if (!b) {
+              b = { tradition: source.tradition, rule: r.id, context, count: 0, examples: [] };
+              breaks.set(id, b);
+            }
+            b.count++;
+            if (b.examples.length < 2 && (b.count === 1 || b.count % 53 === 0)) {
+              b.examples.push({
+                title: piece.title,
+                year: piece.year,
+                key: `${chordName(chord(pc.key.tonic, pc.key.mode === 'minor' ? 'min' : 'maj'), pc.key)}${pc.key.mode === 'minor' ? '' : ' major'}`,
+                chords: chords.slice(Math.max(0, i - 2), Math.min(chords.length, i + 3)).map((c) => ({
+                  name: chordName(c.chord, c.key),
+                  roman: numeralOf(c.chord, c.key),
+                  pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
+                  root: c.chord.root,
+                  focus: c === pc,
+                })),
+              });
+            }
+          }
+        }
+        altCtx.forEach((a, k) => {
+          if (r.concerns?.(a)) {
+            cm.alt++;
+            if ((alts[k][r.id] ?? 0) >= -1e-9) cm.altOk++;
+          }
+        });
+      }
+    });
+    // the piece's harmonic profile: mean verdict of each harmony rule over the composer's chords (for the PCA)
+    const profile: Record<string, number | null> = {};
+    for (const r of PROFILE_RULES) {
+      const vs = perChord.map((v) => v[r.id]).filter((v): v is number => v !== null);
+      profile[r.id] = vs.length ? r3(vs.reduce((a, b) => a + b, 0) / vs.length) : null;
+    }
+    pieces.push({
+      profile,
+      id: piece.id,
+      group: piece.group,
+      source: source.id,
+      tradition: source.tradition,
+      year: piece.year,
+      title: piece.title,
+      composer: piece.composer,
+      chords: chords.length,
+      books: Object.fromEntries(RULEBOOKS.map((b) => [b.id, r3(auc(pieceBooks[b.id]))])),
+      pieceRules: pieceValues,
+    });
+    if (g.examples.length < 2 && chords.length >= 12 && (source.melody === 'none' || melody.length >= 8)) {
+      const cut = Math.min(chords.length, 40);
+      const end = chords[cut - 1].end;
+      g.examples.push({
+        id: piece.id,
+        title: piece.title,
+        year: piece.year,
+        meter,
+        melody: melody
+          .filter((n) => n.start < end)
+          .map((n) => [+n.start.toFixed(3), +n.beats.toFixed(3), n.pitch, n.fermata ? 1 : 0]),
+        chords: chords.slice(0, cut).map((c, i) => ({
+          name: chordName(c.chord, c.key),
+          roman: numeralOf(c.chord, c.key),
+          root: c.chord.root,
+          pcs: c.chord.tones.map((t) => mod12(c.chord.root + t.interval)),
+          start: +c.start.toFixed(3),
+          end: +c.end.toFixed(3),
+          rules: Object.fromEntries(
+            Object.entries(perChord[i]).map(([k, v]) => [k, v === null ? null : +v.toFixed(2)]),
+          ),
+        })),
+        phrases: phrases
+          .filter((p) => p.last < cut)
+          .map((p) => ({ start: +p.start.toFixed(3), end: +p.end.toFixed(3), cadence: p.cadence, by: p.by })),
+        features: features.filter((f) => f.to < cut),
+      });
+    }
+  }
+
+  // ── parallel runs: a shard writes its raw counts and stops; the merge run reads them all ──
+  const SHARDS = 'local/assist/shards';
+  if (shard) {
+    fs.mkdirSync(SHARDS, { recursive: true });
+    fs.writeFileSync(
+      `${SHARDS}/${shard[0]}.json`,
+      JSON.stringify({
+        groups: [...groups].map(([k, g]) => [k, { ...g, source: g.source.id }]),
+        pieces,
+        validation,
+        modeStats: [...modeStats],
+        moves: [...moves],
+        breaks: [...breaks],
+        concerned,
+        grams: [...grams].map(([k, m]) => [k, [...m]]),
+        gramMoves,
+        transitions,
+      }),
+    );
+    return;
+  }
+  if (process.env.MERGE) {
+    // biome-ignore lint/suspicious/noExplicitAny: plain JSON counts, added field by field
+    const add = (a: any, b: any) => {
+      for (const [k, v] of Object.entries(b)) {
+        if (typeof v === 'number') a[k] = (a[k] ?? 0) + v;
+        else if (v && typeof v === 'object' && !Array.isArray(v)) {
+          a[k] ??= {};
+          add(a[k], v);
+        }
+      }
+    };
+    for (let i = 0; i < Number(process.env.MERGE); i++) {
+      const d = JSON.parse(fs.readFileSync(`${SHARDS}/${i}.json`, 'utf8'));
+      for (const [k, g] of d.groups) {
+        const source = SOURCES.find((x) => x.id === g.source) as Source;
+        const e = groups.get(k);
+        if (!e) {
+          groups.set(k, { ...g, source });
+          continue;
+        }
+        e.years.push(...g.years);
+        e.pieces += g.pieces;
+        e.chords += g.chords;
+        for (const f of ['rule', 'book', 'piece', 'cadences', 'compliance'] as const) add(e[f], g[f]);
+        e.examples = [...e.examples, ...g.examples].slice(0, 2);
+      }
+      pieces.push(...d.pieces);
+      validation.expert += d.validation.expert;
+      validation.matched += d.validation.matched;
+      add(validation.confusion, d.validation.confusion);
+      for (const [k, m] of d.modeStats) {
+        const e = modeStats.get(k);
+        if (!e) {
+          modeStats.set(k, m);
+          continue;
+        }
+        e.pieces += m.pieces;
+        e.minor += m.minor;
+        e.tonics = e.tonics.map((x, t) => x + m.tonics[t]);
+        add(e.modes, m.modes);
+        add(e.sizes, m.sizes);
+        e.unusual = [...e.unusual, ...m.unusual].slice(0, 400);
+        e.splits = [...e.splits, ...m.splits].slice(0, 100);
+      }
+      for (const [k, m] of d.moves) {
+        const e = moves.get(k);
+        if (!e) {
+          moves.set(k, m);
+          continue;
+        }
+        e.count += m.count;
+        e.functional += m.functional;
+        add(e.rules, m.rules);
+        e.examples = [...e.examples, ...m.examples].slice(0, 4);
+      }
+      for (const [k, b] of d.breaks) {
+        const e = breaks.get(k);
+        if (!e) {
+          breaks.set(k, b);
+          continue;
+        }
+        e.count += b.count;
+        e.examples = [...e.examples, ...b.examples].slice(0, 2);
+      }
+      add(concerned, d.concerned);
+      add(gramMoves, d.gramMoves);
+      add(transitions, d.transitions);
+      for (const [k, list] of d.grams as [string, [string, number][]][]) {
+        const m = grams.get(k) ?? new Map<string, number>();
+        grams.set(k, m);
+        for (const [g, c] of list) m.set(g, (m.get(g) ?? 0) + c);
       }
     }
   }

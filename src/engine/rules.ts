@@ -57,18 +57,25 @@ export interface Rule {
 // ───────────────────────────── shared helpers ─────────────────────────────
 
 const clamp = (x: number) => Math.max(-1, Math.min(1, x));
+/** Mean of the non-null values (null if none); a plain loop, as it runs millions of times in the study. */
 const mean = (xs: (number | null)[]) => {
-  const v = xs.filter((x): x is number => x !== null);
-  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  let sum = 0;
+  let n = 0;
+  for (const x of xs)
+    if (x !== null) {
+      sum += x;
+      n++;
+    }
+  return n ? sum / n : null;
 };
 const has = (c: Chord, pc: number) => chordPcs(c).includes(mod12(pc));
 const dist = (a: number, b: number) => Math.min(mod12(a - b), mod12(b - a));
 /** Root interval (0–11) for both neighbouring transitions, each scored by `f`, averaged. */
-const sides = (ctx: RuleContext, f: (d: number, from: Chord, to: Chord) => number | null) =>
-  mean([
-    ctx.prev ? f(mod12(ctx.chord.root - ctx.prev.root), ctx.prev, ctx.chord) : null,
-    ctx.next ? f(mod12(ctx.next.root - ctx.chord.root), ctx.chord, ctx.next) : null,
-  ]);
+const sides = (ctx: RuleContext, f: (d: number, from: Chord, to: Chord) => number | null) => {
+  const a = ctx.prev ? f(mod12(ctx.chord.root - ctx.prev.root), ctx.prev, ctx.chord) : null;
+  const b = ctx.next ? f(mod12(ctx.next.root - ctx.chord.root), ctx.chord, ctx.next) : null;
+  return a === null ? b : b === null ? a : (a + b) / 2;
+};
 /** Melody notes overlapping the slot, with the overlap length and whether they start on a strong beat. */
 const slotMemo = new WeakMap<MelodyNote[], { span: Span; meter: number; v: ReturnType<typeof slotNotesOf> }>();
 /** The melody notes of the slot, memoised per melody and span (they do not depend on the chord being judged). */
@@ -735,7 +742,9 @@ export const RULES: Rule[] = [
 
 /** Every rule's verdict for one chord in one context. */
 export function judgeAll(ctx: RuleContext): Record<string, number | null> {
-  return Object.fromEntries(RULES.map((r) => [r.id, r.judge(ctx)]));
+  const out: Record<string, number | null> = {};
+  for (const r of RULES) out[r.id] = r.judge(ctx);
+  return out;
 }
 
 /** Human-readable summary of the strongest supporting and opposing rules. */
@@ -991,5 +1000,14 @@ export const RULEBOOKS: Rulebook[] = [
 
 /** A rulebook's verdict on one chord: the mean of its applicable chord rules (null if none apply). */
 export function rulebookVerdict(book: Rulebook, verdicts: Record<string, number | null>): number | null {
-  return mean(book.rules.map((id) => verdicts[id] ?? null));
+  let sum = 0;
+  let n = 0;
+  for (const id of book.rules) {
+    const v = verdicts[id];
+    if (v !== null && v !== undefined) {
+      sum += v;
+      n++;
+    }
+  }
+  return n ? sum / n : null;
 }

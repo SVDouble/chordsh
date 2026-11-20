@@ -900,7 +900,6 @@ export const RULEBOOKS: Rulebook[] = [
       'parsimony',
       'common-tones',
       'mel-ornaments-resolve',
-      'passing-chord',
       'consonance',
     ],
     pieceRules: ['sequences', 'pedal-points'],

@@ -74,7 +74,7 @@ dominant motion.
 
 | rulebook | theory | its chord rules |
 | --- | --- | --- |
-| Counterpoint & voice leading | Fux 1725 | tension prepared or resolved; tritone and 7th resolve; leading tone; parsimony; common tones; ornaments; passing chords; consonance |
+| Counterpoint & voice leading | Fux 1725 | tension prepared or resolved; tritone and 7th resolve; leading tone; parsimony; common tones; ornaments; consonance |
 | Functional harmony | Rameau 1722, Riemann 1893 | T → S → D order; dominants and applied chords resolve; fifth relation; dominant direction; cadences; in key |
 | Melody and chord agree | all styles | strong-beat chord tones; stable tones; ornaments resolve; no ♭9 clash |
 | Colour & modal mixture | Romantic → jazz → pop | colour has a name and persists; brightness moves in small steps; stepwise bass |
@@ -288,12 +288,16 @@ why it works, to check by ear in the lab:
 **Rules added from this review:**
 
 - **backdoor-dominant** (jazz rulebook): ♭VII7 → I.
-- **passing-chord** (counterpoint rulebook, a constraint): a diminished, augmented or out-of-key chord
+- **passing-chord** (a constraint, in no rulebook): a diminished, augmented or out-of-key chord
   should pass, its bass reached and left by step in one direction. A first version was a preference
   that scored 0 for plain chords and −0.5 for unstable ones that do not pass. Its AUC of 0.83 mostly
   rewarded staying in key, since random alternatives are mostly out of key, and it lifted the
   counterpoint rulebook by 2–4 points everywhere. As a constraint it is measured only on the chords
-  it concerns, by compliance.
+  it concerns: **8% of real unstable chords pass** by bass step, against 5% of random alternatives
+  (Bach chorales 6.7%, jazz standards 10%). Most out-of-key chords are applied dominants or borrowed
+  chords, which other rules explain, so passing is a small slice. It is reported in the compliance
+  table and the PCA, but kept **out of the counterpoint rulebook**, where it again mostly punished
+  out-of-key alternatives.
 - **modal-fifth** (pop rulebook): a minor v next to IV or I in a major key.
 
 The study's namer now also names these moves, so they no longer appear as unnamed.

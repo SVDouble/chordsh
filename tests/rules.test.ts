@@ -131,17 +131,40 @@ describe('larger features', () => {
     pairs.map(([r, k], i) => ({ chord: chordOf(r, k), start: i * 2, end: i * 2 + 2, key: C }));
   it('finds a descending-fifths sequence (Am–Dm, G–C … pattern moved down a step)', () => {
     // C F | Bdim E | Am Dm: each link = root up a fourth, moved down a step
-    const seq = sequencesOf(at([[0, 'maj'], [5, 'maj'], [10, 'maj'], [3, 'maj'], [8, 'maj'], [1, 'maj']]));
+    const seq = sequencesOf(
+      at([
+        [0, 'maj'],
+        [5, 'maj'],
+        [10, 'maj'],
+        [3, 'maj'],
+        [8, 'maj'],
+        [1, 'maj'],
+      ]),
+    );
     expect(seq.length).toBe(1);
     expect(seq[0].from).toBe(0);
     expect(seq[0].to).toBe(5);
     expect(seq[0].label).toMatch(/×3/);
   });
   it('finds no sequence in a plain I–IV–V–I', () => {
-    expect(sequencesOf(at([[0, 'maj'], [5, 'maj'], [7, 'maj'], [0, 'maj']]))).toEqual([]);
+    expect(
+      sequencesOf(
+        at([
+          [0, 'maj'],
+          [5, 'maj'],
+          [7, 'maj'],
+          [0, 'maj'],
+        ]),
+      ),
+    ).toEqual([]);
   });
   it('finds a tonic pedal: C in the bass under C, F, G7, C', () => {
-    const chords = at([[0, 'maj'], [5, 'maj'], [7, '7'], [0, 'maj']]);
+    const chords = at([
+      [0, 'maj'],
+      [5, 'maj'],
+      [7, '7'],
+      [0, 'maj'],
+    ]);
     const pedals = pedalsOf(chords, [0, 0, 0, 0]);
     expect(pedals).toHaveLength(1);
     expect(pedals[0].to - pedals[0].from).toBe(3);

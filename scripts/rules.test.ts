@@ -295,7 +295,7 @@ const PROFILE_RULES = RULES.filter((r) => r.family !== 'melody');
 function jacobi(a: number[][]): { values: number[]; vectors: number[][] } {
   const n = a.length;
   const m = a.map((r) => [...r]);
-  const v = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
+  const v: number[][] = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
   for (let sweep = 0; sweep < 100; sweep++) {
     let off = 0;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) off += m[i][j] ** 2;

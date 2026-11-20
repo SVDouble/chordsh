@@ -625,7 +625,7 @@ function groupsTable(study: Study) {
           style:
             'padding-top: 14px; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em',
         },
-        { art: 'art music', popular: 'popular music', reference: 'undated references' }[g.tradition],
+        { art: 'art music', jazz: 'jazz', popular: 'popular music', reference: 'undated references' }[g.tradition],
         tr,
       );
     }

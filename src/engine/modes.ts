@@ -44,9 +44,14 @@ export interface ModeReading {
 export function readMode(hist: number[], threshold = 0.03): ModeReading {
   const total = hist.reduce((a, b) => a + b, 0) || 1;
   const share = hist.map((w) => w / total);
-  const used = share.map((s, d) => [s, d] as const).filter(([s]) => s >= threshold).map(([, d]) => d);
+  const used = share
+    .map((s, d) => [s, d] as const)
+    .filter(([s]) => s >= threshold)
+    .map(([, d]) => d);
   const scored = COLLECTIONS.map((c) => ({ c, coverage: c.degrees.reduce((s, d) => s + share[d], 0) }));
-  const fitting = scored.filter((x) => x.coverage >= 0.95).sort((a, b) => a.c.degrees.length - b.c.degrees.length || b.coverage - a.coverage);
+  const fitting = scored
+    .filter((x) => x.coverage >= 0.95)
+    .sort((a, b) => a.c.degrees.length - b.c.degrees.length || b.coverage - a.coverage);
   const pick = fitting[0] ?? scored.sort((a, b) => b.coverage - a.coverage)[0];
   return { used, best: pick.c, coverage: pick.coverage, outside: used.filter((d) => !pick.c.degrees.includes(d)) };
 }
@@ -55,7 +60,10 @@ export function readMode(hist: number[], threshold = 0.03): ModeReading {
  * Register-dependent scale: a degree appears in two forms (e.g. 3 and ♭3) whose registers barely overlap, so the
  * scale does not repeat at the octave. Returns the degree pairs with the octave gap between their median pitches.
  */
-export function registerSplits(notes: { pitch: number; weight: number }[], tonic: number): { low: number; high: number; gap: number }[] {
+export function registerSplits(
+  notes: { pitch: number; weight: number }[],
+  tonic: number,
+): { low: number; high: number; gap: number }[] {
   const byDeg = new Map<number, number[]>();
   for (const n of notes) {
     const d = mod12(n.pitch - tonic);
@@ -75,7 +83,8 @@ export function registerSplits(notes: { pitch: number; weight: number }[], tonic
     if (pa.length < 4 || pb.length < 4) continue;
     const gap = (median(pb) - median(pa)) / 12;
     const overlap = pa.filter((p) => p >= Math.min(...pb) && p <= Math.max(...pb)).length / pa.length;
-    if (Math.abs(gap) >= 0.9 && overlap < 0.25) out.push({ low: gap > 0 ? a : b, high: gap > 0 ? b : a, gap: Math.abs(gap) });
+    if (Math.abs(gap) >= 0.9 && overlap < 0.25)
+      out.push({ low: gap > 0 ? a : b, high: gap > 0 ? b : a, gap: Math.abs(gap) });
   }
   return out;
 }

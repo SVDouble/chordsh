@@ -15,7 +15,7 @@ import {
   type MelodyNote,
   type Sequence,
 } from '../engine/sequence';
-import { fillGaps } from '../engine/advisor';
+import { type Development, fillGaps } from '../engine/advisor';
 import type { Recording } from '../io/recorder';
 import { EXAMPLES } from '../engine/chart';
 import { computeReach, type Path } from '../engine/coach';
@@ -694,9 +694,11 @@ export function fillMelodyGaps() {
     notify(doc.melody?.length ? 'Every bar with melody already has a chord.' : 'Record or play a melody first.');
     return;
   }
-  editSequence((e) => {
-    for (const f of filled) e.place([{ symbol: f.symbol, beats: f.beats }], f.start);
-  });
+  editSequence((e) =>
+    e.batch(() => {
+      for (const f of filled) e.place([{ symbol: f.symbol, beats: f.beats }], f.start);
+    }),
+  );
   notify(
     `Added ${filled.length} chord${filled.length > 1 ? 's' : ''} under the melody: ${filled.map((f) => f.symbol).join(' · ')}`,
   );
@@ -723,4 +725,22 @@ if (regroupedSongs) {
   notify(
     'Saved songs with unsupported meter denominators now use /4 grouping. Notes and playback timing are unchanged.',
   );
+}
+
+/** Pipeline step 4, all at once: apply every development in one undoable edit. */
+export function developAll(list: Development[]) {
+  const steps = new Map(editor.document.steps.map((s) => [s.id, s]));
+  const done = editSequence((e) =>
+    e.batch(() => {
+      for (const d of list) {
+        const step = steps.get(d.stepId);
+        const chords = d.names.map((symbol) => ({ symbol, beats: (step?.beats ?? 0) / d.names.length }));
+        if (step) e.replaceWith(d.stepId, chords);
+      }
+    }),
+  );
+  if (done) {
+    composition.selectedId = null;
+    notify(`Developed ${list.length} chord${list.length > 1 ? 's' : ''}. Undo goes back to the basic chords.`);
+  }
 }

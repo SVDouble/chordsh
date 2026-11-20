@@ -244,4 +244,23 @@ describe('melody lane', () => {
     const editor = new SequenceEditor(sequenceFromChart('| C |', 'Bad'));
     expect(() => editor.recordMelody([{ start: 0, beats: 0, pitch: 60, velocity: 90 }])).toThrow();
   });
+  it('batches several edits into one undo step, and applies none when one fails', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C | F | G | C |', 'Batch'));
+    const [a, b] = editor.document.steps;
+    editor.batch((e) => {
+      e.replaceWith(a.id, [{ symbol: 'Cmaj7', beats: 4 }]);
+      e.replaceWith(b.id, [{ symbol: 'Dm7', beats: 2 }, { symbol: 'G7', beats: 2 }]);
+    });
+    expect(editor.document.steps.map((s) => s.symbol).join(' ')).toBe('Cmaj7 Dm7 G7 G C');
+    editor.undo();
+    expect(editor.document.steps.map((s) => s.symbol).join(' ')).toBe('C F G C');
+    expect(editor.canUndo).toBe(false);
+    expect(() =>
+      editor.batch((e) => {
+        e.replaceWith(a.id, [{ symbol: 'Am', beats: 4 }]);
+        e.replaceWith('missing', [{ symbol: 'Dm', beats: 4 }]);
+      }),
+    ).toThrow();
+    expect(editor.document.steps.map((s) => s.symbol).join(' ')).toBe('C F G C');
+  });
 });

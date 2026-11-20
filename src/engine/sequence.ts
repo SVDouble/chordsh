@@ -210,6 +210,23 @@ export class SequenceEditor {
     this.future = [];
   }
 
+  /** Several edits as one undo step. If one of them fails, none is applied. */
+  batch(action: (editor: this) => void) {
+    const past = [...this.past];
+    const future = this.future;
+    const start = this.value;
+    try {
+      action(this);
+    } catch (error) {
+      this.past = past;
+      this.future = future;
+      this.value = start;
+      throw error;
+    }
+    if (this.value === start) return;
+    this.past = [...past, start].slice(-Math.max(1, this.settings.undoLimit));
+  }
+
   update(patch: Partial<Pick<Sequence, 'title' | 'bpm' | 'meter' | 'denominator' | 'key'>>) {
     const next = { ...this.value, ...patch };
     if (!next.title.trim()) throw new Error('Give the sequence a title.');

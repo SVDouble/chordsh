@@ -12,6 +12,7 @@
     clearMelody,
     composition,
     currentSequence,
+    developAll,
     fillMelodyGaps,
     insertTemplate,
     selectStep,
@@ -202,6 +203,7 @@
           </li>
         {/each}
       </ol>
+      <button type="button" class="develop-all" onclick={() => developAll(develop)}>Use all {develop.length}</button>
     </details>
   {/if}
   <div class="chord-ideas-tools">

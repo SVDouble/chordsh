@@ -218,6 +218,21 @@ selected chord's bar (or the cursor's), with 1 or 2 chords per bar:
   chosen. Habits ship with the app (`public/data/progressions.json`); if that file is missing,
   the panel says "rules only".
 
+**Reading the timeline.** Each row has lanes, top to bottom:
+
+- **ruler**: bars and beats; key changes are flagged;
+- **chords**: the top edge is coloured by function (tonic, subdominant, dominant). The bar along the
+  bottom of each chord shows how well it **covers the melody** above it (green, amber or red). Hover it
+  for the count of chord tones, colour notes, leaning and pulling notes, and unresolved clashes;
+- **connections**: a badge at each chord change shows **how the chords connect**: ↘ resolves, ≈ glides
+  on shared notes, ∼ slides a semitone, → steps, ↗ opens, ⤴ leaps, = stays. ☀ means brighter and ☾
+  darker on the circle of fifths. The badge colour shows how natural the move is (motion judge:
+  green, blue or red), and hovering gives the details;
+- **melody**: a small piano roll with note names, each note coloured by how it sits on its chord;
+- **playback**: the style runs and their markers.
+
+**How to read the timeline** under the rows repeats this legend.
+
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
 
 - green: rests (a chord tone);
@@ -262,10 +277,12 @@ tradeoffs and persistence. Browser preferences do not alter reproducible benchma
 
 ## Consistent preview sound
 
-For rhythmic playback, use the **style button beside the song's tempo/key** to choose a default, or
-click the **style handle under a bar** to change just that bar. The picker has 57 choices, including
-pop, swing, bossa nova, strumming, funk and melodic arpeggios. The ear previews the choice; ✓ applies
-it. Choose **Song style** to remove an override. Changes support Undo/Redo and save with the song.
+For rhythmic playback, set **style markers**: "from this bar on, play in this style", like key regions.
+Click a bar in the **playback lane** at the bottom of a timeline row, or the style button beside the
+tempo/key controls (it shows the style at the cursor), to change the style from there on. The picker
+has 57 choices, including pop, swing, bossa nova, strumming, funk and melodic arpeggios. The ear
+previews the choice; ✓ applies it. **Remove this change** in a marked bar lets the earlier style
+continue. Changes support Undo/Redo and save with the song.
 The same chord/bass arrangement plays through the browser or MIDI output and is included in MIDI
 export. **Once** keeps the existing held-chord playback. See [the style catalogue](accompaniment.md).
 

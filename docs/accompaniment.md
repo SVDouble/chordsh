@@ -23,9 +23,18 @@ palette, not a bit-for-bit port of OneMotion's custom sequences, synthesizer or 
 
 ## Applying styles
 
-The style button beside the song's tempo/key controls sets the song default. Click a style handle
-under any bar to override just that bar, including a bar whose chord begins earlier. Overrides remain
-explicit when the song default changes. Choose **Song style** in a bar's picker to inherit again.
+Styles work like key regions: a **style marker** says "from this bar onward, play in this style", until
+the next marker.
+
+- The **playback lane** at the bottom of each timeline row shows the styles as runs of bars, with each
+  marker labelled.
+- Click any bar in the lane, or the style button beside the tempo/key controls (it shows the style at
+  the cursor's bar), to change the style from that bar on.
+- In a marked bar, **Remove this change** lets the earlier style continue. Bar 1's style is the
+  song's opening style.
+
+Older songs saved one-bar overrides. They are converted to markers on load with the same sound: an
+override on bar 5 becomes a marker at bar 5 plus one at bar 6 back to the style that played before.
 The ear previews the current choice without changing the song; ✓ applies it as one undoable edit.
 Previewing pauses existing sound while retaining the song and transport position. An empty bar can
 have a style assigned, but needs a chord before it can be previewed.
@@ -36,9 +45,9 @@ cycle scales to the current bar length. Chord changes select the new chord's ton
 short chords between hits still receive an attack. Notes stop at chord/style boundaries and gaps stay
 silent. Mod styles provide repeating rhythmic cross-patterns; they do not change the song's key.
 
-Overrides belong to bar numbers. Moving/rippling chords moves the notes through those bars; changing
-meter regroups notes and keeps the overrides on the same numbered bars. Duplicating a song preserves
-its styles. Reset clears bar overrides and chords while keeping the song default; Undo restores both.
+Markers belong to bar numbers. Moving or rippling chords moves the notes through those bars; changing
+meter regroups notes and keeps the markers on the same numbered bars. Duplicating a song preserves its
+styles. Reset clears markers and chords while keeping the opening style; Undo restores both.
 
 ## Sound and export
 

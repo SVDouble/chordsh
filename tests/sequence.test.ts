@@ -222,3 +222,26 @@ describe('Standard MIDI export', () => {
     expect(() => writeMidi({ id: 'bad', title: 'Bad', source: 'sequence', notes: [[0, 500, 128, 80]] })).toThrow();
   });
 });
+
+describe('melody lane', () => {
+  it('records, replaces a range, transposes, undoes and plays the melody', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C | G |', 'Tune'));
+    editor.recordMelody([
+      { start: 0, beats: 1, pitch: 64, velocity: 90 },
+      { start: 4, beats: 2, pitch: 62, velocity: 90 },
+    ]);
+    expect(editor.document.melody).toHaveLength(2);
+    editor.recordMelody([{ start: 4, beats: 1, pitch: 67, velocity: 80 }], 4, 8);
+    expect(editor.document.melody?.map((n) => n.pitch)).toEqual([64, 67]);
+    editor.transpose(2);
+    expect(editor.document.melody?.map((n) => n.pitch)).toEqual([66, 69]);
+    editor.undo();
+    expect(editor.document.melody?.map((n) => n.pitch)).toEqual([64, 67]);
+    const piece = sequencePiece(editor.document);
+    expect(piece.notes.some(([, , pitch, vel]) => pitch === 67 && vel === 80)).toBe(true);
+  });
+  it('rejects notes that cannot be played', () => {
+    const editor = new SequenceEditor(sequenceFromChart('| C |', 'Bad'));
+    expect(() => editor.recordMelody([{ start: 0, beats: 0, pitch: 60, velocity: 90 }])).toThrow();
+  });
+});

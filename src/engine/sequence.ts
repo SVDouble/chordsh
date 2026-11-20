@@ -42,6 +42,35 @@ export interface Sequence {
   /** Accompaniment is musical presentation, separate from analysis/coaching vocabulary. */
   style?: string;
   barStyles?: BarStyle[];
+  /** The tune, separate from the chords: what the harmony has to fit (see engine/assist.ts). */
+  melody?: MelodyNote[];
+}
+
+/** A melody note in quarter notes, like chord steps. */
+export interface MelodyNote {
+  start: number;
+  beats: number;
+  pitch: number;
+  velocity: number;
+}
+
+/** Checks and orders melody notes; throws on anything that cannot be played. */
+export function validMelody(notes: MelodyNote[]): MelodyNote[] {
+  for (const n of notes)
+    if (
+      !Number.isFinite(n.start) ||
+      n.start < 0 ||
+      !Number.isFinite(n.beats) ||
+      n.beats <= 0 ||
+      !Number.isInteger(n.pitch) ||
+      n.pitch < 0 ||
+      n.pitch > 127 ||
+      !Number.isInteger(n.velocity) ||
+      n.velocity < 1 ||
+      n.velocity > 127
+    )
+      throw new Error('Melody notes need a position, a positive length, a MIDI pitch and a velocity.');
+  return [...notes].sort((a, b) => a.start - b.start || a.pitch - b.pitch).map((n) => ({ ...n }));
 }
 
 export interface ChordInput {
@@ -147,6 +176,7 @@ export class SequenceEditor {
       )
     )
       throw new Error('Invalid bar accompaniment style.');
+    if (sequence.melody) this.value.melody = validMelody(sequence.melody);
     let end = 0;
     this.value.steps = this.value.steps.map((s) => {
       const start = s.start ?? end;
@@ -311,13 +341,29 @@ export class SequenceEditor {
   }
 
   clear() {
-    if (this.value.steps.length || (this.value.regions?.length ?? 0) > 1 || this.value.barStyles?.length)
+    if (
+      this.value.steps.length ||
+      (this.value.regions?.length ?? 0) > 1 ||
+      this.value.barStyles?.length ||
+      this.value.melody?.length
+    )
       this.commit({
         ...this.value,
         steps: [],
         regions: this.value.regions?.filter((r) => r.start === 0),
         ...(this.value.barStyles?.length ? { barStyles: [] } : {}),
+        ...(this.value.melody?.length ? { melody: [] } : {}),
       });
+  }
+
+  /** Replace the melody between `from` and `to` (quarters) with `notes`, e.g. a recorded take. */
+  recordMelody(notes: MelodyNote[], from = 0, to = Number.POSITIVE_INFINITY) {
+    const kept = (this.value.melody ?? []).filter((n) => n.start < from - 1e-8 || n.start >= to - 1e-8);
+    this.commit({ ...this.value, melody: validMelody([...kept, ...notes]) });
+  }
+
+  clearMelody() {
+    if (this.value.melody?.length) this.commit({ ...this.value, melody: [] });
   }
 
   remove(id: string) {
@@ -384,10 +430,14 @@ export class SequenceEditor {
         symbol: chordName({ ...c, root: mod12(c.root + semitones), bass: mod12(c.bass + semitones) }, key),
       };
     });
+    const melody = this.value.melody?.map((n) => ({ ...n, pitch: n.pitch + semitones }));
+    if (melody?.some((n) => n.pitch < 0 || n.pitch > 127))
+      throw new Error('Transposition would move notes outside MIDI range.');
     this.commit({
       ...this.value,
       key,
       steps,
+      ...(melody ? { melody } : {}),
       regions: this.value.regions?.map((r) => ({
         ...r,
         key: r.key ? { ...r.key, tonic: mod12(r.key.tonic + semitones) } : null,
@@ -468,6 +518,9 @@ export function sequenceChart(sequence: Sequence): Chart {
 export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor): Piece {
   const ms = 60000 / sequence.bpm;
   const notes = accompanimentNotes(sequence, settings);
+  for (const n of sequence.melody ?? []) notes.push([n.start * ms, n.beats * ms, n.pitch, n.velocity]);
+  notes.sort((a, b) => a[0] - b[0]);
+  const melodyEnd = (sequence.melody ?? []).reduce((end, n) => Math.max(end, n.start + n.beats), 0);
   return {
     id: sequence.id,
     title: sequence.title,
@@ -476,6 +529,10 @@ export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEF
     bpm: sequence.bpm,
     beatsPerBar: sequence.meter,
     denominator: sequence.denominator ?? 4,
-    durationMs: sequence.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0) * ms,
+    durationMs:
+      Math.max(
+        melodyEnd,
+        sequence.steps.reduce((end, s) => Math.max(end, s.start + s.beats), 0),
+      ) * ms,
   };
 }

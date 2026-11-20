@@ -302,6 +302,19 @@ why it works, to check by ear in the lab:
 
 The study's namer now also names these moves, so they no longer appear as unnamed.
 
+**Second pass (same day):**
+
+- The chorales' "IV → vii" was a **parser bug**: RomanText writes half-diminished chords as `vii/o7`,
+  and they were read as minor triads. With the fix, the Bach chorales move from 91% to 92%
+  functional and from 81% to 80% counterpoint.
+- ♭III → IV7 in minor is the **melodic-minor IV**: the raised 6th rises to the leading tone.
+- ♭VI → v in minor is a **passing minor v** in a descending bass (♭VII–♭VI–v–iv).
+- V7 → iv is iv decorating the dominant: Beethoven's V–iv–V shuttles (♭6 as a neighbour to 5) and
+  Bach's passing iv6.
+
+Popular and art music now have no unnamed frequent moves. What remains is jazz side-slipping and the
+undated reference corpora (POP909 audio-derived chords).
+
 ## Next
 
 - **More dated popular music with melodies**, e.g. Hooktheory-style lead sheets if licensing allows,

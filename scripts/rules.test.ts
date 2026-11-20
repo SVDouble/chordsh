@@ -704,6 +704,7 @@ it('harmony rules study', () => {
     '♭III → ii': 'tritone substitute of V/ii (♭III → ii)',
     '♭V → IV': 'chromatic slide into IV (blues ♭5)',
     '♭III → IV7': 'melodic-minor IV: the raised 6th rises to the leading tone (♭III → IV7 → V)',
+    'V7 → iv': 'iv decorating the dominant: a V–iv–V shuttle (♭6 neighbour to 5) or a passing iv6 after V7',
     '♭VI → v': 'minor v in a descending bass (♭VII → ♭VI → v → iv), passing, not a dominant',
   };
   /** Names for families of moves the table above doesn't list. */

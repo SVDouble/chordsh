@@ -29,6 +29,7 @@ import {
   persist,
   playSelection,
   preparePiece,
+  previewArrangement,
   resumePlayback,
   session,
   stopPlayback,
@@ -743,4 +744,24 @@ export function developAll(list: Development[]) {
     composition.selectedId = null;
     notify(`Developed ${list.length} chord${list.length > 1 ? 's' : ''}. Undo goes back to the basic chords.`);
   }
+}
+
+/** A/B listening: the song as it is, or with the developments applied to a copy (nothing is changed). */
+export function previewDevelopment(list: Development[] | null) {
+  const options = $state.snapshot(settings.editor);
+  if (!list) {
+    previewArrangement(sequencePiece(editor.document, options), 'The song as it is');
+    return;
+  }
+  const copy = new SequenceEditor(editor.document, options);
+  const steps = new Map(copy.document.steps.map((s) => [s.id, s]));
+  for (const d of list) {
+    const step = steps.get(d.stepId);
+    if (step)
+      copy.replaceWith(
+        d.stepId,
+        d.names.map((symbol) => ({ symbol, beats: step.beats / d.names.length })),
+      );
+  }
+  previewArrangement(sequencePiece(copy.document, options), 'Developed');
 }

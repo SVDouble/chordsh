@@ -13,6 +13,7 @@
     composition,
     currentSequence,
     developAll,
+    previewDevelopment,
     fillMelodyGaps,
     insertTemplate,
     selectStep,
@@ -203,7 +204,19 @@
           </li>
         {/each}
       </ol>
-      <button type="button" class="develop-all" onclick={() => developAll(develop)}>Use all {develop.length}</button>
+      <div class="row tight develop-all">
+        <button type="button" onclick={() => previewDevelopment(null)} title="A: the chords you have now">
+          Hear as it is
+        </button>
+        <button
+          type="button"
+          onclick={() => previewDevelopment(develop)}
+          title="B: with every idea above, without changing the song"
+        >
+          Hear developed
+        </button>
+        <button type="button" onclick={() => developAll(develop)}>Use all {develop.length}</button>
+      </div>
     </details>
   {/if}
   <div class="chord-ideas-tools">

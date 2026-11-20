@@ -16,7 +16,8 @@ The four-stage pipeline below is implemented; see [app.md](app.md#melody-and-cho
   melody note clashes (`developments()` in advisor.ts); reharm ideas in the chord popover show their
   melody fit too.
 
-Not yet: A/B versions of a whole song, and develop "levels" (applying several moves at once).
+Whole-song A/B listening (as it is / developed) and **Use all** (every move at once, one undo step) are in.
+Not yet: several develop levels (light, rich) or saved versions to switch between.
 
 The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
 [src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).

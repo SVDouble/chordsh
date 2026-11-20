@@ -2893,6 +2893,10 @@ button.icon {
 .melody-note {
   position: absolute;
   height: 9px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
   border-radius: 3px;
   background: var(--melody);
   pointer-events: auto;
@@ -3061,6 +3065,8 @@ button.icon {
 }
 .motion-badge {
   position: absolute;
+  min-height: 0;
+  cursor: pointer;
   top: 1px;
   transform: translateX(-50%);
   min-width: 22px;

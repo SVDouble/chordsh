@@ -133,6 +133,7 @@
       return [
         {
           at: n.start,
+          nextId: document.steps[i + 1].id,
           kind: m.kind,
           sign: MOTION_SIGN[m.kind] ?? '→',
           brightness: m.brightness,
@@ -170,6 +171,8 @@
           width: Math.max(3, (Math.min(n.start + n.beats, rowEnd) - from) * beatWidth - 1),
           top: 4 + 48 * (1 - (n.pitch - lo) / Math.max(1, hi - lo)),
           name: `${NOTE_NAMES[n.pitch % 12]}${Math.floor(n.pitch / 12) - 1}`,
+          pitch: n.pitch,
+          beats: n.beats,
           title: `${NOTE_NAMES[n.pitch % 12]}${Math.floor(n.pitch / 12) - 1} · ${
             role === 'none'
               ? 'no chord under it'
@@ -809,40 +812,41 @@
         {/each}
         <div class="motion-lane">
           {#each connections.filter((c) => c.at > rowStart - 1e-8 && c.at < rowEnd - 1e-8) as c (c.at)}
-            <span
+            <button
+              type="button"
               class="motion-badge {c.quality}"
               style:left={`${Math.max(12, (c.at - rowStart) * beatWidth)}px`}
-              role="img"
-              aria-label={c.title}
-              title={c.title}
-              >{c.sign}
+              aria-label={`${c.title}. Select the chord after it`}
+              title={`${c.title} — click to see other chords here`}
+              onclick={() => selectStep(c.nextId)}
+            >
+              {c.sign}
               {#if c.brightness > 0}
                 <sup>☀</sup>
               {:else if c.brightness < 0}
                 <sup>☾</sup>
-              {/if}</span
-            >
+              {/if}
+            </button>
           {/each}
         </div>
         {#if document.melody?.length}
-          <div
-            class="melody-lane"
-            role="img"
-            aria-label="Melody: green rests on the chord, blue colours it, amber and red rub"
-          >
+          <div class="melody-lane">
             <span class="lane-label">Melody</span>
             {#each melodyIn(rowStart, rowEnd) as n (n.id)}
-              <div
+              <button
+                type="button"
                 class="melody-note {n.role}"
                 style:left={`${n.left}px`}
                 style:width={`${n.width}px`}
                 style:top={`${n.top}px`}
-                title={n.title}
+                title={`${n.title} — click to hear`}
+                aria-label={`Hear ${n.title}`}
+                onclick={() => audition([[n.pitch]], `melody:${n.id}`, n.beats, n.name, settings.editor.velocity)}
               >
                 {#if n.width >= 24}
                   <span>{n.name}</span>
                 {/if}
-              </div>
+              </button>
             {/each}
           </div>
         {/if}

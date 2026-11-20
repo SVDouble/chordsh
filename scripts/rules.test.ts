@@ -703,6 +703,8 @@ it('harmony rules study', () => {
     'V → iv': 'minor plagal after the dominant (V → iv → I)',
     '♭III → ii': 'tritone substitute of V/ii (♭III → ii)',
     '♭V → IV': 'chromatic slide into IV (blues ♭5)',
+    '♭III → IV7': 'melodic-minor IV: the raised 6th rises to the leading tone (♭III → IV7 → V)',
+    '♭VI → v': 'minor v in a descending bass (♭VII → ♭VI → v → iv), passing, not a dominant',
   };
   /** Names for families of moves the table above doesn't list. */
   const nameMove = (label: string): string | null => {

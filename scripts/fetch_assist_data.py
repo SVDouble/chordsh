@@ -189,6 +189,7 @@ def parse_key(tok):
 def roman(tok, tonic, mode):
     """RomanText chord → (root, kind, bass pc) or None. Handles applied chords, figures, N, It/Fr/Ger, Cad64."""
     tok = tok.replace('[', '').replace(']', '')
+    tok = re.sub(r'/o(?=[0-9]|/|$)', '\u00f8', tok)  # 'vii/o7' is RomanText for half-diminished (viiø7)
     if tok.startswith('Cad'): return roman('V', tonic, mode)
     if tok.startswith(('N', 'bII6')) and not tok.startswith('No'): return ((tonic + 1) % 12, 'maj', (tonic + 5) % 12)
     if tok.startswith(('It', 'Fr', 'Ger')): return ((tonic + 8) % 12, '7', (tonic + 8) % 12)

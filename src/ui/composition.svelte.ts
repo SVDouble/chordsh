@@ -809,13 +809,13 @@ export function developAsVersion(list: Development[]) {
 
 // ───────────────────────────── sequences for a span ─────────────────────────────
 
-/** Pattern counts from the rules study (local/assist/progressions.json, dev server only); null = rules only. */
+/** Pattern counts from the rules study, shipped in public/data/progressions.json; null = rules only. */
 export const habits = $state<{ stats: ProgressionStats | null; status: 'loading' | 'ready' | 'none' }>({
   stats: null,
   status: 'loading',
 });
 if (typeof fetch !== 'undefined')
-  fetch('/__library/assist/progressions.json')
+  fetch(`${import.meta.env.BASE_URL}data/progressions.json`)
     .then((r) => (r.ok ? r.json() : null))
     .then((data: ProgressionStats | null) => {
       habits.stats = data?.traditions ? data : null;

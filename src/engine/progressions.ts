@@ -1,7 +1,7 @@
 /**
  * Chord progressions as scale-degree tokens, and how often real music uses them. The rules study
  * (scripts/rules.test.ts) counts 1- to 4-chord patterns per tradition and writes them to
- * local/assist/progressions.json; the sequence engine (sequences.ts) uses the counts as its "habit" judge.
+ * local/assist/progressions.json and, for the app, public/data/progressions.json; the sequence engine (sequences.ts) uses the counts as its "habit" judge.
  * Tokens are key-relative, so "7:7 0:maj" is V7 → I in any key.
  */
 import { type Chord, chordOf, type KindName } from '../theory/chords';
@@ -35,7 +35,10 @@ export interface TraditionStats {
   grams: Record<string, number>;
 }
 export interface ProgressionStats {
-  generated: string;
+  generated?: string;
+  /** What the counts are and where they come from (the shipped copy carries its attribution). */
+  about?: string;
+  sources?: string[];
   /** Major and minor keys are counted apart: "major|popular", "minor|art", … */
   traditions: Record<string, TraditionStats>;
   /** Frequent rule breaks: idioms of a tradition that a rule does not foresee. */

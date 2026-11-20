@@ -215,8 +215,8 @@ selected chord's bar (or the cursor's), with 1 or 2 chords per bar:
 - Click an idea to hear it **with the melody of those bars**; ✓ places it, replacing the chords that
   start in those bars (one undo step).
 - **Habits of** follows the style (Pop → popular music, Jazz → jazz, others → art music) or can be
-  chosen. Habits need `local/assist/progressions.json`, written by `npm run study:rules` and
-  served by the dev server. Without it the panel says "rules only".
+  chosen. Habits ship with the app (`public/data/progressions.json`); if that file is missing,
+  the panel says "rules only".
 
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
 

@@ -26,7 +26,7 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 
 ```sh
 npm run fetch-assist-data   # chorales, DCML, Lieder, RS200, Billboard, Chordonomicon, WJazzD, POP909 — one-off, ~1 hour
-npm run study:rules         # ~2.5 minutes in parallel; writes local/assist/study.json and progressions.json
+npm run study:rules         # ~2.5 minutes in parallel; writes local/assist/*.json and public/data/progressions.json
 npm run lab                 # local lab → "Rules of harmony"
 ```
 
@@ -70,6 +70,24 @@ chorales get one shared year (1735). **Lieder years are approximate**: the corpu
 dates, so each song gets its composer's birth year + 35, capped at the year of death, and is flagged
 `year_approx` in the lab. DCML pieces bring **expert cadence labels**, which test the
 cadence finder (below).
+
+## Shipped statistics
+
+The sequence suggestions in the app use one product of the study: `public/data/progressions.json`,
+committed with the code.
+
+- **What it holds:**
+  - counts of 1- to 4-chord patterns, as key-relative tokens such as `7:7 0:maj` for V7 → I, per key
+    mode and tradition (art, popular, jazz);
+  - the frequent rule breaks ("idioms").
+- **What it leaves out:** patterns seen fewer than 10 times, and the two undated reference corpora.
+  The counts are aggregate statistics, like tuning parameters: no melody, no song order, nothing from
+  which a piece could be rebuilt.
+- **Attribution:** the file lists its corpora and their licences in its `sources` field. Two of them are
+  non-commercial licences (DCML: CC BY-NC-SA; Chordonomicon: CC BY-NC); check those before any
+  commercial use.
+- **Stability:** there is no timestamp and keys are sorted, so the file only changes when the data or
+  the rules change. A `LIMIT=n` quick run does not overwrite it.
 
 ## Rules, rulebooks and how they are measured
 

@@ -72,7 +72,7 @@
     <span class="small muted"
       >{habits.status === 'ready'
         ? `rules + ${v.trad} habits`
-        : 'rules only (run npm run study:rules for habits)'}</span
+        : habits.status === 'loading' ? 'loading habits…' : 'rules only (no habit data found)'}</span
     >
   </div>
   <p class="small muted">Bars {v.from}–{v.from + bars - 1}{v.after ? `, leading into ${v.after}` : ''}</p>

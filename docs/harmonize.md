@@ -41,8 +41,9 @@ once:
   forgiven in that context and reported as "↺ idiom".
 - **Variety:** each listed idea differs from every earlier one in at least a quarter of its chords.
 
-The counts are aggregate statistics over the corpora (patterns seen at least 5 times). They stay in
-`local/`, like the study, because some corpora are licensed for non-commercial use only.
+The counts are aggregate statistics over the corpora: key-relative patterns, no melodies, no piece
+that could be rebuilt. They ship with the app in `public/data/progressions.json` (see
+[rules.md](rules.md#shipped-statistics)).
 
 The code is in [src/engine/advisor.ts](../src/engine/advisor.ts) and
 [src/ui/ChordIdeas.svelte](../src/ui/ChordIdeas.svelte).

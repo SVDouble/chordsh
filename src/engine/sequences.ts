@@ -142,7 +142,7 @@ interface Beam {
   parts: { melody: number | null; rules: number | null; habit: number | null; total: number }[];
   /** Habit of each chord, computed when it is added (it only needs the past). */
   habits: (number | null)[];
-  forgiven: string[];
+  forgiven: Idiom[];
   sum: number;
 }
 
@@ -188,7 +188,7 @@ export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
     for (const idiom of idioms)
       if (idiom.context === context && (verdicts[idiom.rule] ?? 0) < 0) {
         verdicts[idiom.rule] = 0;
-        b.forgiven.push(describeIdiom(idiom));
+        b.forgiven.push(idiom);
       }
     const v = rulebookVerdict(book, verdicts);
     const rules = v === null ? null : (v + 1) / 2;
@@ -298,13 +298,24 @@ function describe(b: Beam, names: string[], ctx: SequenceContext, count: number)
     rules,
     habit,
     reasons: reasons.filter(Boolean),
-    idioms: [...new Set(b.forgiven)],
+    idioms: describeIdioms(b.forgiven),
   };
 }
 
-function describeIdiom(i: Idiom): string {
-  const rule = RULES.find((r) => r.id === i.rule)?.statement ?? i.rule;
-  return `${i.context.replace(/[[\]]/g, '')}: breaks “${rule}”, but ${i.tradition} music does it ${i.count.toLocaleString('en')} times`;
+/** One line per context: how often the tradition makes the move, and which rules it breaks. */
+function describeIdioms(list: Idiom[]): string[] {
+  const byContext = new Map<string, Idiom[]>();
+  for (const i of list) {
+    const same = byContext.get(i.context) ?? [];
+    if (!same.some((x) => x.rule === i.rule)) same.push(i);
+    byContext.set(i.context, same);
+  }
+  return [...byContext.values()].map((same) => {
+    const { context, tradition } = same[0];
+    const count = Math.max(...same.map((x) => x.count));
+    const rules = same.map((x) => `“${RULES.find((r) => r.id === x.rule)?.statement ?? x.rule}”`).join(', ');
+    return `${context.replace(/[[\]]/g, '')} is common in ${tradition} music (${count.toLocaleString('en')} times), though it breaks ${rules}`;
+  });
 }
 
 /** The schema (rules.ts SCHEMAS) the chords run through, read cyclically, if 3+ of them match one. */

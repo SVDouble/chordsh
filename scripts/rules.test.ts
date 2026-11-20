@@ -972,6 +972,44 @@ it('harmony rules study', () => {
       .map(({ tradition, rule, context, count, share }) => ({ tradition, rule, context, count, share: share ?? 0 })),
   };
   fs.writeFileSync('local/assist/progressions.json', JSON.stringify(progressionStats));
+  // the copy shipped with the app: aggregate counts only (patterns seen 10+ times, the traditions the app offers),
+  // no timestamp and sorted keys so it only changes when the data or the rules do. Attribution travels with it.
+  const shipped = {
+    about:
+      'Counts of key-relative chord patterns (1-4 chords) in the corpora below, for the chord suggestions in chord.sh. Aggregate statistics only: no piece can be reconstructed. Made by npm run study:rules (docs/rules.md).',
+    sources: [
+      'Bach chorales: When in Rome analyses (Gotham et al., CC BY-SA 4.0) with Craig Sapp’s Humdrum scores',
+      'DCML Distant Listening Corpus (Hentschel et al., CC BY-NC-SA 4.0)',
+      'OpenScore Lieder (CC0) with When in Rome analyses (CC BY-SA 4.0)',
+      'Rolling Stone 200 (de Clercq & Temperley, CC BY 4.0)',
+      'McGill Billboard (Burgoyne et al., CC0)',
+      'Chordonomicon (Kantarelis et al., CC BY-NC 4.0)',
+      'Weimar Jazz Database (Pfleiderer et al., ODbL)',
+    ],
+    traditions: Object.fromEntries(
+      Object.entries(progressionStats.traditions)
+        .filter(([k]) => !k.endsWith('|reference'))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, t]) => [
+          k,
+          {
+            moves: t.moves,
+            grams: Object.fromEntries(
+              Object.entries(t.grams)
+                .filter(([, c]) => c >= 10)
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+            ),
+          },
+        ]),
+    ),
+    idioms: progressionStats.idioms
+      .filter((i) => i.tradition !== 'reference')
+      .sort((a, b) => b.count - a.count || a.context.localeCompare(b.context)),
+  };
+  if (!limit) {
+    fs.mkdirSync('public/data', { recursive: true });
+    fs.writeFileSync('public/data/progressions.json', `${JSON.stringify(shipped)}\n`);
+  }
   fs.writeFileSync(
     'local/assist/study.json',
     JSON.stringify({

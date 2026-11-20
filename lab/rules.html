@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rules of harmony · chord.sh lab</title>
+    <link rel="stylesheet" href="./lab.css">
+    <style>
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 13px;
+      }
+      .matrix td.cell {
+        text-align: center;
+        font-family: var(--font-mono);
+        font-size: 12px;
+      }
+      .matrix tr.rule-row {
+        cursor: pointer;
+      }
+      .matrix tr.rule-row:hover td {
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+      }
+      .matrix tr.selected td {
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+      }
+      .detail {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 4px 14px;
+        font-size: 14px;
+      }
+      .detail dt {
+        color: var(--muted);
+      }
+      .detail dd {
+        margin: 0;
+        min-width: 0;
+      }
+      .viewer-tip {
+        font-size: 13px;
+        min-height: 2.6em;
+        color: var(--muted);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 10px;
+      }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .stat b {
+        font-family: var(--font-display);
+        font-size: 22px;
+      }
+      .bars {
+        display: flex;
+        height: 12px;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .bars span {
+        display: block;
+        height: 100%;
+      }
+      .panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 900px) {
+        .panels {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+      .panel svg {
+        width: 100%;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header style="display: flex; flex-direction: column; gap: 10px">
+        <h3><a href="./">lab</a> · rules of harmony</h3>
+        <h1>Which rules does the music follow?</h1>
+        <p class="lede">
+          Rules from music theory, grouped into four rulebooks, judged chord by chord against real music. A score of
+          <span class="num">50%</span> means a rulebook can’t tell the composer’s chord from a random other chord in the
+          same spot; <span class="num">100%</span> means it always prefers the real one. Trends over time are only drawn
+          within one tradition, one dot per piece at its year.
+        </p>
+        <div id="stats" class="stats"></div>
+      </header>
+
+      <section>
+        <h2>Over time</h2>
+        <div class="row">
+          <span style="font-size: 13px; color: var(--muted)">measure</span
+          ><select id="metric" aria-label="Measure"></select>
+        </div>
+        <p id="metric-note" class="lede" style="font-size: 14px"></p>
+        <div class="panels">
+          <div class="sheet panel">
+            <h3>Art music, by year of composition</h3>
+            <svg id="t-art" role="img" aria-label="Art music over time"></svg>
+          </div>
+          <div class="sheet panel">
+            <h3>Jazz solos, by recording year</h3>
+            <svg id="t-jazz" role="img" aria-label="Jazz over time"></svg>
+          </div>
+          <div class="sheet panel">
+            <h3>Popular music, by release or chart year</h3>
+            <svg id="t-popular" role="img" aria-label="Popular music over time"></svg>
+            <div id="popular-legend" class="legend" style="font-size: 12px"></div>
+          </div>
+          <div class="sheet panel">
+            <h3>Undated references</h3>
+            <svg id="t-reference" role="img" aria-label="Undated corpora"></svg>
+          </div>
+        </div>
+        <p class="lede" style="font-size: 13px">
+          Dots: pieces. Line: rolling median. Band: middle half of the pieces in the window. Windows with fewer than 6
+          pieces are not drawn.
+        </p>
+      </section>
+
+      <section>
+        <h2>Dimensions of style</h2>
+        <p class="lede" style="font-size: 15px">
+          Each piece gets a harmonic profile: how its chords score on every harmony rule, plus its phrase-level rules. A
+          principal component analysis over all pieces finds the directions in which styles differ most. The bars show
+          which rules make up each direction; the map places pieces (dots) and collections (labels) on two of them.
+        </p>
+        <div class="row" id="pc-pick"></div>
+        <div class="panels">
+          <div class="sheet panel">
+            <h3>Pieces and collections</h3>
+            <svg id="pca-map" role="img" aria-label="Style map"></svg>
+            <div id="pca-legend" class="legend" style="font-size: 12px"></div>
+          </div>
+          <div class="sheet panel">
+            <h3 id="pca-title">What the axes mean</h3>
+            <div id="pca-loadings"></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tricks to review</h2>
+        <p class="lede" style="font-size: 15px">
+          Frequent chord moves that functional harmony dislikes but composers keep using. Each comes with a name where
+          theory has one, the rules that do support it (why it might work), the rules it breaks, and real examples to
+          play. Mark them as you go; marks stay in this browser.
+        </p>
+        <div class="row" id="trick-pick"></div>
+        <div class="sheet scroll"><table id="tricks"></table></div>
+      </section>
+
+      <section>
+        <h2>Keys and modes</h2>
+        <p class="lede" style="font-size: 15px">
+          Which pitch collection each piece uses inside its keys: scale degrees weighted by duration (melody plus chord
+          tones, relative to the local key), matched to the smallest named collection that holds 95% of them. “Notes
+          used” counts degrees with at least 3% of the weight.
+        </p>
+        <div class="sheet scroll"><table id="modes"></table></div>
+        <div class="row">
+          <span style="font-size: 13px; color: var(--muted)">show pieces in</span
+          ><select id="mode-pick" aria-label="Collection"></select>
+        </div>
+        <div class="sheet scroll"><table id="mode-pieces"></table></div>
+        <h3>Scales that change between octaves</h3>
+        <p class="lede" style="font-size: 14px">
+          Melodies that use one form of a degree low and the other high (for example ♭3 below, 3 above), so the scale
+          does not repeat at the octave.
+        </p>
+        <div class="sheet scroll"><table id="splits"></table></div>
+      </section>
+
+      <section>
+        <h2>Collections</h2>
+        <div class="sheet scroll"><table id="groups"></table></div>
+      </section>
+
+      <section>
+        <h2>Constraints: how often are they honoured?</h2>
+        <p class="lede" style="font-size: 15px">
+          Of the chords a constraint concerns, the share that satisfy it: in the real music, and among random other
+          chords placed in the same spot. The gap is what composers add.
+        </p>
+        <div class="sheet scroll"><table id="compliance"></table></div>
+      </section>
+
+      <section>
+        <h2>Every rule, by period</h2>
+        <p class="lede" style="font-size: 15px">
+          AUC per rule, pooled by period (weighted by chords). Click a rule for its statement, source and formula. Grey:
+          share of chords the rule speaks about.
+        </p>
+        <div class="sheet scroll"><table class="matrix" id="matrix"></table></div>
+        <div class="sheet" id="rule-detail"><p class="lede" style="font-size: 14px">Select a rule above.</p></div>
+        <p id="validation" class="lede" style="font-size: 14px"></p>
+      </section>
+
+      <section>
+        <h2>Inside a piece</h2>
+        <div class="row">
+          <select id="group-pick" aria-label="Collection"></select>
+          <select id="piece-pick" aria-label="Piece"></select>
+          <span id="book-pick" class="row"></span>
+          <button id="play" class="primary" type="button">▶ Play</button>
+        </div>
+        <div class="legend">
+          <span><span class="swatch" style="background: var(--role-rest)"></span>rest (chord tone)</span>
+          <span><span class="swatch" style="background: var(--role-colour)"></span>colour (a step off)</span>
+          <span><span class="swatch" style="background: var(--role-lean)"></span>lean (semitone under)</span>
+          <span><span class="swatch" style="background: var(--role-pull)"></span>pull (semitone over)</span>
+        </div>
+        <div class="sheet scroll"><svg id="piece" role="img" aria-label="Piece view"></svg></div>
+        <div id="tip" class="viewer-tip">Hover a chord to see every rule’s verdict.</div>
+      </section>
+    </main>
+    <script type="module" src="./rules.ts"></script>
+  </body>
+</html>

@@ -8,6 +8,9 @@
 | [engine.md](engine.md)       | how the analysis works: layers, harmonizer (HMM), bars, theory modules            |
 | [benchmark.md](benchmark.md) | corpora, metrics, how to reproduce, results history                               |
 | [research.md](research.md)   | related work and sources, what we borrowed, experiment log                        |
+| [harmony-model.md](harmony-model.md) | first-principles model: closeness, tension, steps, landscape, goal tree (draft) |
+| [harmonize.md](harmonize.md) | melody-first harmonization: workflow, scoring, develop moves, research, milestones (draft) |
+| [rules.md](rules.md) | rules of harmony study: rule catalogue, rulebooks, results from Bach to pop, local lab (`npm run lab`) |
 | [../PLAN.md](../PLAN.md)     | roadmap                                                                           |
 
 Keep these up to date with every change — new behaviour in app.md/engine.md, new numbers in

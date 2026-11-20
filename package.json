@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "lab": "vite --open /lab/",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -19,7 +20,10 @@
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "train": "EVAL=scripts/train.test.ts vitest run --silent=false && biome format --write src/engine/transitions.ts",
     "train:prediction": "EVAL=scripts/trainPrediction.test.ts vitest run --silent=false && biome format --write src/engine/predictionModel.ts",
-    "benchmark:prediction": "EVAL=scripts/prediction.test.ts vitest run --silent=false"
+    "benchmark:prediction": "EVAL=scripts/prediction.test.ts vitest run --silent=false",
+    "benchmark:assist": "EVAL=scripts/assist.test.ts vitest run --silent=false",
+    "study:rules": "EVAL=scripts/rules.test.ts vitest run --silent=false",
+    "fetch-assist-data": "cd scripts && for c in chorales dlc lieder rock billboard chordonomicon wjazzd pop909; do python3 fetch_assist_data.py $c || exit 1; done"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advise, estimateKey, fillGaps, templates } from '../src/engine/advisor';
+import { advise, estimateKey, fillGaps, runFit, templates } from '../src/engine/advisor';
 import { type MelodyNote, sequenceFromChart, SequenceEditor } from '../src/engine/sequence';
 import { chordOf } from '../src/theory/chords';
 import type { Key } from '../src/theory/scales';
@@ -61,5 +61,14 @@ describe('fill with two chords per bar', () => {
     song.remove(song.document.steps[0].id);
     const filled = fillGaps(song.document, 'functional', 4, 2);
     expect(filled.map((f) => f.symbol).join(' ')).toBe('C C F C F C G C');
+  });
+  it('checks a replacement against the melody: C fits bar 1, D♭7 clashes', () => {
+    const bar1 = { start: 0, end: 4 };
+    const c = runFit([chordOf(0, 'maj')], twinkle, bar1, 4)!;
+    const db7 = runFit([chordOf(1, '7')], twinkle, bar1, 4)!;
+    expect(c.clashes).toBe(0);
+    expect(db7.clashes).toBeGreaterThan(0);
+    expect(c.score).toBeGreaterThan(db7.score);
+    expect(runFit([chordOf(0, 'maj')], twinkle, { start: 20, end: 24 }, 4)).toBeNull();
   });
 });

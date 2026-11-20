@@ -26,6 +26,7 @@
   import { audition, seekPlayback, pausePlayback, resumePlayback, session, settings, ui } from './store.svelte';
   import { sequenceChart, sequenceRegions, sequenceKeyAt, type KeyRegion, type SequenceStep } from '../engine/sequence';
   import { reharmHints } from '../engine/reharm';
+  import { runFit } from '../engine/advisor';
   import { noteRole } from '../engine/assist';
   import { ALL_KEYS, keyFromIndex, keyIndex, keyLong } from '../theory/scales';
   import { parseChordSymbol } from '../theory/symbols';
@@ -113,11 +114,18 @@
     return chord ? voicingChoices(chord, previous) : [];
   });
   const chosenVoicing = $derived(voicings.find((choice) => choice.id === voicingPreset));
-  const hints = $derived(
-    selectedIndex < 0
-      ? []
-      : reharmHints({ ...chart, key: sequenceKeyAt(document, selected?.start ?? 0) ?? chart.key }, selectedIndex),
-  );
+  /** Reharmonisation ideas, each checked against the melody; ideas that clash with it go last. */
+  const hints = $derived.by(() => {
+    if (selectedIndex < 0) return [];
+    const raw = reharmHints(
+      { ...chart, key: sequenceKeyAt(document, selected?.start ?? 0) ?? chart.key },
+      selectedIndex,
+    );
+    const span = { start: selected.start, end: selected.start + selected.beats };
+    const after = parseChordSymbol(document.steps[selectedIndex + 1]?.symbol ?? '');
+    const scored = raw.map((h) => ({ ...h, fit: runFit(h.chords, document.melody ?? [], span, barLength, after) }));
+    return scored.sort((a, b) => (a.fit?.clashes ?? 0) - (b.fit?.clashes ?? 0));
+  });
   const undoable = $derived.by(() => {
     void composition.revision;
     return canUndo();
@@ -232,7 +240,10 @@
     symbol = existing?.symbol ?? '';
     duration =
       (existing?.beats ??
-        Math.min(barLength, document.steps.find((s) => s.start > at + 1e-8)?.start - at || barLength)) / unit;
+        Math.min(
+          barLength,
+          (document.steps.find((s) => s.start > at + 1e-8)?.start ?? at + barLength) - at || barLength,
+        )) / unit;
     if (Math.abs(duration - Math.round(duration)) < 1e-9) duration = Math.round(duration);
     notes = existing?.notes.join(' ') ?? '';
     voicingPreset = null;
@@ -899,9 +910,17 @@
           <div class="timeline-ideas">
             <span class="small muted">Try instead</span>
             {#each hints as h, i}
-              <span class="idea-chip" title={h.why}
-                ><span>{h.names.join(' → ')}</span
-                ><button
+              <span
+                class="idea-chip"
+                class:clashes={!!h.fit?.clashes}
+                title={h.fit
+                  ? `${h.why}\nMelody fit ${Math.round(100 * h.fit.score)}%${h.fit.clashes ? `, ${h.fit.clashes} clashing note${h.fit.clashes > 1 ? 's' : ''}` : ''}`
+                  : h.why}
+                ><span>{h.names.join(' → ')}</span>
+                {#if h.fit}
+                  <span class="idea-fit">{h.fit.clashes ? '✗' : '♪'}{Math.round(100 * h.fit.score)}%</span>
+                {/if}
+                <button
                   type="button"
                   class="icon"
                   aria-label={`Preview ${h.label}`}

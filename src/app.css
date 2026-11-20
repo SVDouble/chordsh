@@ -2921,3 +2921,15 @@ button.icon {
 .melody-note.pull {
   background: var(--D);
 }
+.idea-chip .idea-fit {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.idea-chip.clashes {
+  opacity: 0.7;
+  border-style: dashed;
+}
+.idea-chip.clashes .idea-fit {
+  color: var(--D);
+}

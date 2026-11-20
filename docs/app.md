@@ -148,6 +148,8 @@ the insertion position. There are no Next chord / Change key tabs.
   the insertion cursor to the start of the undone material; redo focuses the restored material.
 - The chord-editing popover contains **Try instead** reharmonisations. Preview hears the replacement;
   **✓** replaces the chord while sharing its duration across the new chords.
+  When the song has a melody, each idea shows its melody fit (♪ 85%). Ideas that leave a strong-beat
+  note unresolved are marked ✗, dashed, and listed last.
 - **Practise route** waits for each chord; voicings and inversions are accepted.
 
 Previews do not commit edits. Add/replace actions show a short confirmation with the song and position.

@@ -7,7 +7,7 @@ import { type Chord, chordName, chordOf } from '../theory/chords';
 import { mod12 } from '../theory/pitch';
 import type { Key } from '../theory/scales';
 import { parseChordSymbol } from '../theory/symbols';
-import { type MelodyNote as AssistNote, type SlotSuggestion, suggestForSlot } from './assist';
+import { type MelodyNote as AssistNote, melodyFit, type SlotSuggestion, suggestForSlot } from './assist';
 import { judgeAll, RULEBOOKS, RULES, rulebookVerdict, SCHEMAS } from './rules';
 import type { MelodyNote, Sequence } from './sequence';
 import { sequenceKeyAt } from './sequence';
@@ -230,4 +230,34 @@ export function fillGaps(song: Sequence, style: StyleId, barQuarters: number, pe
     if (best) f.symbol = best.name;
   }
   return filled;
+}
+
+// ───────────────────────────── melody check for replacements ─────────────────────────────
+
+/**
+ * How well a run of chords (sharing a span equally, as a reharmonisation does) fits the melody: the mean
+ * melody fit over the sub-spans weighted by length, and the number of unresolved strong-beat clashes.
+ * Null when no melody sounds in the span.
+ */
+export function runFit(
+  chords: Chord[],
+  melody: MelodyNote[],
+  span: { start: number; end: number },
+  meter: number,
+  after: Chord | null = null,
+): { score: number; clashes: number } | null {
+  const notes = melody.map(({ start, beats, pitch }) => ({ start, beats, pitch }));
+  const part = (span.end - span.start) / chords.length;
+  let total = 0;
+  let weight = 0;
+  let clashes = 0;
+  chords.forEach((c, i) => {
+    const sub = { start: span.start + i * part, end: span.start + (i + 1) * part };
+    const fit = melodyFit(c, notes, sub, meter, chords[i + 1] ?? after);
+    if (!fit) return;
+    total += fit.score * part;
+    weight += part;
+    clashes += fit.clashes;
+  });
+  return weight ? { score: total / weight, clashes } : null;
 }

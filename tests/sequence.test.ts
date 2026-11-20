@@ -249,7 +249,10 @@ describe('melody lane', () => {
     const [a, b] = editor.document.steps;
     editor.batch((e) => {
       e.replaceWith(a.id, [{ symbol: 'Cmaj7', beats: 4 }]);
-      e.replaceWith(b.id, [{ symbol: 'Dm7', beats: 2 }, { symbol: 'G7', beats: 2 }]);
+      e.replaceWith(b.id, [
+        { symbol: 'Dm7', beats: 2 },
+        { symbol: 'G7', beats: 2 },
+      ]);
     });
     expect(editor.document.steps.map((s) => s.symbol).join(' ')).toBe('Cmaj7 Dm7 G7 G C');
     editor.undo();

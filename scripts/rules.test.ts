@@ -698,6 +698,11 @@ it('harmony rules study', () => {
     'i → I': 'Picardy / parallel switch (i → I)',
     'ii → I': 'jazz: ii → I skipping V',
     'vi → V': 'deceptive in reverse (vi → V)',
+    // from the review of unnamed moves (docs/rules.md)
+    'v → IV': 'modal fifth: minor v → IV (Mixolydian or Dorian)',
+    'V → iv': 'minor plagal after the dominant (V → iv → I)',
+    '♭III → ii': 'tritone substitute of V/ii (♭III → ii)',
+    '♭V → IV': 'chromatic slide into IV (blues ♭5)',
   };
   /** Names for families of moves the table above doesn't list. */
   const nameMove = (label: string): string | null => {
@@ -712,6 +717,9 @@ it('harmony rules study', () => {
     const major = (x: string) => /^[♭♯]?[IV]+/.test(x) && !/^[♭♯]?[iv]/.test(x);
     if (/^♭II7$/.test(to)) return 'tritone substitute (♭II7 = subV7, resolving down a semitone)';
     if (/°7$/.test(to)) return 'diminished seventh (leading-tone or common-tone °7)';
+    if (/^♭VII7$/.test(to)) return 'backdoor dominant (♭VII7, resolving up a whole step to I)';
+    if (/^♭III7$/.test(to)) return 'tritone substitute of VI7 (♭III7 → ii)';
+    if (/°$|ø7$/.test(to)) return 'passing or leading-tone diminished chord (bass by step)';
     if (/^(♭VI7|♭V7|♯IV7)$/.test(to)) return 'augmented-sixth sound (spelled as a dominant 7th on ♭VI or ♭V)';
     if (/^(I|IV|V)7$/.test(to) && /^(I|IV|V)7?$/.test(from)) return 'blues: dominant sevenths on I, IV and V (12-bar)';
     if (a >= 0 && b >= 0 && quality(from) === quality(to) && [1, 2, 10, 11].includes(step))

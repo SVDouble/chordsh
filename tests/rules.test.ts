@@ -209,4 +209,20 @@ describe('modern rules, by hand', () => {
     expect(r.judge(ctx(chordOf(10, 'maj')))).toBe(1);
     expect(r.judge(ctx(chordOf(10, 'maj'), { key: { tonic: 0, mode: 'minor' } }))).toBe(0);
   });
+  it('B♭7 → C is a backdoor dominant in C; B♭7 → E♭ is not', () => {
+    const r = rule('backdoor-dominant');
+    expect(r.judge(ctx(chordOf(10, '7'), { next: chordOf(0, 'maj') }))).toBe(1);
+    expect(r.judge(ctx(chordOf(10, '7'), { next: chordOf(3, 'maj') }))).toBe(0);
+  });
+  it('Gm next to F is a modal fifth in C major; G is not', () => {
+    const r = rule('modal-fifth');
+    expect(r.judge(ctx(chordOf(7, 'min'), { next: chordOf(5, 'maj') }))).toBe(1);
+    expect(r.judge(ctx(chordOf(7, 'maj'), { next: chordOf(5, 'maj') }))).toBe(0);
+  });
+  it('C → C♯° → Dm passes; C → C♯° → C does not', () => {
+    const r = rule('passing-chord');
+    expect(r.judge(ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(2, 'min') }))).toBe(1);
+    expect(r.judge(ctx(chordOf(1, 'dim'), { prev: chordOf(0, 'maj'), next: chordOf(0, 'maj') }))).toBe(-0.5);
+    expect(r.judge(ctx(chordOf(9, 'min'), { prev: chordOf(0, 'maj'), next: chordOf(5, 'maj') }))).toBe(0);
+  });
 });

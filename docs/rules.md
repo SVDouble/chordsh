@@ -14,7 +14,7 @@ melody + chords  →  features (phrases, cadences, named progressions, sequences
 
 | part | what it does |
 | --- | --- |
-| [src/engine/rules.ts](../src/engine/rules.ts) | Rule catalogue (33 chord rules, 10 piece rules) and 7 rulebooks. |
+| [src/engine/rules.ts](../src/engine/rules.ts) | Rule catalogue (36 chord rules, 10 piece rules) and 7 rulebooks. |
 | [src/engine/features.ts](../src/engine/features.ts) | Phrases, cadences, named progressions, sequences, pedal points. Phrases come from expert annotations, else fermatas, else melodic pauses. |
 | [scripts/fetch_assist_data.py](../scripts/fetch_assist_data.py) | Corpora with real melodies and years, pinned to commits or checksums. |
 | [scripts/rules.test.ts](../scripts/rules.test.ts) | The study. It writes `local/assist/study.json`. |
@@ -74,12 +74,12 @@ dominant motion.
 
 | rulebook | theory | its chord rules |
 | --- | --- | --- |
-| Counterpoint & voice leading | Fux 1725 | tension prepared or resolved; tritone and 7th resolve; leading tone; parsimony; common tones; ornaments; consonance |
+| Counterpoint & voice leading | Fux 1725 | tension prepared or resolved; tritone and 7th resolve; leading tone; parsimony; common tones; ornaments; passing chords; consonance |
 | Functional harmony | Rameau 1722, Riemann 1893 | T → S → D order; dominants and applied chords resolve; fifth relation; dominant direction; cadences; in key |
 | Melody and chord agree | all styles | strong-beat chord tones; stable tones; ornaments resolve; no ♭9 clash |
 | Colour & modal mixture | Romantic → jazz → pop | colour has a name and persists; brightness moves in small steps; stepwise bass |
-| Pop & rock practice | 1950s → today | plagal motion; flat-side colour (♭VII, ♭VI, ♭III); schema membership (I–V–vi–IV, doo-wop, Mixolydian, Aeolian, Andalusian, double plagal…); planing; consonance; in key |
-| Jazz harmony | 1920s → today | ii–V pairs; seventh chords by default; tritone substitutes; chains of dominants; dominants resolve; fifth relation |
+| Pop & rock practice | 1950s → today | plagal motion; flat-side colour (♭VII, ♭VI, ♭III); schema membership (I–V–vi–IV, doo-wop, Mixolydian, Aeolian, Andalusian, double plagal…); planing; the modal (minor) fifth; consonance; in key |
+| Jazz harmony | 1920s → today | ii–V pairs; seventh chords by default; tritone substitutes; chains of dominants; the backdoor ♭VII7 → I; dominants resolve; fifth relation |
 | Chromatic triadic | late Romantic, film | chromatic mediants; parsimony; common tones; consonant triads |
 
 **Sources for the modern rulebooks:**
@@ -279,16 +279,20 @@ why it works, to check by ear in the lab:
 | popular | v → IV (1,724) | **Mixolydian / Dorian loop** (e.g. v–IV–I in a Mixolydian song): the minor v is the natural fifth chord of the mode, and v → IV is planing down a step. Functional harmony expects V. |
 | popular | ♭V → IV (300) | Blues or metal **chromatic slide** into IV, a passing chord of the same shape (planing). Also the ♭5 of the blues scale under a riff. |
 | popular | V → iv (385) | **Minor plagal colour** after the dominant, an older pop habit (V–iv–I) borrowed from the parallel minor. It leans to I through the falling ♭6 → 5. |
-| popular | ♭III → ii (398) | **Tritone substitute of V/ii**: ♭III(7) stands in for VI7 (E♭ for A7 in C) and falls a half step to ii, as in the turnaround I–♭III–ii–V. The rules only recognise the substitute before I. |
+| popular | ♭III → ii (398) | **Tritone substitute of V/ii**: ♭III(7) stands in for VI7 (E♭ for A7 in C) and falls a half step to ii, as in the turnaround I–♭III–ii–V. The tritone-substitute rule needs a dominant 7th; pop plays ♭III as a plain triad. |
 | jazz | Imaj7 → ♭VII7 (41), ii7 → ♭VII7 (19) | **Backdoor dominant**: ♭VII7 resolves to I by a whole step up (iv–♭VII7–I). The jazz rules know the tritone substitute but not the backdoor; a rule candidate. |
 | jazz | VII7 → ♭VIImaj7 (16), I7 → VII7sus4 (15) | **Parallel planing** of the same shape a half step down (side-slipping), a soloist's and arranger's device. |
 | jazz | i → ♭III7, I7 → ♭iii7 | ♭III7 as a **tritone substitute of VI7** (the V/ii), resolving to ii; I7 → ♭iii7 is the start of a chromatic ii–V chain to ii. |
 | reference | I → ♭V, V → ♭V, ♭VI → ♭V, iii → ♭iii° | Mostly **audio chord-recognition artefacts** in POP909 (♭V is rare in practice) and chromatic passing chords in jazz changes. Not used as evidence for rules. |
 
-**Rule candidates from this review:** a *backdoor dominant* (♭VII7 → I) in the jazz rulebook; a
-*passing chord* rule (a dissonant chord between two chords whose bass it connects by step); and a
-*modal fifth* rule (minor v in Mixolydian or Dorian). The tritone-substitute rule could also accept
-substitutes for applied dominants, not only for V.
+**Rules added from this review:**
+
+- **backdoor-dominant** (jazz rulebook): ♭VII7 → I.
+- **passing-chord** (counterpoint rulebook): a diminished, augmented or out-of-key chord whose bass is
+  reached and left by step in one direction; −0.5 when such a chord does not pass.
+- **modal-fifth** (pop rulebook): a minor v next to IV or I in a major key.
+
+The study's namer now also names these moves, so they no longer appear as unnamed.
 
 ## Next
 

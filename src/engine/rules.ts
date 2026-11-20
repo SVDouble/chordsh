@@ -648,6 +648,58 @@ export const RULES: Rule[] = [
       return d === 5 || d === 11 ? 1 : 0;
     },
   },
+  {
+    id: 'backdoor-dominant',
+    family: 'modern',
+    statement: 'A ♭VII7 can lead home by a whole step up instead of a fifth down (the “backdoor” dominant).',
+    source: 'Levine 1995 (backdoor ii–V); found as a frequent unnamed move in the study (docs/rules.md)',
+    formula: 'dominant 7th on ♭VII of the key followed by the tonic +1; else 0',
+    kind: 'preference',
+    judge: (ctx) =>
+      ctx.next &&
+      isDominant(ctx.chord) &&
+      mod12(ctx.chord.root - ctx.key.tonic) === 10 &&
+      mod12(ctx.next.root - ctx.key.tonic) === 0
+        ? 1
+        : 0,
+  },
+  {
+    id: 'modal-fifth',
+    family: 'modern',
+    statement:
+      'In a major-key song, a minor v is the Mixolydian fifth chord: it moves to IV or I without a leading tone.',
+    source: 'Biamonte 2010 (Mixolydian progressions in rock); the study’s v → IV, 1,724 times in popular music',
+    formula: 'minor triad on the 5th degree of a major key next to IV or I (either side) +1; else 0',
+    kind: 'preference',
+    judge: (ctx) => {
+      if (ctx.key.mode !== 'major' || ctx.chord.quality !== 'min' || mod12(ctx.chord.root - ctx.key.tonic) !== 7)
+        return 0;
+      const homeOrIV = (c: Chord | null) => !!c && [0, 5].includes(mod12(c.root - ctx.key.tonic));
+      return homeOrIV(ctx.prev) || homeOrIV(ctx.next) ? 1 : 0;
+    },
+  },
+  {
+    id: 'passing-chord',
+    family: 'voice leading',
+    statement:
+      'A dissonant or chromatic chord is fine when it passes: its bass connects the neighbouring chords by step in one direction.',
+    source: 'Aldwell & Schachter 2011 (passing chords); the study’s V → ♯iv° and v → IV (docs/rules.md)',
+    formula:
+      'diminished, augmented or out-of-key chord whose bass is reached and left by step (1–2 semitones) in the same direction +1; such a chord not passing −0.5; consonant in-key chords 0',
+    kind: 'preference',
+    judge: (ctx) => {
+      const scale = keyPcSet(ctx.key);
+      const unstable =
+        ctx.chord.quality === 'dim' || ctx.chord.quality === 'aug' || chordPcs(ctx.chord).some((p) => !scale.has(p));
+      if (!unstable || !ctx.prev || !ctx.next) return 0;
+      const step = (a: number, b: number) => {
+        const d = mod12(b - a);
+        return d === 1 || d === 2 ? 1 : d === 11 || d === 10 ? -1 : 0;
+      };
+      const into = step(ctx.prev.bass, ctx.chord.bass);
+      return into !== 0 && into === step(ctx.chord.bass, ctx.next.bass) ? 1 : -0.5;
+    },
+  },
 
   // ── the chord itself ──
   {
@@ -844,6 +896,7 @@ export const RULEBOOKS: Rulebook[] = [
       'parsimony',
       'common-tones',
       'mel-ornaments-resolve',
+      'passing-chord',
       'consonance',
     ],
     pieceRules: ['sequences', 'pedal-points'],
@@ -895,7 +948,7 @@ export const RULEBOOKS: Rulebook[] = [
     name: 'Pop & rock practice',
     era: '1950s → today (de Clercq & Temperley 2011, Biamonte 2010)',
     idea: 'IV and the flat side (♭VII, ♭VI, ♭III) are home ground; loops and modal schemas replace cadences; chords may plane in parallel.',
-    rules: ['plagal-motion', 'flat-side-colour', 'schema-member', 'planing', 'consonance', 'in-key'],
+    rules: ['plagal-motion', 'flat-side-colour', 'schema-member', 'planing', 'modal-fifth', 'consonance', 'in-key'],
     pieceRules: ['loops'],
   },
   {
@@ -908,6 +961,7 @@ export const RULEBOOKS: Rulebook[] = [
       'extended-sonority',
       'tritone-substitute',
       'dominant-chain',
+      'backdoor-dominant',
       'dominant-resolves',
       'fifth-relation',
     ],

@@ -14,8 +14,10 @@
     applySettings(next);
   }
 </script>
-<details class="device-picker settings">
-  <summary
+<div class="device-picker">
+  <button
+    type="button"
+    popovertarget="device-options"
     class="midi-chip"
     title="Choose MIDI input, instrument output and monitoring"
     aria-label="Choose MIDI devices"
@@ -28,8 +30,8 @@
           ? 'MIDI access denied'
           : 'Computer keys'}</span
     ><Icon name="down" size={12} />
-  </summary>
-  <div class="settings-panel device-options">
+  </button>
+  <div id="device-options" popover="auto" class="settings-panel navbar-popover device-options">
     <b>Devices & sound</b>
     <label
       >MIDI input<select
@@ -74,4 +76,4 @@
       <p class="small muted">Computer keys A W S E D… and the on-screen piano also work.</p>
     {/if}
   </div>
-</details>
+</div>

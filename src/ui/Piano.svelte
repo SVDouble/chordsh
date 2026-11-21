@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import Icon from './Icon.svelte';
-  import { focusedChord, compositionContext } from './composition.svelte';
-  import { noteContext, keyRootContext } from './noteContext';
+  import { focusedChord, compositionContext, composition } from './composition.svelte';
+  import { noteContext } from './noteContext';
   import { roleClass } from './colours';
   import { holdInputNotes, playInputChord, stopInputChord, persist, session, ui, settings } from './store.svelte';
   import { mod12 } from '../theory/pitch';
@@ -10,7 +10,6 @@
 
   const voice = $derived(focusedChord());
   const tonalKey = $derived(compositionContext().key ?? voice.key);
-  const roots = $derived(Array.from({ length: 12 }, (_, pc) => keyRootContext(pc, tonalKey)));
   const activeNotes = $derived.by(() => {
     void ui.tick;
     return [...new Set([...voice.notes, ...session.seg.held.keys(), ...session.seg.sustained, ...(ui.playing ?? [])])];
@@ -29,28 +28,15 @@
   let canvas: HTMLCanvasElement;
   let width = $state(800);
   let keyboard = $state<HTMLElement>();
-  const keyWidth = $derived(
-    Math.max(settings.editor.pianoKeyWidth, settings.editor.pianoRootLabels ? settings.editor.pianoLabelSize * 2 : 0),
-  );
-  const drawWidth = $derived(Math.max(width, keyWidth * 52));
+  const drawWidth = $derived(Math.max(width, settings.editor.pianoKeyWidth * 52));
   let winH = $state(900);
   let hovered = $state<number | null>(null);
   let draft = $state<number[]>([]);
   let shiftSelecting = false;
   let dirty = false;
-  const hoverText = $derived(
-    hovered === null
-      ? ''
-      : [noteContext(hovered, voice.chord, tonalKey).description, roots[mod12(hovered)]?.description]
-          .filter(Boolean)
-          .join(' · '),
-  );
+  const hoverText = $derived(hovered === null ? '' : noteContext(hovered, voice.chord, tonalKey).description);
   /** Scale the on-screen piano with the window so it never crowds out the panels. */
-  const labelHeight = $derived(
-    (settings.editor.pianoRootLabels ? settings.editor.pianoLabelSize + 16 : 0) +
-      (settings.editor.pianoNoteNames ? 14 : 0) +
-      (settings.editor.pianoChordRoles ? 28 : 0),
-  );
+  const labelHeight = $derived((settings.editor.pianoNoteNames ? 14 : 0) + (settings.editor.pianoChordRoles ? 28 : 0));
   const height = $derived(Math.round(Math.max(90, (labelHeight + 8) / 0.62, Math.min(150, winH * 0.14))));
 
   const keys = $derived.by(() => {
@@ -129,24 +115,8 @@
           ctx.font = `${Math.max(10, Math.min(12, k.w * 0.54))}px system-ui`;
           ctx.fillText(k.black ? context.pitchName : context.name, k.x + k.w / 2, h - 5, k.w - 2);
         }
-        const root = roots[mod12(n)];
-        if (settings.editor.pianoRootLabels && root) {
-          const labelY = h - (settings.editor.pianoNoteNames ? 26 : 12);
-          const size = settings.editor.pianoLabelSize;
-          const [, accidental, numeral] = root.numeral.match(/^([♭♯]*)(.*)$/)!;
-          ctx.font = `700 ${size}px system-ui`;
-          ctx.fillText(numeral, k.x + k.w / 2, labelY, k.w - 4);
-          if (accidental) {
-            ctx.font = `700 ${Math.round(size * 0.7)}px system-ui`;
-            ctx.fillText(accidental, k.x + k.w / 2, labelY - size - 1, k.w - 4);
-          }
-          ctx.fillStyle = css(`--${root.func === '?' ? 'X' : root.func}`);
-          ctx.fillRect(k.x + 4, labelY + 4, k.w - 8, 3);
-          ctx.fillStyle = ink;
-        }
         if (settings.editor.pianoChordRoles && on && context.role) {
-          const rootSpace = settings.editor.pianoRootLabels && root ? settings.editor.pianoLabelSize + 21 : 0;
-          const bottomSpace = rootSpace + (settings.editor.pianoNoteNames ? 14 : 0);
+          const bottomSpace = settings.editor.pianoNoteNames ? 14 : 0;
           const roleY = Math.max(21, (h - bottomSpace) * 0.45);
           if (context.role.label === 'R' && context.chordName) {
             ctx.save();
@@ -250,7 +220,7 @@
       !!document.querySelector('dialog[open], [popover]:popover-open');
     const keyDown = (e: KeyboardEvent) => {
       if (blocked(e) || e.repeat) return;
-      if (e.key === 'Enter' && draft.length) {
+      if (e.key === 'Enter' && draft.length && !composition.input) {
         e.preventDefault();
         e.stopPropagation();
         playDraft();
@@ -317,9 +287,8 @@
     class="piano"
     bind:clientWidth={width}
     bind:this={keyboard}
-    title={hoverText ||
-      'Roman numerals mark chord roots in the current key. Hover for note names; keyboard labels can be changed in Panels or Settings.'}
-    aria-label={`Piano keyboard${tonalKey ? ` in ${keyLong(tonalKey)}` : ''}. ${settings.editor.pianoRootLabels ? 'Roman numerals mark chord roots. ' : ''}${activeNotes.map((n) => noteContext(n, voice.chord, tonalKey).description).join('; ')}${draft.length ? `. Selected: ${draft.map((n) => noteContext(n, voice.chord, tonalKey).name).join(', ')}` : ''}`}
+    title={hoverText || 'Hover for note names. Keyboard labels can be changed in Panels or Settings.'}
+    aria-label={`Piano keyboard${tonalKey ? ` in ${keyLong(tonalKey)}` : ''}. ${activeNotes.map((n) => noteContext(n, voice.chord, tonalKey).description).join('; ')}${draft.length ? `. Selected: ${draft.map((n) => noteContext(n, voice.chord, tonalKey).name).join(', ')}` : ''}`}
   >
     <canvas
       bind:this={canvas}

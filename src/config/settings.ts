@@ -84,7 +84,7 @@ export const preferencesSchema = z.object({
   loopPlayback: flag(
     false,
     'Loop playback',
-    'Repeat the current song or performance. The repeat icon beside Play controls this same setting.',
+    'Repeat the current project or performance. The repeat icon beside Play controls this same setting.',
   ),
   theme: choice(['dark', 'light'], 'dark', 'Theme', 'Appearance of the workspace.'),
   style: choice(
@@ -93,6 +93,7 @@ export const preferencesSchema = z.object({
     'Chord suggestions',
     'Jazz uses seventh chords; triads uses three-note chords.',
   ),
+  romanNumeralsFirst: flag(true, 'Roman numerals first', 'Give Roman numerals the larger label in suggestions.'),
   input: z
     .string()
     .default('all')
@@ -122,7 +123,7 @@ export const preferencesSchema = z.object({
     4,
     1000,
     'Metronome / preview tempo',
-    'Quarter-note beats per minute. A song or MIDI file uses its own tempo.',
+    'Quarter-note beats per minute. A project or MIDI file uses its own tempo.',
     'BPM',
     1,
   ),
@@ -451,19 +452,6 @@ export const analysisSchema = z.object({
 });
 
 export const editorSchema = z.object({
-  autoCaptureChords: flag(
-    true,
-    'Auto-save played chords',
-    'Replace the selected chord, or append at the end, after playing stops. Turn off for live analysis without editing the song.',
-  ),
-  inputIdleMs: integer(
-    600,
-    100,
-    5000,
-    'Played chord idle delay',
-    'Wait after releasing keys and pedal before saving a played chord. Further playing starts the next chord.',
-    'ms',
-  ),
   pianoChordEntry: flag(
     false,
     'Piano chord entry',
@@ -474,33 +462,16 @@ export const editorSchema = z.object({
     0.125,
     64,
     'Piano chord duration',
-    'Length of a chord entered on the piano, in the current song’s notated beats.',
+    'Length of a chord entered on the piano, in the current project’s notated beats.',
     'beats',
     0.125,
-  ),
-  pianoRootLabels: flag(
-    true,
-    'Piano chord roots',
-    'Show Roman numerals on keys that root the chords of the current key: I, ii, iii…',
   ),
   pianoNoteNames: flag(
     false,
     'Piano note names',
     'Show note letters/octaves on every key. Names remain available on hover when hidden.',
   ),
-  pianoChordRoles: flag(
-    false,
-    'Piano chord tones',
-    'Show intervals of the focused chord above the key-relative Roman root labels.',
-  ),
-  pianoLabelSize: integer(
-    18,
-    12,
-    28,
-    'Piano label size',
-    'Size of Roman chord-root labels. Keys widen to keep these readable.',
-    'px',
-  ),
+  pianoChordRoles: flag(false, 'Piano chord tones', 'Show intervals of the focused chord on the piano keys.'),
   pianoKeyWidth: integer(
     20,
     12,
@@ -509,14 +480,14 @@ export const editorSchema = z.object({
     'Minimum white-key width. Narrow screens scroll the piano so notes and role labels stay readable.',
     'px',
   ),
-  newTempo: number(100, 4, 1000, 'New song tempo', 'Initial tempo of a new sequence.', 'BPM', 1),
-  newMeter: integer(4, 1, 255, 'New song meter', 'Top number of a new song’s time signature.', 'beats'),
-  newDenominator: meterDenominator('New song denominator'),
+  newTempo: number(100, 4, 1000, 'New project tempo', 'Initial tempo of a new sequence.', 'BPM', 1),
+  newMeter: integer(4, 1, 255, 'New project meter', 'Top number of a new project’s time signature.', 'beats'),
+  newDenominator: meterDenominator('New project denominator'),
   newPlaybackStyle: choice(
     PLAYBACK_STYLES.map((style) => style.id),
     'once',
-    'New song playback style',
-    'Default accompaniment for new songs. Each bar can override the song style.',
+    'New project playback style',
+    'Default accompaniment for new projects. Each bar can override the project style.',
   ),
   accompanimentBassLevel: number(
     0.85,
@@ -564,7 +535,14 @@ export const editorSchema = z.object({
     'Pointer movement needed to start dragging a chord. Smaller movements still count as a click to edit.',
     'px',
   ),
-  visibleBars: integer(8, 1, 64, 'Initial timeline length', 'Minimum timeline length; it grows with the song.', 'bars'),
+  visibleBars: integer(
+    8,
+    1,
+    64,
+    'Initial timeline length',
+    'Minimum timeline length; it grows with the project.',
+    'bars',
+  ),
   undoLimit: integer(100, 1, 1000, 'Undo history', 'Maximum sequence edits retained in memory.', 'edits'),
   velocity: integer(80, 1, 127, 'New chord velocity', 'Default loudness of manually added chords.', 'MIDI'),
   gate: number(0.95, 0.01, 1, 'Chord gate', 'Fraction of each chord duration for which its notes are held.'),

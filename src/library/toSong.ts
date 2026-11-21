@@ -27,7 +27,7 @@ export function annotatedKind(family: string, label: string): KindName {
   if (family === 'min') return seventh || /-7|min7|m7/.test(l) ? 'm7' : 'min';
   if (family === 'dim') return seventh ? 'm7b5' : 'dim';
   if (family === 'aug') return 'aug';
-  if (family === 'sus') return 'sus4';
+  if (family === 'sus') return /sus2/.test(l) ? 'sus2' : 'sus4';
   return seventh ? '7' : 'maj';
 }
 

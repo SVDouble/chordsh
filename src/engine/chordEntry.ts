@@ -20,7 +20,8 @@ export class ChordEntry<T> {
 
   constructor(
     private options: {
-      delay: () => number;
+      /** null keeps the latest playable gesture pending until explicitly confirmed. */
+      delay: () => number | null;
       target: () => T;
       identify: (notes: number[], velocity: number, target: T) => PlayedChord | null;
       preview: (input: PlayedInput<T> | null) => void;
@@ -30,7 +31,8 @@ export class ChordEntry<T> {
 
   noteOn(note: number, velocity: number) {
     if (!this.held.size) {
-      if (!this.pedal) this.flush();
+      if (this.options.delay() === null) this.completed = this.snapshot()?.chords.slice(-1) ?? [];
+      else if (!this.pedal) this.flush();
       else if (this.current) this.completed.push(this.current);
       this.current = null;
       this.target ??= this.options.target();
@@ -60,8 +62,9 @@ export class ChordEntry<T> {
 
   private schedule() {
     clearTimeout(this.timer);
-    if (!this.held.size && !this.pedal && this.snapshot())
-      this.timer = setTimeout(() => this.flush(), this.options.delay());
+    const delay = this.options.delay();
+    if (delay !== null && !this.held.size && !this.pedal && this.snapshot())
+      this.timer = setTimeout(() => this.flush(), delay);
   }
 
   private flush() {
@@ -73,6 +76,13 @@ export class ChordEntry<T> {
 
   finishReleased() {
     this.flush();
+  }
+
+  confirm() {
+    const input = this.snapshot();
+    if (!input) return;
+    this.cancel();
+    this.options.commit(input);
   }
 
   cancel() {

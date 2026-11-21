@@ -78,6 +78,8 @@ export interface NextMove {
   roman: string;
   prob: number;
   why: string;
+  /** Generator and ranking provenance, shown with the suggestion. */
+  source: string;
   /** Technique tag shown as a badge, e.g. "passing °7". */
   tag?: string;
   /** Function in the key (T / PD / D / ?) — drives colour coding. */
@@ -198,7 +200,7 @@ export function suggestNext(
   prediction: PredictionSettings = DEFAULT_SETTINGS.prediction,
   model?: PredictionModel,
 ): NextMove[] {
-  type Opt = { chord: Chord; p: number; why: string; tag?: string; name?: string; roman?: string };
+  type Opt = { chord: Chord; p: number; why: string; tag?: string; name?: string; roman?: string; learned?: boolean };
   const opts: Opt[] = [];
   const add = (chord: Chord, p: number, why: string, tag?: string, name?: string, roman?: string) =>
     opts.push({ chord, p, why, tag, name, roman });
@@ -292,7 +294,7 @@ export function suggestNext(
     for (const token of candidates) {
       if (token === chordToken(last!, key) || opts.some((o) => chordToken(o.chord, key) === token)) continue;
       const chord = predictedChord(token, key, style);
-      add(chord, 0, analyzeRoman(chord, key).explain);
+      opts.push({ chord, p: 0, why: analyzeRoman(chord, key).explain, learned: true });
     }
   }
   const merged = new Map<string, Opt>();
@@ -324,6 +326,11 @@ export function suggestNext(
     func: o.tag === 'passing °7' || o.tag === 'common-tone °7' ? '?' : analyzeRoman(o.chord, key).func,
     prob: o.p / total,
     why: o.why,
+    source: o.learned
+      ? 'Learned chord transitions'
+      : learned
+        ? 'Functional harmony + learned transitions'
+        : 'Functional harmony grammar',
     tag: o.tag,
     voicing: voiceChord(o.chord, lastVoicing),
   }));

@@ -13,13 +13,21 @@
   }
 </script>
 
-<details class="settings panel-settings">
-  <summary title="Workspace panels"><Icon name="panels" /></summary>
-  <div class="settings-panel">
+<div class="panel-settings">
+  <button
+    type="button"
+    popovertarget="workspace-panels"
+    class="icon"
+    aria-label="Workspace panels"
+    title="Workspace panels"
+  >
+    <Icon name="panels" />
+  </button>
+  <div id="workspace-panels" popover="auto" class="settings-panel navbar-popover">
     <div class="label">Focus</div>
     <div class="row">
       <button type="button" onclick={() => preset('all')}>All panels</button>
-      <button type="button" onclick={() => preset('song')}>Song</button>
+      <button type="button" onclick={() => preset('song')}>Project</button>
     </div>
     <label
       ><span>Chord inspector</span>
@@ -38,10 +46,6 @@
     >
     {#if settings.panels.piano}
       <label
-        ><span>Piano chord roots</span>
-        <input type="checkbox" bind:checked={settings.editor.pianoRootLabels} onchange={() => persist()}></label
-      >
-      <label
         ><span>Piano note names</span>
         <input type="checkbox" bind:checked={settings.editor.pianoNoteNames} onchange={() => persist()}></label
       >
@@ -52,4 +56,4 @@
     {/if}
     <p class="small muted">Drag the dividers to resize. Your layout is remembered.</p>
   </div>
-</details>
+</div>

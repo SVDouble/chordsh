@@ -252,7 +252,7 @@
         Restore defaults
       </button>
       <span class="spacer"></span>
-      <span class="small muted settings-note">Analysis changes restart live analysis. Songs are kept.</span>
+      <span class="small muted settings-note">Analysis changes restart live analysis. Projects are kept.</span>
       <button type="button" onclick={() => dialog?.close()}>Cancel</button>
       <button type="submit" class="primary">Apply</button>
     </footer>

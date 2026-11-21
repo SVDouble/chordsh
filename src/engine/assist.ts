@@ -308,6 +308,28 @@ export interface SlotSuggestion {
   reasons: string[];
 }
 
+/** Match the tonic triad, with a bonus for a stable tonic root and a cost for chromatic tones. */
+export function tonicAnchor(chord: Chord, key: Key): number {
+  const tonic = chordOf(key.tonic, key.mode === 'minor' ? 'min' : 'maj');
+  const pitches = chordPcs(chord);
+  const shared = chordPcs(tonic).filter((pc) => pitches.includes(pc)).length;
+  const scale = keyPcSet(key);
+  const chromatic = pitches.filter((pc) => !scale.has(pc)).length;
+  const stableRoot = chord.root === key.tonic && chord.quality === tonic.quality && !isDominant(chord);
+  return Math.max(0, (shared + Number(stableRoot) - chromatic) / 4);
+}
+
+export function openingScore(
+  anchor: number,
+  style: number | null,
+  inKey: boolean,
+  adventurous = 0.3,
+  styleWeight = 0.35,
+) {
+  const base = anchor - (inKey ? 0 : 0.12 * (1 - adventurous));
+  return style === null ? base : (1 - styleWeight) * base + styleWeight * style;
+}
+
 const DIATONIC: Record<Key['mode'], [number, KindName, KindName][]> = {
   major: [
     [0, 'maj', 'maj7'],

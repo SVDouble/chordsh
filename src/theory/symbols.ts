@@ -2,14 +2,15 @@ import { mod12 } from './pitch';
 import { type Chord, chordFromIntervals } from './chords';
 
 const LETTER_PC: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const ACCIDENTAL_OFFSET: Record<string, number> = { '#': 1, '♯': 1, '𝄪': 2, b: -1, '♭': -1, '𝄫': -2 };
 const DEGREE: Record<string, number> = { '2': 2, '4': 5, '5': 7, '9': 2, '11': 5, '13': 9 };
 const TENSION = /(add)?([b#])?(13|11|9|5|4|2)/g;
 
 export function parseNote(s: string): { pc: number; len: number } | null {
-  const m = /^([A-G])([#b♯♭]*)/.exec(s);
+  const m = /^([A-G])([#b♯♭𝄪𝄫]*)/u.exec(s);
   if (!m) return null;
   let pc = LETTER_PC[m[1]];
-  for (const ch of m[2]) pc += ch === '#' || ch === '♯' ? 1 : -1;
+  for (const ch of m[2]) pc += ACCIDENTAL_OFFSET[ch];
   return { pc: mod12(pc), len: m[0].length };
 }
 

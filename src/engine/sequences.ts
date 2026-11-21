@@ -13,7 +13,7 @@ import { type Chord, chordName, chordOf, type KindName } from '../theory/chords'
 import { mod12 } from '../theory/pitch';
 import { numeralOf } from '../theory/roman';
 import { type Key, keyPcSet } from '../theory/scales';
-import { type MelodyNote, melodyFit } from './assist';
+import { type MelodyNote, melodyFit, motion, openingScore, tonicAnchor } from './assist';
 import { habitScore, type Idiom, kindOf, type ProgressionStats, statsKey, tokenOf } from './progressions';
 import { judgeAll, RULEBOOKS, RULES, rulebookVerdict, SCHEMAS } from './rules';
 
@@ -54,10 +54,15 @@ export interface SequenceIdea {
   melody: number | null;
   rules: number | null;
   habit: number | null;
+  anchor: number | null;
+  motion: number | null;
+  schema: string | null;
   reasons: string[];
   /** Rule breaks forgiven as idioms of the tradition, in plain words. */
   idioms: string[];
 }
+
+type ProgressionContext = Omit<SequenceContext, 'count' | 'limit'>;
 
 // ───────────────────────────── vocabulary ─────────────────────────────
 
@@ -139,19 +144,26 @@ interface Beam {
   chords: Chord[];
   colour: boolean[];
   /** Finished per-chord scores (a chord is finished when its successor is chosen). */
-  parts: { melody: number | null; rules: number | null; habit: number | null; total: number }[];
+  parts: {
+    melody: number | null;
+    rules: number | null;
+    habit: number | null;
+    anchor: number | null;
+    motion: number | null;
+    total: number;
+  }[];
   /** Habit of each chord, computed when it is added (it only needs the past). */
   habits: (number | null)[];
   forgiven: Idiom[];
   sum: number;
 }
 
-export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
-  const count = Math.max(1, Math.min(8, Math.round(ctx.count)));
+const emptyBeam = (): Beam => ({ chords: [], colour: [], parts: [], habits: [], forgiven: [], sum: 0 });
+
+function sequenceScoring(ctx: ProgressionContext, count: number) {
   const book = RULEBOOKS.find((b) => b.id === ctx.style) ?? RULEBOOKS[0];
   const stats = ctx.stats?.traditions[statsKey(ctx.key, ctx.tradition)];
   const idioms = (ctx.stats?.idioms ?? []).filter((i) => i.tradition === ctx.tradition);
-  const vocab = vocabulary(ctx);
   const part = (ctx.span.end - ctx.span.start) / count;
   const sub = (i: number) => ({ start: ctx.span.start + i * part, end: ctx.span.start + (i + 1) * part });
   const hasMelody = ctx.melody.some((n) => n.start < ctx.span.end && n.start + n.beats > ctx.span.start);
@@ -163,6 +175,8 @@ export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
   };
   const wSum = w.melody + w.rules + w.habit;
   const before = ctx.before.slice(-3);
+  const standalone = !hasMelody && !before.length && !ctx.after;
+  const singleOpening = standalone && count === 1;
   const songStart = ctx.songStart ?? ctx.before.length === 0;
   const songEnd = ctx.songEnd ?? (!ctx.after && (ctx.phraseEnd ?? false));
   const history = (b: Beam) => [...before, ...b.chords].map((c) => tokenOf(c, ctx.key));
@@ -192,10 +206,26 @@ export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
       }
     const v = rulebookVerdict(book, verdicts);
     const rules = v === null ? null : (v + 1) / 2;
-    const habit = b.habits[i];
+    const habit = singleOpening ? null : b.habits[i];
     const melody = fit?.score ?? null;
+    if (singleOpening) {
+      const anchor = tonicAnchor(chord, ctx.key);
+      const total = openingScore(anchor, rules, !b.colour[i], adventurous);
+      b.parts[i] = { melody, rules, habit, anchor, motion: null, total };
+      b.sum += total;
+      return;
+    }
+    const anchor = standalone && !prev ? tonicAnchor(chord, ctx.key) : null;
+    const movement = standalone && prev ? motion(prev, chord, ctx.key).score : null;
     let total =
       (w.melody * (melody ?? 0.5) + w.rules * (rules ?? 0.5) + w.habit * (habit ?? 0.5)) / Math.max(1e-9, wSum);
+    if (standalone) {
+      const rulesWeight = rules === null ? 0 : w.rules;
+      const habitWeight = habit === null ? 0 : w.habit;
+      total =
+        ((anchor ?? movement ?? 0) + rulesWeight * (rules ?? 0) + habitWeight * (habit ?? 0)) /
+        (1 + rulesWeight + habitWeight);
+    }
     if (b.colour[i]) total -= 0.08 * (1 - adventurous);
     if (prev && i > 0 && tokenOf(prev, ctx.key) === tokenOf(chord, ctx.key)) total -= 0.1; // a repeat inside the span
     // the frame: a song starts at home, and ends there (its last chord the tonic, best reached from V)
@@ -206,47 +236,81 @@ export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
       total += tonic ? 0.15 : -0.08;
       if (tonic && prev && mod12(prev.root - chord.root) === 7) total += 0.05;
     }
-    b.parts[i] = { melody, rules, habit, total };
+    b.parts[i] = { melody, rules, habit, anchor, motion: movement, total };
     b.sum += total;
   };
 
-  let beams: Beam[] = [{ chords: [], colour: [], parts: [], habits: [], forgiven: [], sum: 0 }];
-  const width = 48;
-  for (let i = 0; i < count; i++) {
-    const grown: Beam[] = [];
-    for (const b of beams)
-      for (const v of vocab) {
-        const nb: Beam = {
-          chords: [...b.chords, v.chord],
-          colour: [...b.colour, v.colour],
-          parts: [...b.parts],
-          habits: [...b.habits, habitScore(stats, history(b), tokenOf(v.chord, ctx.key))],
-          forgiven: [...b.forgiven],
-          sum: b.sum,
-        };
-        if (i > 0) finish(nb, i - 1, v.chord);
-        grown.push(nb);
-      }
-    // rank by finished chords plus an optimistic guess for the newest one (its habit and melody fit)
-    const guess = (b: Beam) => {
-      const last = b.chords.length - 1;
-      const fit = hasMelody ? (melodyFit(b.chords[last], ctx.melody, sub(last), ctx.meter)?.score ?? 0.5) : 0.5;
-      return b.sum + (w.melody * fit + w.habit * (b.habits[last] ?? 0.5) + w.rules * 0.6) / Math.max(1e-9, wSum);
+  function advance(b: Beam, chord: Chord, colour: boolean): Beam {
+    const grown = {
+      chords: [...b.chords, chord],
+      colour: [...b.colour, colour],
+      parts: [...b.parts],
+      habits: [...b.habits, habitScore(stats, history(b), tokenOf(chord, ctx.key))],
+      forgiven: [...b.forgiven],
+      sum: b.sum,
     };
-    beams = grown
-      .map((b) => ({ b, g: guess(b) }))
-      .sort((x, y) => y.g - x.g)
-      .slice(0, width)
-      .map((x) => x.b);
+    if (b.chords.length) finish(grown, b.chords.length - 1, chord);
+    return grown;
   }
-  // the last chord leads into the chord after the span; that move's habit counts too
-  for (const b of beams) {
+
+  // Rank by finished chords plus an optimistic guess for the newest one's habit and melody fit.
+  function guess(b: Beam) {
+    const last = b.chords.length - 1;
+    if (standalone)
+      return (
+        b.sum +
+        (last === 0 ? tonicAnchor(b.chords[0], ctx.key) : motion(b.chords[last - 1], b.chords[last], ctx.key).score)
+      );
+    const fit = hasMelody ? (melodyFit(b.chords[last], ctx.melody, sub(last), ctx.meter)?.score ?? 0.5) : 0.5;
+    return b.sum + (w.melody * fit + w.habit * (b.habits[last] ?? 0.5) + w.rules * 0.6) / Math.max(1e-9, wSum);
+  }
+
+  function close(b: Beam) {
     finish(b, count - 1, ctx.after);
     if (ctx.after && stats) {
       const h = habitScore(stats, history(b), tokenOf(ctx.after, ctx.key));
       if (h !== null) b.sum += (w.habit * (h - 0.5)) / Math.max(1e-9, wSum);
     }
   }
+  return { advance, guess, close };
+}
+
+/** Judge a fixed progression with the same context and score used by the search. */
+export function rateProgression(ctx: ProgressionContext, chords: Chord[]): SequenceIdea | null {
+  const count = chords.length;
+  if (!count) return null;
+  const scorer = sequenceScoring(ctx, count);
+  const scale = keyPcSet(ctx.key);
+  const beam = chords.reduce((b, chord) => {
+    const colour = chord.tones.some((tone) => !scale.has(mod12(chord.root + tone.interval)));
+    return scorer.advance(b, chord, colour);
+  }, emptyBeam());
+  scorer.close(beam);
+  return describe(
+    beam,
+    chords.map((chord) => chordName(chord, ctx.key)),
+    ctx,
+    count,
+  );
+}
+
+export function suggestSequences(ctx: SequenceContext): SequenceIdea[] {
+  const count = Math.max(1, Math.min(8, Math.round(ctx.count)));
+  const vocab = vocabulary(ctx);
+  const scorer = sequenceScoring(ctx, count);
+  let beams: Beam[] = [emptyBeam()];
+  const width = 48;
+  for (let i = 0; i < count; i++) {
+    const grown: Beam[] = [];
+    for (const b of beams) for (const v of vocab) grown.push(scorer.advance(b, v.chord, v.colour));
+    beams = grown
+      .map((b) => ({ b, g: scorer.guess(b) }))
+      .sort((x, y) => y.g - x.g)
+      .slice(0, width)
+      .map((x) => x.b);
+  }
+  // the last chord leads into the chord after the span; that move's habit counts too
+  for (const b of beams) scorer.close(b);
   const seen = new Set<string>();
   const ideas: SequenceIdea[] = [];
   for (const b of beams.sort((x, y) => y.sum - x.sum)) {
@@ -270,12 +334,12 @@ const mean = (xs: (number | null)[]) => {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 };
 
-function describe(b: Beam, names: string[], ctx: SequenceContext, count: number): SequenceIdea {
+function describe(b: Beam, names: string[], ctx: ProgressionContext, count: number): SequenceIdea {
   const melody = mean(b.parts.map((p) => p.melody));
   const rules = mean(b.parts.map((p) => p.rules));
   const habit = mean(b.parts.map((p) => p.habit));
   const reasons: string[] = [];
-  const schema = schemaOf([...ctx.before.slice(-1), ...b.chords, ...(ctx.after ? [ctx.after] : [])], ctx.key);
+  const schema = schemaOf(b.chords, ctx.key);
   if (schema) reasons.push(`a known pattern: ${schema}`);
   if (melody !== null)
     reasons.push(melody >= 0.85 ? 'the melody rests on every chord' : `melody fit ${Math.round(100 * melody)}%`);
@@ -297,6 +361,9 @@ function describe(b: Beam, names: string[], ctx: SequenceContext, count: number)
     melody,
     rules,
     habit,
+    anchor: b.parts[0].anchor,
+    motion: mean(b.parts.map((p) => p.motion)),
+    schema,
     reasons: reasons.filter(Boolean),
     idioms: describeIdioms(b.forgiven),
   };
@@ -318,19 +385,16 @@ function describeIdioms(list: Idiom[]): string[] {
   });
 }
 
-/** The schema (rules.ts SCHEMAS) the chords run through, read cyclically, if 3+ of them match one. */
+/** A complete harmonic schema, allowing it to start on any chord in the cycle. */
 function schemaOf(chords: Chord[], key: Key): string | null {
   const tok = (c: Chord) => `${mod12(c.root - key.tonic)}${c.quality === 'min' ? 'm' : c.quality === 'dim' ? 'o' : ''}`;
   const run = chords.map(tok);
   if (run.length < 3) return null;
-  for (const s of SCHEMAS) {
-    const n = s.degrees.length;
-    for (let start = 0; start < n; start++)
-      for (let from = 0; from + 3 <= run.length; from++) {
-        let k = 0;
-        while (from + k < run.length && k < n + 1 && run[from + k] === s.degrees[(start + k) % n]) k++;
-        if (k >= Math.min(n, 3) && k >= 3) return s.name;
-      }
+  for (const { name, degrees } of SCHEMAS) {
+    const n = degrees.length;
+    for (let from = 0; from + n <= run.length; from++)
+      for (let start = 0; start < n; start++)
+        if (degrees.every((_, offset) => run[from + offset] === degrees[(start + offset) % n])) return name;
   }
   return null;
 }

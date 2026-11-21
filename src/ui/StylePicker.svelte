@@ -4,6 +4,7 @@
   import { PLAYBACK_STYLES, STYLE_GROUPS, playbackStyle } from '../engine/accompaniment';
   import { sequencePiece, type Sequence } from '../engine/sequence';
   import { barQuarters } from '../theory/meter';
+  import { composition } from './composition.svelte';
   import { previewArrangement, settings, stopAudition, ui } from './store.svelte';
 
   let {
@@ -46,7 +47,7 @@
         { bar: previewBar, style: selected.id },
       ],
     };
-    const piece = sequencePiece(song, $state.snapshot(settings.editor));
+    const piece = sequencePiece(song, $state.snapshot(settings.editor), { melody: composition.mutedTracks.melody });
     const at = (start * 60000) / sequence.bpm;
     const length = (barQuarters(sequence.meter, sequence.denominator) * 60000) / sequence.bpm;
     previewing = true;
@@ -83,7 +84,7 @@
 <dialog
   bind:this={dialog}
   class="style-picker"
-  aria-label={bar === null ? 'Song playback style' : `Playback style for bar ${bar + 1}`}
+  aria-label={bar === null ? 'Project playback style' : `Playback style for bar ${bar + 1}`}
   onclose={close}
 >
   <form
@@ -95,7 +96,7 @@
     }}
   >
     <div class="row">
-      <strong>{bar === null ? 'Song style' : bar === 0 ? 'Opening style' : `Style from bar ${bar + 1}`}</strong>
+      <strong>{bar === null ? 'Project style' : bar === 0 ? 'Opening style' : `Style from bar ${bar + 1}`}</strong>
       <button type="button" class="icon right" aria-label="Close style picker" title="Close" onclick={close}>
         <Icon name="close" />
       </button>

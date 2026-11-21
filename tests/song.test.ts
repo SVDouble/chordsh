@@ -44,6 +44,11 @@ describe('chord symbols', () => {
     expect(parseChordSymbol('Cxyz')).toBeNull();
   });
 
+  it('reads double accidentals on both the root and the bass', () => {
+    expect(parseChordSymbol('B𝄫°7')).toMatchObject({ root: 9, seventh: 'dim7' });
+    expect(parseChordSymbol('D♯/F𝄪')).toMatchObject({ root: 3, bass: 7 });
+  });
+
   it('round-trips every recognised name', () => {
     for (const kind of Object.keys(KINDS) as KindName[])
       for (const root of [0, 3, 6, 10]) {

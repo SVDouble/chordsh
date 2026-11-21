@@ -166,12 +166,9 @@ destination chooser drive the same target, rather than changing tabs. Selecting 
 next-chord rows with routes to that key. Routes carry their destination explicitly when inserted, so
 the final region gets the correct key.
 
-`ui/noteContext.ts` separates key-relative chord roots from chord-tone intervals. `keyRootContext()`
-uses the existing degree/triad tables and Roman convention to mark every corresponding piano key
-(I, ii, iii…), including idle keys. The map follows local key regions; it is the default keyboard
-annotation. Note names and focused-chord intervals are independent optional layers. Hover retains both
-references. Enharmonic note names retain their spelled octave. Sounding-note colours describe intervals
-without using the segmenter's melody/harmony split. These display choices do not change detection.
+`ui/noteContext.ts` describes a piano note's scale degree and its interval within the focused chord.
+Note names and focused-chord intervals are independent optional layers. Hover shows both references.
+Enharmonic note names retain their spelled octave. Sounding-note colours show each note's chord role.
 
 Audio previews and note playback now share one MIDI-velocity curve and the same oscillator/filter
 voice. The UI passes focused/input velocities instead of mixing a normalized preview gain with MIDI

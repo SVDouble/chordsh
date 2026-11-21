@@ -25,6 +25,24 @@ describe('advisor', () => {
   it('finds the key of a tune from its melody', () => {
     expect(estimateKey(twinkle)).toEqual(C);
   });
+  it('rates an opening by its tonic anchor when the slot has no melody or chord context', () => {
+    const context = {
+      key: { tonic: 5, mode: 'major' } as const,
+      prev: null,
+      next: null,
+      span: { start: 0, end: 4 },
+      meter: 4,
+      style: 'pop',
+      melody: [],
+      limit: 20,
+    };
+    const ideas = advise(context);
+    expect(ideas[0]).toMatchObject({ name: 'F', anchor: 1 });
+    expect(ideas.find((idea) => idea.name === 'Gm')).toMatchObject({ anchor: 0 });
+    expect(ideas.find((idea) => idea.name === 'F7')).toMatchObject({ anchor: 0.5 });
+    expect(ideas[0].total).toBeGreaterThan(0.8);
+    expect(advise({ ...context, melody: [{ start: 0, beats: 4, pitch: 67 }] })[0].anchor).toBeNull();
+  });
   it('ranks F for “F F E E” between C chords, with reasons from the style', () => {
     const melody = twinkle.map(({ start, beats, pitch }) => ({ start, beats, pitch }));
     const top = advise({

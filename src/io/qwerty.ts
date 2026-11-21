@@ -11,6 +11,7 @@ const typing = (e: KeyboardEvent) =>
 
 export function attachQwerty(h: MidiHandlers): () => void {
   let octave = 0;
+  let spacePedal = false;
   const down = new Map<string, number>();
 
   const onDown = (e: KeyboardEvent) => {
@@ -19,7 +20,9 @@ export function attachQwerty(h: MidiHandlers): () => void {
     if (k === 'z') octave = Math.max(-3, octave - 1);
     else if (k === 'x') octave = Math.min(3, octave + 1);
     else if (k === ' ') {
+      if (e.target instanceof Element && e.target.matches('button:focus-visible, summary:focus-visible')) return;
       e.preventDefault();
+      spacePedal = true;
       h.pedal(true, performance.now());
     } else {
       const i = KEYS.indexOf(k);
@@ -31,7 +34,11 @@ export function attachQwerty(h: MidiHandlers): () => void {
   };
   const onUp = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    if (k === ' ') return h.pedal(false, performance.now());
+    if (k === ' ') {
+      if (spacePedal) h.pedal(false, performance.now());
+      spacePedal = false;
+      return;
+    }
     const note = down.get(k);
     if (note === undefined) return;
     down.delete(k);

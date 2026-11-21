@@ -48,7 +48,7 @@ describe('settings validation and recovery', () => {
       preferences: { theme: 'light', style: 'triads' },
       beats: { binMs: 0, windowMs: 12000 },
       harmony: { transitionWeight: 0.4, prior: { tonic: 0.8 } },
-      editor: { snapBeats: 0.5 },
+      editor: { snapBeats: 0.5, pianoRootLabels: true, pianoLabelSize: 24 },
     });
     expect(settings.preferences.theme).toBe('light');
     expect(settings.preferences.style).toBe('triads');
@@ -58,15 +58,13 @@ describe('settings validation and recovery', () => {
     expect(settings.harmony.prior.tonic).toBe(0.8);
     expect(settings.editor.snapBeats).toBe(0.5);
     expect(settings.editor.pianoNoteNames).toBe(false);
-    expect(settings.editor.pianoRootLabels).toBe(true);
+    expect(settings.editor).not.toHaveProperty('pianoRootLabels');
     expect(settings.editor.pianoChordRoles).toBe(false);
-    expect(settings.editor.pianoLabelSize).toBe(18);
+    expect(settings.editor).not.toHaveProperty('pianoLabelSize');
     expect(settings.editor.pianoChordEntry).toBe(false);
     expect(settings.editor.pianoChordBeats).toBe(2);
     expect(settings.preferences.loopPlayback).toBe(false);
     expect(settings.editor.dragThresholdPx).toBe(6);
-    expect(settings.editor.autoCaptureChords).toBe(true);
-    expect(settings.editor.inputIdleMs).toBe(600);
     expect(settings.audio).toEqual(DEFAULT_SETTINGS.audio);
     expect(warnings).toHaveLength(1);
     expect(settingsSchema.safeParse(settings).success).toBe(true);

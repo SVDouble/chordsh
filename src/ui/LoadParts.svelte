@@ -135,7 +135,7 @@
     <p class="small muted">
       {fileName}{meta ? ` · ${Math.round(meta.bpm)} BPM · ${meta.beatsPerBar}/${meta.denominator}` : ''}
       {#if !currentSequence().steps.length && !currentSequence().melody?.length}
-        · the empty song takes this tempo and meter
+        · the empty project takes this tempo and meter
       {/if}
     </p>
     <ul class="load-part-list">

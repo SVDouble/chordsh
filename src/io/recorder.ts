@@ -36,6 +36,9 @@ export class Recorder {
   get elapsed(): number {
     return this.active ? performance.now() - this.t0 : 0;
   }
+  get startedAt(): number {
+    return this.t0;
+  }
   get counts() {
     return { input: this.inputs.length, engine: this.trace.length };
   }
@@ -62,8 +65,7 @@ export class Recorder {
     if (this.active) this.trace.push({ ...e, t: Math.round(e.t - this.t0) });
   }
 
-  stop(note: string): Recording {
-    this.active = false;
+  snapshot(note = ''): Recording {
     return {
       version: 1,
       started: this.started,
@@ -74,6 +76,12 @@ export class Recorder {
       midi: this.raw,
       engine: this.trace,
     };
+  }
+
+  stop(note: string): Recording {
+    const recording = this.snapshot(note);
+    this.active = false;
+    return recording;
   }
 }
 

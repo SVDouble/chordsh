@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { habitScore, type TraditionStats, tokenOf } from '../src/engine/progressions';
-import { suggestSequences } from '../src/engine/sequences';
+import { rateProgression, type SequenceContext, suggestSequences } from '../src/engine/sequences';
 import { chordOf } from '../src/theory/chords';
 import type { Key } from '../src/theory/scales';
 
@@ -30,6 +30,24 @@ describe('sequence suggestions', () => {
     for (let i = 1; i < a.length; i++)
       for (let j = 0; j < i; j++)
         expect(a[i].names.filter((n, k) => n !== a[j].names[k]).length).toBeGreaterThanOrEqual(2);
+  });
+  it('scores a fixed progression like the same progression from the search', () => {
+    const context = { ...whole, style: 'functional', tradition: 'art', phraseEnd: true } as const;
+    const [idea] = suggestSequences(context);
+    expect(rateProgression(context, idea.chords)).toEqual(idea);
+    expect(rateProgression(context, [...idea.chords].reverse())?.score).toBeLessThan(idea.score);
+  });
+  it('uses the tonic and internal motion on a blank chart, even without a matching rulebook or corpus', () => {
+    const context: SequenceContext = { ...whole, melody: [], style: 'melody-fit', tradition: 'art', count: 4 };
+    const tonic = chordOf(0, 'maj');
+    const dominant = chordOf(7, 'maj');
+    const subdominant = chordOf(5, 'maj');
+    const progression = rateProgression(context, [tonic, subdominant, dominant, tonic])!;
+    const repeat = rateProgression(context, [tonic, tonic, tonic, tonic])!;
+    expect(progression.anchor).toBe(1);
+    expect(progression.motion).toBeGreaterThan(repeat.motion!);
+    expect(progression.score).toBeGreaterThan(repeat.score);
+    expect(suggestSequences({ ...context, count: 1 })[0]).toMatchObject({ names: ['C'], anchor: 1, motion: null });
   });
   it('leads into the chord after the span: between C and C, bar 2 goes to a dominant', () => {
     const ideas = suggestSequences({

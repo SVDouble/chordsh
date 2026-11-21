@@ -8,7 +8,14 @@ import { type Chord, chordName, chordOf } from '../theory/chords';
 import { mod12 } from '../theory/pitch';
 import type { Key } from '../theory/scales';
 import { parseChordSymbol } from '../theory/symbols';
-import { type MelodyNote as AssistNote, melodyFit, type SlotSuggestion, suggestForSlot } from './assist';
+import {
+  type MelodyNote as AssistNote,
+  melodyFit,
+  openingScore,
+  type SlotSuggestion,
+  suggestForSlot,
+  tonicAnchor,
+} from './assist';
 import { reharmHints } from './reharm';
 import { judgeAll, RULEBOOKS, RULES, rulebookVerdict, SCHEMAS } from './rules';
 import type { MelodyNote, Sequence } from './sequence';
@@ -20,6 +27,8 @@ export type StyleId = string;
 export interface Advice extends SlotSuggestion {
   /** The style rulebook's verdict, 0 (against) … 1 (in favour); null when it has nothing to say. */
   style: number | null;
+  /** Tonic anchor when there is no surrounding harmony or overlapping melody. */
+  anchor: number | null;
   /** Final ranking score: judges and style combined. */
   total: number;
   /** Style rules this chord satisfies / breaks here, in plain words. */
@@ -74,7 +83,14 @@ export function advise(ctx: AdviceContext): Advice[] {
     const style = v === null ? null : (v + 1) / 2;
     const pro = book.rules.filter((id) => (verdicts[id] ?? 0) > 0.3).map(statement);
     const con = book.rules.filter((id) => (verdicts[id] ?? 0) < -0.3).map(statement);
-    return { ...s, style, total: style === null ? s.score : (1 - w) * s.score + w * style, pro, con };
+    const anchor = !ctx.prev && !ctx.next && s.verdicts.melody === null ? tonicAnchor(s.chord, ctx.key) : null;
+    const total =
+      anchor === null
+        ? style === null
+          ? s.score
+          : (1 - w) * s.score + w * style
+        : openingScore(anchor, style, s.inKey, ctx.adventurous, w);
+    return { ...s, style, anchor, total, pro, con };
   });
   return out.sort((a, b) => b.total - a.total).slice(0, ctx.limit ?? 8);
 }

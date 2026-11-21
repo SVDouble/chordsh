@@ -1,8 +1,8 @@
 # Using chord.sh
 
-chord.sh is one editable song timeline. Play chords, build a sequence, hear alternatives and use your
-DAW's instruments through MIDI. Songs and performances live in the source picker beside playback;
-playing and editing share the same workspace.
+chord.sh is one editable project timeline. Play chords, build a sequence, hear alternatives and use your
+DAW's instruments through MIDI. The navbar opens the Library for projects, recordings and collections.
+Playback and editing share the same workspace.
 
 ```sh
 npm install
@@ -12,9 +12,11 @@ npm run dev        # Chrome or Edge for Web MIDI
 ## One timeline
 
 The **left harmony block** groups the current chord, compact ideas and optional circle of fifths. The
-timeline gets the remaining, larger area beside it. Playback and source selection live at the top of
-the timeline. Only its bar grid scrolls, so the song controls and position remain visible. The current
-insertion beat is highlighted in both the ruler and grid.
+timeline gets the remaining, larger area beside it. The project name in the centre of the navbar
+opens the Library. Playback, recording and project actions share its row. Scroll the navbar sideways
+when space is tight. The timeline
+tools stay in view while the bar grid scrolls. The current insertion beat is highlighted in both
+the ruler and grid.
 
 Click an empty beat and type a chord such as `Cmaj7`. Enter or ✓ keeps it. Click an existing chord to
 change it. Its duration, optional voicing and velocity live in a floating chord popover. It leaves the
@@ -30,61 +32,49 @@ workspace usable; click another chord to move on, or Escape to dismiss it.
   preserving a specified slash bass. It is unavailable when the chord cannot supply four distinct
   tones, so triads do not silently become seventh chords. MIDI export retains the chosen notes.
   Manual notes and velocity remain editable below the choices.
-- Use the ear icon in the popover to preview, ⧉ to duplicate a chord, or ⌫ to delete it.
+- Use the ear icon in the popover to hear the chord with the melody over that passage. Use ⧉ to
+  duplicate the chord or ⌫ to delete it. Selecting a chord during playback keeps the playhead moving.
 - Undo/redo are above the timeline. Ctrl/Cmd Z and Ctrl/Cmd Shift Z work outside text fields.
 - Bars wrap into rows based on the space available. Zoom changes how many bars fit on a row. Short chord
   blocks scale their text to fit, with the full symbol/duration available on hover. Long chords
   continue on the next row and retain one identity; dragging can move chords between rows.
-- Tempo and time signature belong to the song. **Key changes** appear as vertical delimiters at
-  their exact beats. Click the small key handle in the ruler to name a region (Verse, Bridge…) or
-  change its key; hover reveals the name and key. Select a beat and use the key icon beside tempo to
-  add a modulation. The current local key stays beside tempo. Continuing a region onto another row
-  does not repeat a strip above its chords; suggestions and numerals use the same local key.
-- The **⋯ song menu** contains transpose, chart paste (`| Dm7 G7 | Cmaj7 |`), duplicate/delete song and piano guide.
-  Duplicating makes an independent variation with a distinct title. Deletion offers **Restore**.
+- Tempo and time signature belong to the project. **Key changes** appear as vertical delimiters at
+  their exact beats. Click a key marker in the ruler to change the key or name the region (Verse,
+  Bridge…). Select a beat and use the key icon beside tempo to add a marker there. Suggestions and
+  numerals use the local key.
+- Use the up and down arrows in the navbar to transpose the project by a semitone. The keyboard icon toggles the piano guide.
 
-**The song header** has three rows:
+The navbar groups loop, stop, play and record in the transport. Undo and redo sit after Save and
+Export on the right. Edit **Project name** in the Library to rename the current project. The timeline toolbar
+has tempo, meter, key and
+playback style, followed by the two editing lanes. Each lane has its own select, load and clear
+buttons. The Record button starts or stops a take. The capture icons beside it choose both lanes,
+melody only or chords only.
 
-- **title bar:** the name, the save status with **Save**, undo/redo, **✕ Close** and ⋯ for more;
-- **transport;**
-- **song row:** tempo, meter, key and style, then the two parts of the song, each with its own load
-  and clear buttons: **♪ Melody** (notes) and **Chords**. Clearing one part keeps the other, as one
-  undo step; ↺ in the transport clears both.
+Use the speaker buttons beside **Melody** and **Chords** to mute either lane during project playback.
+The chord editor has its own shortcut to the Melody mute for comparing voicings. Opening a different
+project resets both mutes.
 
-Bar position and zoom sit under the timeline.
+Chord entry, connection badge views, bar/beat position and zoom sit immediately above the timeline.
 
-**✕ Close** puts the song away and shows an empty one. With unsaved changes it asks first: **Save and
-close**, **Discard changes** or Cancel. A saved song stays in your songs at its saved version.
+The Library also has controls for pasting a chord chart (`| Dm7 G7 | Cmaj7 |`) and clearing the current timeline.
+**Close project** shows an empty timeline. Your project stays in **My projects**.
 
-**Songs are saved only when you press Save** (or Ctrl+S / ⌘S). Edits change a working copy, and the
-status next to Save says "Not saved yet", "Unsaved changes" or "Saved". The song list marks unsaved
-songs. Leaving the page with unsaved songs asks first. Saved songs live in this browser. It retains
-existing songs and preferences from the old Musify storage when migrating to chord.sh.
+Use the copy or trash icon beside a project in **Library → My projects**. Copy creates and opens an
+independent project. Use **Restore** in the deletion notification to bring a deleted project back.
 
-The left column has three tabs: **Circle** (next moves and the circle of fifths), **Chord ideas** and
-**Sequences**. The chosen tab is remembered in this browser.
+Projects and committed edits autosave in this browser. Reloading reopens the last active project.
+If browser storage fails, the Save icon highlights so you can retry (Ctrl+S / ⌘S).
+
+The toggle in the harmony header switches between the **Circle of fifths** and **Suggestions** for
+alternatives at the selected position. The browser remembers the view and suggestion length.
 
 ## Play into the timeline
 
-Incoming MIDI, computer keys or the on-screen piano show a pending chord directly on the timeline.
-**With a chord selected, playing replaces it**, preserving its position, duration and identity.
-**Without a selection, playing appends at the actual end**, even if the ruler cursor is elsewhere.
-Pending blocks say **Replacing…** or **Adding…**. The inspector, piano and suggestions follow that input.
-
-The chord saves automatically **600 ms after you release the keys and pedal**; there is no acceptance
-button. Full voicings and average played velocity are retained. Appended chords occupy a full bar in
-the current meter and stay unselected, so the next chord appends again. A replacement stays selected
-for further variations. Press **Escape** to clear the selection and append; if a popover is open,
-the first Escape closes it. Clicking the ruler or an empty beat also clears chord selection.
-Loading a song, typing a new chord or adding a suggestion does not silently select the last chord.
-
-Starting the next released gesture saves the preceding chord immediately. Pedal-held gestures wait
-until pedal release: they append in order, or the last variation replaces the selected chord.
-Accepting an idea also saves a released pending chord first, so it is not lost to the new edit.
-Each idle save is undoable. Changing focus, editing, Stop, Reset or switching songs cancels pending
-input. Playback, suggestion previews and recorded takes do not create duplicate automatic edits.
-Settings → Editor has **Played chord idle delay** and **Auto-save played chords**; turn the latter off
-to analyse live playing without editing the song. Recording remains the way to capture played rhythm.
+In Chords mode, select a chord or a beat and play a chord using MIDI, the computer keyboard, or the piano.
+The voicing stays pending after you release the keys. Press **Enter** or **Place chord** to confirm it.
+A chord at that beat keeps its position and duration. A chord in a gap fills up to one bar, or until the
+next chord. Double-click a beat or chord to type a symbol and set its duration.
 
 To build a chord with the mouse, **hold Shift and click several piano keys**, then release Shift to
 play them together. Click a selected key again to remove it. The stacked-notes button beside the
@@ -95,26 +85,15 @@ while held, and touch supports multiple fingers. Entered chords use the same rec
 preview, recording and MIDI output as live playing. Settings → Editor controls the saved entry mode
 and chord duration in the current song's notated beats; velocity and note gate also apply.
 
-● records a take directly on the same timeline. Chord blocks and a red playhead grow as you play;
-stop/save commits the phrase to the song as **one undoable edit**, retaining its inferred rhythm. The
-first played attack is placed at the insertion cursor, so waiting before playing does not create an
-accidental overlap. Notes already held when Record is pressed are included.
-Later material moves forward if the take overlaps it. A recording without note input adds no chords.
-The MIDI/analysis recording is also saved, as before. There is no separate Live view or played-phrase panel.
-
-The chord inspector shows the chord, its function and position. The **piano below** maps the roots of
-chords in the current local key, even when nothing is sounding: in C major, C is **I**, D **ii**,
-E **iii**, F **IV**, G **V**, A **vi** and B **vii°**. Numeral case describes the triad's quality; the
-underline follows its harmonic function. The labels change with the timeline's key region or live key
-context. Minor uses the same convention as the inspector (i, ii°, ♭III, iv, V, ♭VI, ♭VII, plus vii° on
-the raised leading tone). Accidentals sit above the Roman numeral on narrow black keys.
+Select a beat in either lane, then press **Record** in the transport. The take captures chords and melody
+by default. The capture icons beside Record can restrict it to one part. Recorded notes and chords appear
+as you play. Stop to commit the take as one undoable edit. Its first attack starts at the cursor and later
+material keeps its position.
 
 **Note names are hidden by default**, but remain available on hover. Panels → Piano note names toggles
-them; Settings → Editor has the same choice plus label size. Keys widen to keep Roman labels readable,
-and you can scroll the piano horizontally. It starts near middle C and stays where you put it while
-playing, previewing or editing chords. Optional **Piano chord tones** adds the focused chord's
-intervals above the root map, with its full chord name on root notes. It is off by default. These are
-separate references: G is the root of V in C major, while it is the third of a focused Em chord.
+them. Settings → Editor has the same choice plus key width. The piano starts near middle C, scrolls
+horizontally and stays where you put it while playing or editing. Optional **Piano chord tones** adds
+the focused chord's intervals, with its full chord name on root notes.
 
 Sounding-note colours continue to describe intervals within the focused chord: roots green, guide
 tones (thirds/sevenths) blue, fifths grey, extensions amber and alterations/outside notes red. They do
@@ -122,23 +101,23 @@ not classify melody versus accompaniment. No separate keyboard legend or placeho
 
 ## Transport
 
-The timeline contains transport and source selection with SVG icons, tooltips and accessible names.
+The navbar contains transport controls with icons, tooltips and accessible names.
 Seeking belongs to the timeline, with no toolbar seek slider:
 
 - ▶ plays; it becomes Ⅱ while playing. Pause silences output and retains the playhead; ▶ resumes.
 - ■ stops playback, previews, metronome and recording, and returns the playhead to the start.
-- The **repeat icon beside Stop** toggles looping of the whole song/performance. Enable it, then Play.
+- The **metronome icon** toggles an audible click at the project's tempo and time signature.
+  It can run on its own or alongside playback and recording.
+- The **repeat icon beside Stop** toggles looping of the whole project or performance. Enable it, then Play.
   It remains highlighted while enabled. Switching it off during playback finishes the current pass.
 - ● records; pressing it again saves without needing a separate recording area.
-- ↺ clears **this song's** chords and melody (and the input analysis), stopping sound. The song itself,
-  its name, tempo, meter and key remain; **Undo brings the chords and melody back**. Nothing is saved
-  until you press Save.
-- ⇩ exports the selected song/performance as MIDI.
+- **Clear chords and melody** in the project menu clears both lanes and stops playback. Use **Undo**
+  to bring the chords and melody back.
+- ⇩ exports the active project as MIDI.
 
-The song selector names the current playback source. Changing it while playing starts the new source;
-while stopped it prepares the source. Click the timeline's bar ruler to seek, or drag along it to scrub.
-A running song resumes at the scrubbed position when released. The bar/beat readout is beside the
-song's tempo controls. Opening the source picker does not restart or interrupt playback.
+The project selector names the current project. Click the timeline's bar ruler to seek, or drag
+along it to scrub. Playback resumes at the scrubbed position when released. The bar/beat readout
+is beside the project's tempo controls.
 
 Looping returns to the start at the written end, with no new playback lead-in. Pause retains the
 current position; Stop cancels further passes while keeping the repeat preference. Recording can
@@ -151,15 +130,14 @@ cannot satisfy the browser's gesture requirement. See [Chrome's autoplay policy]
 
 ## Suggestions
 
-**Ideas** follows the focused chord. By default, its compact rows suggest next chords. Selecting a key
-on the circle switches the same list to routes into that key; × returns to next chords. A line states
-the insertion position. There are no Next chord / Change key tabs.
+The **Circle of fifths** view suggests next chords from the focused chord. Selecting a key switches the list to
+routes into that key. × returns to next chords.
 
 - Ideas consider the recent sequence and chord quality as well as harmonic function. Settings → Chord
   suggestions controls learned ranking, sequence context and visible idea counts.
-- Click any idea to hear it; **＋** inserts the chord or whole route at the cursor.
-- Each route names its destination key and shows its chords. **Why this route** reveals the explanation
-  and optional practice action, keeping the normal sketching view compact.
+- Click an idea to hear it once. **Shift-click** or **Alt+Enter** hears it with neighbouring chords and melody.
+  Drag the row to place it, or press **Shift+Enter** when it has focus.
+- Routes show the full progression with Roman numerals and the destination key. Hover a row for its reason.
 - The circle of fifths is a visual destination picker for the **same list**. Clicking a key changes
   the routes in Ideas; a destination chooser provides the same choice when the circle is hidden.
   Choosing the current key or clicking the target again returns to next chords.
@@ -195,8 +173,8 @@ helps you harmonize it in four steps. Use them in any order:
      was loaded. Each load is one undo step.
 2. **Play the melody.** Press record and play.
    - **Recording captures** chooses what the take keeps: chords and melody, melody only, or chords only.
-   - With *chords and melody*, notes the analysis hears above your chords become melody.
-   - With *melody only*, the top note of every attack becomes melody and no chords are added.
+   - With _chords and melody_, notes the analysis hears above your chords become melody.
+   - With _melody only_, the top note of every attack becomes melody and no chords are added.
 3. **Fill chords under the melody.** Every bar (or half bar, with **per bar = 2**) that has melody but
    no chord gets a basic chord: I, IV or V (i, iv, V in minor), staying on the tonic when the melody
    allows. Each chord is chosen with its neighbours in mind, and existing chords are never moved.
@@ -206,62 +184,56 @@ helps you harmonize it in four steps. Use them in any order:
    is announced and undoes with the take or the fill.
 4. **Customize.**
    - Select a chord, or put the cursor on an empty bar, to see **ranked ideas** for that spot.
-   - Each idea shows a score; what the melody, the context (tension prepared or resolved), the motion
-     rules and the chosen **style** say about it; and short reasons. Hover the reasons for the style
-     rules it satisfies or breaks.
-   - Click an idea to **hear it in context**: the chord before, the idea with the melody of its bars, and
-     the chord after, in the song's playback style. Shift-click plays it alone.
-   - **Drag an idea into the timeline** by its handle (⠿). Dropped on a chord, it replaces it; dropped
-     in a gap, it fills up to the next chord or one bar. A dashed box shows where it will land. Click or
-     Enter on the handle places the idea at the selected chord or the cursor. Develop ideas,
-     sequences and the next-move ideas in the Circle tab drag the same way.
-   - **Style** picks a rulebook: Pop & rock, Jazz, Functional, Counterpoint, Colour or Chromatic.
-     **Expected ↔ Fresh** lets colour chords compete with in-key ones.
+   - Ideas show chord names, Roman numerals and tags for moves such as a dominant resolution or plagal return.
+     **Focus** chooses how to judge the chords. **Variety** adjusts how adventurous the ideas are.
+     Hover a row for more detail.
+   - Click an idea to hear it with the melody over that passage. The sounding chord is highlighted in the row. **Shift-click** plays the
+     whole passage with its neighbouring chords and melody. **Escape** dismisses the preview.
+   - Drag the row into the timeline. A drop on an existing chord replaces it. In a gap the idea fills up to
+     the next chord or one bar. Sequences keep their displayed length.
    - **Develop the chords** lists, for the whole song, one way to enrich each chord: add the 7th, a
      tonic substitute, a secondary dominant or ii–V before it, a tritone sub, a passing or common-tone
      °7, a borrowed iv. Only ideas that leave no melody note clashing are kept. The first chord keeps
      its root at the start and the last at the end, and the list varies the kind of idea. **How much**:
-     *light* keeps one chord per slot (7ths, substitutes), *rich* also adds chords (secondary
-     dominants, ii–V, passing °7). 👂 hears the
-     replacement, ✓ uses it, and **Use all** applies the whole list. **Hear as it is** and **Hear
+     _light_ keeps one chord per slot (7ths, substitutes), _rich_ also adds chords (secondary
+     dominants, ii–V, passing °7). Click a replacement to hear it or drag it to place it. **Use all** applies the whole list. **Hear as it is** and **Hear
      developed** compare the whole song before and after (A/B) without changing it. **Keep as a new version**
      copies the song as “… (developed)” and develops the copy, so both versions stay in the song list. Each is one undo step, as is
      filling.
 
-**Sequences** (under the chord ideas) suggest whole runs of chords for 1, 2 or 4 bars from the
-selected chord's bar (or the cursor's), with 1 or 2 chords per bar:
+In **Suggestions**, choose **1 chord** to replace the selected chord or fill one slot. Choose
+**1 bar**, **2 bars** or **4 bars** to suggest a run starting at the selected chord's bar or the
+cursor's bar. The chord lane highlights the target range. **Chords per bar** sets the density for runs.
+Open **Templates** to browse named progressions in the local key. Click a row to hear it, drag it to place it on the timeline, or use
+**Shift+Enter** on the row to insert it at the cursor.
 
-- Each idea shows its chords, their numerals, a score, and what the three judges say: **melody**
-  (does it explain the notes), **rules** (the style rulebook, with real neighbours on both sides,
-  including the chord after the bars) and **habit** (how common the moves are in the chosen
-  tradition).
-- Reasons name known patterns (the four-chord loop, the double plagal…), the resolution into the next
-  chord, and colour chords.
-- **↺ idiom** lines name rule breaks that are forgiven because the tradition makes them often in that
-  very context.
-- Click an idea to hear it **with the melody of those bars**; ✓ places it, replacing the chords that
-  start in those bars (one undo step).
-- **Habits of** follows the style (Pop → popular music, Jazz → jazz, others → art music) or can be
-  chosen. Habits ship with the app (`public/data/progressions.json`); if that file is missing,
-  the panel says "rules only".
+- Roman numerals lead in suggestion chips, with chord names alongside. Use **Roman numerals first**
+  in Settings to change which label leads. Single-chord rows show the chord tones and point out
+  possible resolutions or shared notes. A tag names each borrowing source once, and purple dots
+  mark the borrowed chords. Hover a dot or source tag for details.
+- Each suggestion has a thin score line. A segment's width is its category's points divided by the
+  highest sum of category points in the list. One legend below the list identifies the colors.
+- Click to hear the suggested sequence once in up to three seconds. Shift-click includes the
+  surrounding chords and lasts up to four seconds. Drag into the timeline to replace the target chords.
+- **Patterns** chooses the music used for progression counts. **Auto** shows the source selected by
+  **Focus**. Pop uses pop and rock, Jazz uses jazz, and the other focuses use art music.
 
 **Reading the timeline.** Each row has lanes, top to bottom:
 
-- **ruler**: bars and beats; key changes are flagged;
+- **ruler**: bars and beats, with flags for key and playback-style changes;
 - **chords**: the top edge is coloured by function (tonic, subdominant, dominant). The bar along the
   bottom of each chord shows how well it **covers the melody** above it (green, amber or red). Hover it
   for the count of chord tones, colour notes, leaning and pulling notes, and unresolved clashes;
 - **connections**: a badge at each chord change shows **how the chords connect**: ↘ resolves, ≈ glides
   on shared notes, ∼ slides a semitone, → steps, ↗ opens, ⤴ leaps, = stays. ☀ means brighter and ☾
   darker on the circle of fifths. The badge colour shows how natural the move is (motion judge:
-  green, blue or red), and hovering gives the details. **Between chords show** switches the badges to
-  **habit** (how common the move is in the style's tradition, 0–100, from the study's counts; repeats
-  have none) or to the **style's verdict** on the chord with its neighbours. The tooltip always shows all
-  three;
-- **melody**: a small piano roll with note names, each note coloured by how it sits on its chord;
-- **playback**: the style runs and their markers.
+  green, blue or red), and hovering gives the details. The icon buttons above the timeline switch
+  the badges to **progression frequency** (how common the move is in the style's tradition on a
+  0–100 scale from the study's counts) or to the **style's verdict** on the chord with its neighbours.
+  The tooltip shows scores when available;
+- **melody**: a small piano roll with note names, each note coloured by how it sits on its chord.
 
-**How to read the timeline** under the rows repeats this legend.
+The question mark in the navbar opens the timeline guide.
 
 On the timeline, a **melody lane** under the chords colours every note by how it sits on the chord:
 
@@ -275,25 +247,23 @@ The advice is deterministic and comes from explicit rules: [harmonize.md](harmon
 
 ## Sources, devices and workspace
 
-**The source picker beside playback** searches saved songs, examples, opened performances, recordings
-and every reference collection. There is no separate Library tab. Reference results are paged with explicit counts and Show more; search includes pieces
-beyond the initially displayed page. The active source is marked current.
-
-Click the current source name to browse. **Selecting any row opens it in the timeline as a song** with
-chords and melody, unsaved until you press Save:
+**The project picker in the navbar** opens the Library. Browse My projects, Recordings or Collections.
+Each collection opens as its own folder. Use the breadcrumb or Back to move
+up. Search from the library root to find a piece anywhere, or search within the current folder.
+Selecting a reference opens its chords and melody in the timeline and keeps a copy in **My projects**.
 
 - **Open-source pieces** (the annotated corpora in `local/data`) bring their annotated chords and key;
 - **recordings** bring the chords the app recognised during the take;
-- **built-in performances and MIDI files** get chords read from their notes.
+- **MIDI files** get chords read from their notes.
 
-The melody is the top line of the notes, an approximation for piano pieces. The play icon plays the
-original performance. Changing sources during playback keeps playback running.
-**Import MIDI** opens a performance for listening and analysis. Record it into the timeline to turn its
-inferred chords into editable material. Examples are editable starting points.
+The melody is the top line of the notes, an approximation for piano pieces. The play icon opens the
+project in the timeline and plays the original performance. Selecting a reference row stops
+playback and displays the project from the beginning.
+**Import MIDI** opens editable chords and melody inferred from the performance and keeps the result in **My projects**.
 
-**Panels** offers All panels and Song focus. Hide key exploration, ideas, the chord inspector or piano
+**Panels** offers All panels and Project focus. Hide key exploration, ideas, the chord inspector or piano
 as needed, or drag the dividers to resize. Settings contains the same visibility choices. Workspace
-panels have square corners. Small screens keep the song first, with the same internal timeline scroll
+panels have square corners. Small screens keep the project first, with the same internal timeline scroll
 area, before the harmony block.
 
 ## MIDI and settings
@@ -316,8 +286,8 @@ tradeoffs and persistence. Browser preferences do not alter reproducible benchma
 ## Consistent preview sound
 
 For rhythmic playback, set **style markers**: "from this bar on, play in this style", like key regions.
-Click a bar in the **playback lane** at the bottom of a timeline row, or the style button beside the
-tempo/key controls (it shows the style at the cursor), to change the style from there on. The picker
+Click a style marker in the ruler to edit it. To add a change, select the bar and use the style
+button beside the tempo/key controls. The picker
 has 57 choices, including pop, swing, bossa nova, strumming, funk and melodic arpeggios. The ear
 previews the choice; ✓ applies it. **Remove this change** in a marked bar lets the earlier style
 continue. Changes support Undo/Redo and save with the song.
@@ -340,13 +310,13 @@ Development updates silence and close the previous audio engine before replacing
 ## Time signatures
 
 Edit the beat count beside the quarter-note tempo and choose its note value: 6/8, 7/8, 5/4 and 13/16
-are supported. The numerator accepts 1–255; denominator choices are 1, 2, 4, 8, 16, 32, 64, 128 and 256.
-Old songs retain their original /4.
+are supported. The numerator accepts 1–255. The menu offers denominators 1, 2, 4, 8, 16 and 32.
+Denominators 64, 128 and 256 appear when the current project uses them.
 Each timeline cell and duration beat is the denominator's note value: in 6/8, one beat is an eighth
 note and a full bar is six beats. Snap/resize/seek use those units too. Tempo stays **quarter notes per
 minute** (♩); changing a signature regroups existing notes without moving or stretching them.
 New chords and pasted chart bars use the current full-bar length. Meter changes are undoable and save
-with the song; new-song defaults and metronome signatures are in Settings.
+with the project. New project defaults and metronome signatures are in Settings.
 
 MIDI exports the chosen signature and quarter-note tempo directly. Songs saved with experimental /3,
 /6 or other unsupported denominators reopen with /4 grouping; notes, durations, key changes and

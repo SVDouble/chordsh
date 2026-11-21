@@ -239,7 +239,7 @@ export class SequenceEditor {
 
   update(patch: Partial<Pick<Sequence, 'title' | 'bpm' | 'meter' | 'denominator' | 'key'>>) {
     const next = { ...this.value, ...patch };
-    if (!next.title.trim()) throw new Error('Give the sequence a title.');
+    if (!next.title.trim()) throw new Error('Give the project a name.');
     if (!Number.isFinite(next.bpm) || next.bpm < MUSIC_LIMITS.minBpm || next.bpm > MUSIC_LIMITS.maxBpm)
       throw new Error(`Tempo must be between ${MUSIC_LIMITS.minBpm} and ${MUSIC_LIMITS.maxBpm} BPM.`);
     validateMeter(next.meter, next.denominator ?? 4);
@@ -407,6 +407,45 @@ export class SequenceEditor {
     this.commit({ ...this.value, melody: validMelody([...kept, ...notes]) });
   }
 
+  /** Overdub a timed chord passage without moving the music outside the recorded range. */
+  recordChords(chords: (ChordInput & { start: number; beats: number })[], from: number, to: number) {
+    if (!chords.length) return;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to <= from)
+      throw new Error('Choose a valid recording range.');
+    const kept = this.value.steps.flatMap((s) => {
+      const end = s.start + s.beats;
+      if (end <= from + 1e-8 || s.start >= to - 1e-8) return [s];
+      const fragments: SequenceStep[] = [];
+      if (from - s.start >= MUSIC_LIMITS.minChordBeats) fragments.push({ ...s, beats: from - s.start });
+      if (end - to >= MUSIC_LIMITS.minChordBeats)
+        fragments.push({ ...s, id: crypto.randomUUID(), start: to, beats: end - to });
+      return fragments;
+    });
+    let previous: number[] | null = kept.findLast((s) => s.start < from)?.notes ?? null;
+    let end = from;
+    const added = [...chords]
+      .sort((a, b) => a.start - b.start)
+      .map((input) => {
+        if (!Number.isFinite(input.start) || input.start < end - 1e-8 || input.start + input.beats > to + 1e-8)
+          throw new Error('Recorded chords must fit inside the recording range without overlaps.');
+        const chord = step(
+          input,
+          previous,
+          barQuarters(this.value.meter, this.value.denominator),
+          this.settings.velocity,
+        );
+        chord.start = input.start;
+        end = chord.start + chord.beats;
+        previous = chord.notes;
+        return chord;
+      });
+    this.commit({
+      ...this.value,
+      regions: structuredClone(this.value.regions ?? []),
+      steps: [...kept, ...added].sort((a, b) => a.start - b.start),
+    });
+  }
+
   clearMelody() {
     if (this.value.melody?.length) this.commit({ ...this.value, melody: [] });
   }
@@ -560,10 +599,17 @@ export function sequenceChart(sequence: Sequence): Chart {
   return chart;
 }
 
-export function sequencePiece(sequence: Sequence, settings: EditorSettings = DEFAULT_SETTINGS.editor): Piece {
+export type TrackMutes = { melody: boolean; chords: boolean };
+
+export function sequencePiece(
+  sequence: Sequence,
+  settings: EditorSettings = DEFAULT_SETTINGS.editor,
+  muted: Partial<TrackMutes> = {},
+): Piece {
   const ms = 60000 / sequence.bpm;
-  const notes = accompanimentNotes(sequence, settings);
-  for (const n of sequence.melody ?? []) notes.push([n.start * ms, n.beats * ms, n.pitch, n.velocity]);
+  const notes = muted.chords ? [] : accompanimentNotes(sequence, settings);
+  if (!muted.melody)
+    for (const n of sequence.melody ?? []) notes.push([n.start * ms, n.beats * ms, n.pitch, n.velocity]);
   notes.sort((a, b) => a[0] - b[0]);
   const melodyEnd = (sequence.melody ?? []).reduce((end, n) => Math.max(end, n.start + n.beats), 0);
   return {

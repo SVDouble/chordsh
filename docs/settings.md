@@ -104,11 +104,9 @@ those extra alternatives. These settings apply without restarting analysis or cl
 
 ## Piano labels
 
-**Piano chord roots** is on by default: Roman numerals mark the roots of the local key's chords, even
-on unplayed keys. **Piano note names** and **Piano chord tones** are optional and off by default. Panels
-has shortcuts to these same saved settings. Hover still identifies notes and both harmonic references.
-**Piano label size** defaults to 18 px (12–28); the minimum white-key width is the larger of the configured
-key width and twice this label size when root labels are shown. Horizontal scrolling preserves legibility.
+**Piano note names** and **Piano chord tones** are optional and off by default. Panels has shortcuts
+to these settings. Hover identifies the note, its scale degree and its role in the focused chord.
+**Piano key width** sets the minimum white-key width. The piano scrolls horizontally when needed.
 
 ## Meter and beat units
 

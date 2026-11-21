@@ -11,6 +11,8 @@ describe('library entries as songs', () => {
     expect(annotatedKind('min', 'F#m7')).toBe('m7');
     expect(annotatedKind('dim', 'b.i:viiø7')).toBe('m7b5');
     expect(annotatedKind('min', 'B:min')).toBe('min');
+    expect(annotatedKind('sus', 'Eb:sus2')).toBe('sus2');
+    expect(annotatedKind('sus', 'F#:sus4')).toBe('sus4');
   });
   it('a reference piece keeps its annotated chords, beat grid and key', () => {
     const beats = Array.from({ length: 17 }, (_, i) => i * 500); // 120 BPM
@@ -35,6 +37,20 @@ describe('library entries as songs', () => {
     expect(song.key).toEqual({ tonic: 0, mode: 'major' });
     expect(song.steps.map((s) => `${s.symbol}@${s.start}+${s.beats}`)).toEqual(['C@0+4', 'Dm@4+4', 'G7@8+4', 'C@12+4']);
     expect(song.melody?.map((n) => n.pitch)).toEqual([72, 74, 71, 72]);
+  });
+  it('loads reference chords spelled with double accidentals and keeps their melody', () => {
+    const song = songFromReference({
+      title: 'Diminished passing chord',
+      beats: [0, 500, 1000, 1500, 2000],
+      beats_per_bar: 4,
+      notes: [[0, 500, 72, 80]],
+      chords: [
+        [0, 1000, 9, 'dim', 'Ao7', 8, 'major'],
+        [1000, 2000, 10, 'min', 'Bbm7', 8, 'major'],
+      ],
+    });
+    expect(song.steps.map((s) => s.symbol)).toEqual(['B𝄫°7', 'B♭m7']);
+    expect(song.melody?.map((n) => n.pitch)).toEqual([72]);
   });
   it('a recording keeps the chords the app recognised during the take', () => {
     const piece: Piece = {
